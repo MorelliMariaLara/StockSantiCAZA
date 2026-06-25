@@ -5,7 +5,19 @@
 
 <h1>Dashboard</h1>
 
-@if (resumen is null)
+@if (!string.IsNullOrWhiteSpace(error))
+{
+    <div class="alert alert-danger">
+        <strong>No se pudo conectar a SQL Server</strong>
+        <p>@error</p>
+        <ul>
+            <li>Verifique que el servicio <strong>SQL Server (SQLEXPRESS02)</strong> esté en ejecución.</li>
+            <li>Confirme que la base <strong>StockSantiCAZA</strong> exista en esa instancia.</li>
+            <li>Si usa Visual Studio, revise que no haya User Secrets con una cadena antigua de LocalDB.</li>
+        </ul>
+    </div>
+}
+else if (resumen is null)
 {
     <p>Cargando indicadores...</p>
 }
@@ -63,9 +75,17 @@ else
 
 @code {
     private DashboardResumenDto? resumen;
+    private string? error;
 
     protected override async Task OnInitializedAsync()
     {
-        resumen = await ReportesService.ObtenerDashboardAsync(DateOnly.FromDateTime(DateTime.Today));
+        try
+        {
+            resumen = await ReportesService.ObtenerDashboardAsync(DateOnly.FromDateTime(DateTime.Today));
+        }
+        catch (Exception ex)
+        {
+            error = ex.InnerException?.Message ?? ex.Message;
+        }
     }
 }

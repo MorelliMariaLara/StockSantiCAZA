@@ -19,13 +19,24 @@ Requisitos:
 
 ### 1. Base de datos
 
-La cadena por defecto apunta a SQL Server Express en la máquina local:
+La cadena por defecto apunta a SQL Server Express en la misma máquina:
 
 ```json
-"DefaultConnection": "Server=LARA-NB\\SQLEXPRESS02;Database=StockSantiCAZA;Trusted_Connection=True;MultipleActiveResultSets=true;TrustServerCertificate=True"
+"DefaultConnection": "Server=.\\SQLEXPRESS02;Database=StockSantiCAZA;Integrated Security=True;TrustServerCertificate=True;MultipleActiveResultSets=True;Encrypt=False"
 ```
 
-Si usa otra instancia o servidor, actualice `ConnectionStrings:DefaultConnection` en `appsettings.Development.json`.
+Si necesita otra instancia, copie `appsettings.Local.json.example` a `appsettings.Local.json` y ajuste la cadena.
+
+### Solución de problemas SQL
+
+Si aparece un error sobre `SQLUserInstance.dll` o LocalDB, la aplicación está intentando usar **LocalDB** en lugar de **SQLEXPRESS02**.
+
+1. Actualice el código del repositorio.
+2. En Visual Studio, abra **Manage User Secrets** y elimine cualquier `ConnectionStrings:DefaultConnection` antigua con `(localdb)`.
+3. En **services.msc**, inicie:
+   - `SQL Server (SQLEXPRESS02)`
+   - `SQL Server Browser` (recomendado para instancias nombradas)
+4. Verifique en SSMS que pueda conectarse a `.\\SQLEXPRESS02` y que exista la base `StockSantiCAZA`.
 
 ### 2. Certificado HTTPS
 

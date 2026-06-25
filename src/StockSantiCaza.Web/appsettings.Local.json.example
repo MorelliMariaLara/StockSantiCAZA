@@ -1,12 +1,5 @@
 {
   "ConnectionStrings": {
     "DefaultConnection": "Server=.\\SQLEXPRESS02;Database=StockSantiCAZA;Integrated Security=True;TrustServerCertificate=True;MultipleActiveResultSets=True;Encrypt=False"
-  },
-  "Logging": {
-    "LogLevel": {
-      "Default": "Information",
-      "Microsoft.AspNetCore": "Warning"
-    }
-  },
-  "AllowedHosts": "*"
+  }
 }
