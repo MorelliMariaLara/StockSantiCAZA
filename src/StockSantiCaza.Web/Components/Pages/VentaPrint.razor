@@ -1,73 +1,143 @@
 @page "/ventas/{VentaId:int}/imprimir"
 @layout EmptyLayout
+@using Microsoft.Extensions.Options
+@using StockSantiCaza.Web.Configuration
+@using StockSantiCaza.Web.Helpers
 @inject IDbContextFactory<ApplicationDbContext> DbContextFactory
 @inject IJSRuntime Js
+@inject IOptions<EmpresaFiscalOptions> EmpresaOptions
+
+<HeadContent>
+    <link rel="stylesheet" href="css/app.css" />
+    <link rel="stylesheet" href="css/factura.css" />
+</HeadContent>
 
 <AuthorizeAccess Modulo="ModuloSistema.Ventas">
-<PageTitle>Impresión de comprobante</PageTitle>
+<PageTitle>@(esFactura ? "Factura" : "Comprobante") - StockSantiCAZA</PageTitle>
 
 @if (venta is null)
 {
-    <p>Cargando comprobante...</p>
+    <div class="factura-shell">
+        <p>Cargando comprobante...</p>
+    </div>
 }
 else
 {
-    <section class="ticket print-area">
-        <header>
-            <h1>StockSantiCAZA</h1>
-            <p>Comprobante @venta.NumeroComprobante</p>
-            <p>@venta.Fecha.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</p>
-        </header>
+    <div class="factura-shell">
+        <div class="factura-actions no-print">
+            <button class="button primary" @onclick="ImprimirAsync">Imprimir</button>
+            <button class="button ghost" @onclick="CerrarAsync">Cerrar</button>
+        </div>
 
-        <section>
-            <strong>Cliente</strong>
-            <p>@venta.Cliente.NombreRazonSocial - @venta.Cliente.DniCuit</p>
-            <strong>Vendedor</strong>
-            <p>@(string.IsNullOrWhiteSpace(venta.Vendedor) ? "Sin vendedor asignado" : venta.Vendedor)</p>
-        </section>
+        <article class="factura-mobile print-area @(esFactura ? null : "factura-presupuesto")">
+            <header>
+                <div class="original-tag">ORIGINAL</div>
+                <h1>@empresa.RazonSocial</h1>
+                <div class="fantasia">@empresa.NombreFantasia</div>
+                <div>@empresa.DomicilioComercial</div>
+                <div>@empresa.CondicionIva</div>
 
-        <table>
-            <thead>
-                <tr>
-                    <th>Producto</th>
-                    <th>Cant.</th>
-                    <th>Total USD</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var detalle in venta.Detalles)
+                <div class="tipo-box">
+                    <div class="tipo-letra">@letraComprobante</div>
+                    <div class="tipo-datos">
+                        <strong>@(esFactura ? $"FACTURA {letraComprobante}" : "PRESUPUESTO")</strong>
+                        <span>P.Vta: @puntoVenta</span>
+                        <span>Comp. Nro: @venta.NumeroComprobante</span>
+                        <span>Fecha: @venta.Fecha.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</span>
+                        @if (esFactura)
+                        {
+                            <span>Cód. @codigoAfip</span>
+                        }
+                    </div>
+                </div>
+            </header>
+
+            <section>
+                <div class="bloque-titulo">Datos del emisor</div>
+                <div>CUIT: @empresa.Cuit</div>
+                <div>Ing. Brutos: @empresa.IngresosBrutos</div>
+                <div>Inicio de actividades: @empresa.InicioActividades</div>
+            </section>
+
+            <section>
+                <div class="bloque-titulo">Cliente</div>
+                <div><strong>Señor/es:</strong> @venta.Cliente.NombreRazonSocial</div>
+                <div><strong>DNI/CUIT:</strong> @FacturaHelper.FormatearDocumentoCliente(venta.Cliente)</div>
+                @if (!string.IsNullOrWhiteSpace(venta.Cliente.Domicilio))
                 {
-                    <tr>
-                        <td>
-                            @detalle.Producto.Nombre
-                            @if (detalle.Arma is not null)
-                            {
-                                <small>Serie @detalle.Arma.NumeroSerie</small>
-                            }
-                            @if (detalle.MunicionLote is not null)
-                            {
-                                <small>Lote @detalle.MunicionLote.NumeroLote</small>
-                            }
-                        </td>
-                        <td>@detalle.Cantidad</td>
-                        <td>@MonedaHelper.FormatearUsd(detalle.Total)</td>
-                    </tr>
+                    <div><strong>Domicilio:</strong> @venta.Cliente.Domicilio</div>
                 }
-            </tbody>
-        </table>
+                @if (!string.IsNullOrWhiteSpace(venta.Cliente.Telefono))
+                {
+                    <div><strong>Teléfono:</strong> @venta.Cliente.Telefono</div>
+                }
+                <div><strong>Condición IVA:</strong> @FacturaHelper.ObtenerCondicionCliente(venta.Cliente, venta.TipoComprobante)</div>
+                <div><strong>Vendedor:</strong> @(string.IsNullOrWhiteSpace(venta.Vendedor) ? "—" : venta.Vendedor)</div>
+            </section>
 
-        <footer>
-            <p>Subtotal: @MonedaHelper.FormatearUsd(venta.Subtotal)</p>
-            <p>Descuento: @MonedaHelper.FormatearUsd(venta.DescuentoTotal)</p>
-            <strong>Total USD: @MonedaHelper.FormatearUsd(venta.Total)</strong>
-            @if (!string.IsNullOrWhiteSpace(venta.Cae))
+            <section>
+                <table>
+                    <thead>
+                        <tr>
+                            <th class="col-cant">Cant.</th>
+                            <th>Descripción</th>
+                            <th class="col-precio">P. Unit USD</th>
+                            <th class="col-total">Importe USD</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var detalle in venta.Detalles)
+                        {
+                            <tr>
+                                <td class="col-cant">@detalle.Cantidad</td>
+                                <td>
+                                    @detalle.Producto.Nombre
+                                    <div>@detalle.Producto.Sku</div>
+                                    @if (detalle.Arma is not null)
+                                    {
+                                        <div>Serie @detalle.Arma.NumeroSerie</div>
+                                    }
+                                    @if (detalle.MunicionLote is not null)
+                                    {
+                                        <div>Lote @detalle.MunicionLote.NumeroLote</div>
+                                    }
+                                </td>
+                                <td class="col-precio">@MonedaHelper.FormatearUsd(detalle.PrecioUnitario)</td>
+                                <td class="col-total">@MonedaHelper.FormatearUsd(detalle.Total)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </section>
+
+            <div class="totales">
+                <p>Subtotal: @MonedaHelper.FormatearUsd(venta.Subtotal)</p>
+                @if (venta.DescuentoTotal > 0)
+                {
+                    <p>Descuento: -@MonedaHelper.FormatearUsd(venta.DescuentoTotal)</p>
+                }
+                <p class="total-final">TOTAL USD: @MonedaHelper.FormatearUsd(venta.Total)</p>
+            </div>
+
+            @if (esFactura && !string.IsNullOrWhiteSpace(venta.Cae))
             {
-                <p>CAE @venta.Cae - vto. @(venta.CaeVencimiento?.ToString("dd/MM/yyyy"))</p>
+                <div class="cae-box">
+                    <strong>CAE: @venta.Cae</strong>
+                    <div>Vto. CAE: @venta.CaeVencimiento?.ToString("dd/MM/yyyy")</div>
+                    <div class="qr-placeholder">QR AFIP<br />(simulado)</div>
+                    <div>Comprobante autorizado — emisión electrónica</div>
+                </div>
             }
-        </footer>
-    </section>
 
-    <button class="button primary no-print" @onclick="ImprimirAsync">Imprimir</button>
+            <footer>
+                @if (!string.IsNullOrWhiteSpace(venta.Observaciones))
+                {
+                    <p>Obs.: @venta.Observaciones</p>
+                }
+                <p>StockSantiCAZA — Documento no válido como factura si es presupuesto.</p>
+            </footer>
+        </article>
+    </div>
 }
 
 </AuthorizeAccess>
@@ -77,9 +147,17 @@ else
     public int VentaId { get; set; }
 
     private Venta? venta;
+    private EmpresaFiscalOptions empresa = new();
+    private bool esFactura;
+    private string letraComprobante = "B";
+    private string codigoAfip = "006";
+    private string puntoVenta = "0001";
 
     protected override async Task OnParametersSetAsync()
     {
+        empresa = EmpresaOptions.Value;
+        puntoVenta = empresa.PuntoVenta.PadLeft(4, '0');
+
         await using var db = await DbContextFactory.CreateDbContextAsync();
         venta = await db.Ventas.AsNoTracking()
             .Include(x => x.Cliente)
@@ -90,7 +168,17 @@ else
             .Include(x => x.Detalles)
                 .ThenInclude(x => x.MunicionLote)
             .SingleOrDefaultAsync(x => x.Id == VentaId);
+
+        if (venta is not null)
+        {
+            esFactura = FacturaHelper.EsFactura(venta.TipoComprobante);
+            letraComprobante = FacturaHelper.ObtenerLetra(venta.TipoComprobante);
+            codigoAfip = FacturaHelper.ObtenerCodigoAfip(venta.TipoComprobante);
+            venta.PuntoVenta ??= puntoVenta;
+        }
     }
 
     private async Task ImprimirAsync() => await Js.InvokeVoidAsync("stockSanti.printPage");
+
+    private async Task CerrarAsync() => await Js.InvokeVoidAsync("window.close");
 }

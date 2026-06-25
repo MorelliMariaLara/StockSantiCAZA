@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using StockSantiCaza.Web.Configuration;
 using StockSantiCaza.Web.Components;
 using StockSantiCaza.Web.Data;
 using StockSantiCaza.Web.Models;
@@ -29,6 +30,8 @@ builder.Services.AddScoped<IVentasService, VentasService>();
 builder.Services.AddScoped<IReportesService, ReportesService>();
 builder.Services.AddScoped<IStockImportService, StockImportService>();
 builder.Services.AddScoped<IFacturacionElectronicaService, FacturacionElectronicaSimuladaService>();
+builder.Services.Configure<EmpresaFiscalOptions>(
+    builder.Configuration.GetSection(EmpresaFiscalOptions.SectionName));
 
 var app = builder.Build();
 

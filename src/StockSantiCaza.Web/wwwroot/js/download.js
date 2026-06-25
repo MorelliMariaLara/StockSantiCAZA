@@ -18,5 +18,8 @@ window.stockSanti = {
     if (element) {
       element.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
+  },
+  openInNewTab: (url) => {
+    window.open(url, '_blank');
   }
 };

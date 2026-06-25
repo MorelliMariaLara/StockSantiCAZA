@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using StockSantiCaza.Web.Data;
+using StockSantiCaza.Web.Helpers;
 using StockSantiCaza.Web.Models;
 using StockSantiCaza.Web.Services.Facturacion;
 
@@ -51,6 +52,12 @@ public class VentasService(
         if (!cliente.Activo)
         {
             throw new VentaValidationException(["El cliente seleccionado está dado de baja."]);
+        }
+
+        if (FacturaHelper.EsFactura(request.TipoComprobante) && FacturaHelper.EsDniInterno(cliente.DniCuit))
+        {
+            throw new VentaValidationException(
+                ["Para emitir factura el cliente debe tener DNI/CUIT válido. Puede completarlo desde Nuevo cliente."]);
         }
 
         var vendedor = await db.Usuarios
@@ -181,6 +188,10 @@ public class VentasService(
             venta.NumeroComprobante ?? "Sin comprobante",
             venta.Total,
             venta.Estado,
+            venta.TipoComprobante,
+            FacturaHelper.EsFactura(venta.TipoComprobante),
+            venta.Cae,
+            venta.CaeVencimiento,
             advertencias);
     }
 

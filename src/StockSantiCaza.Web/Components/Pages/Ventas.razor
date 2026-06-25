@@ -120,7 +120,9 @@ else
                                 <td><span class="@ObtenerClaseEstado(venta.Estado)">@venta.Estado</span></td>
                                 <td>@MonedaHelper.FormatearUsd(venta.Total)</td>
                                 <td>
-                                    <a class="link-button" href="@($"ventas/{venta.Id}/imprimir")" target="_blank">Imprimir</a>
+                                    <a class="link-button" href="@($"ventas/{venta.Id}/imprimir")" target="_blank">
+                                        @(FacturaHelper.EsFactura(venta.TipoComprobante) ? "Ver factura" : "Ver presupuesto")
+                                    </a>
                                 </td>
                             </tr>
                             <tr class="sale-detail-row">

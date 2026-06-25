@@ -733,6 +733,25 @@ td small {
     padding: 1rem 1.5rem;
 }
 
+.venta-acciones-finales {
+    display: grid;
+    gap: .75rem;
+    justify-items: center;
+    margin-top: 1rem;
+}
+
+.venta-acciones-finales .button-xl {
+    width: 100%;
+    max-width: 420px;
+    font-size: 1.05rem;
+    padding: .95rem 1.25rem;
+}
+
+.cliente-venta-nuevo {
+    border-color: var(--accent);
+    background: rgba(255, 255, 255, .65);
+}
+
 .venta-detalle-mini {
     margin-top: 1rem;
 }

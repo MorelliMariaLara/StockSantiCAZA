@@ -11,4 +11,6 @@ public sealed record ComprobanteFiscalDto(
     string PuntoVenta,
     string NumeroComprobante,
     string? Cae,
-    DateOnly? CaeVencimiento);
+    DateOnly? CaeVencimiento,
+    TipoComprobante TipoComprobante,
+    bool EsFactura);

@@ -44,4 +44,8 @@ public sealed record VentaConfirmadaDto(
     string NumeroComprobante,
     decimal Total,
     EstadoVenta Estado,
+    TipoComprobante TipoComprobante,
+    bool EsFactura,
+    string? Cae,
+    DateOnly? CaeVencimiento,
     IReadOnlyList<string> Advertencias);
