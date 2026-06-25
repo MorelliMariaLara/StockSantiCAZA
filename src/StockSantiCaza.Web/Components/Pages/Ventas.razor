@@ -1,6 +1,7 @@
 @page "/ventas"
 @inject IDbContextFactory<ApplicationDbContext> DbContextFactory
 
+<AuthorizeAccess>
 <PageTitle>Ventas - StockSantiCAZA</PageTitle>
 
 <div class="section-header">
@@ -63,7 +64,7 @@ else
         </div>
         <div class="card">
             <span class="metric-label">Total vendido</span>
-            <strong>@Formatos.MonedaUsd(VentasFiltradas.Where(x => x.Estado != EstadoVenta.Anulada).Sum(x => x.Total))</strong>
+            <strong>@MonedaHelper.FormatearUsd(VentasFiltradas.Where(x => x.Estado != EstadoVenta.Anulada).Sum(x => x.Total))</strong>
         </div>
         <div class="card">
             <span class="metric-label">Productos vendidos</span>
@@ -98,7 +99,7 @@ else
                             <th>Cliente</th>
                             <th>Vendedor</th>
                             <th>Estado</th>
-                            <th>Total USD</th>
+                            <th>Total</th>
                             <th></th>
                         </tr>
                     </thead>
@@ -117,7 +118,7 @@ else
                                 </td>
                                 <td>@FormatearVendedor(venta)</td>
                                 <td><span class="@ObtenerClaseEstado(venta.Estado)">@venta.Estado</span></td>
-                                <td>@Formatos.MonedaUsd(venta.Total)</td>
+                                <td>@MonedaHelper.FormatearUsd(venta.Total)</td>
                                 <td>
                                     <a class="link-button" href="@($"ventas/{venta.Id}/imprimir")" target="_blank">Imprimir</a>
                                 </td>
@@ -152,8 +153,8 @@ else
                                                         <td>@detalle.Producto.Categoria</td>
                                                         <td>@ObtenerTrazabilidad(detalle)</td>
                                                         <td>@detalle.Cantidad</td>
-                                                        <td>@Formatos.MonedaUsd(detalle.PrecioUnitario)</td>
-                                                        <td>@Formatos.MonedaUsd(detalle.Total)</td>
+                                                        <td>@MonedaHelper.FormatearUsd(detalle.PrecioUnitario)</td>
+                                                        <td>@MonedaHelper.FormatearUsd(detalle.Total)</td>
                                                     </tr>
                                                 }
                                             </tbody>
@@ -168,6 +169,8 @@ else
         }
     </section>
 }
+
+</AuthorizeAccess>
 
 @code {
     private List<Venta> ventas = [];

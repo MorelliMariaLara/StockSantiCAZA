@@ -1,12 +1,37 @@
+@inject IAuthService AuthService
+@inject NavigationManager Navigation
+
 <div class="brand">
     <strong>StockSantiCAZA</strong>
     <small>Control trazable</small>
 </div>
 
-<nav class="nav-menu">
-    <NavLink href="" Match="NavLinkMatch.All">Dashboard</NavLink>
-    <NavLink href="clientes">Clientes</NavLink>
-    <NavLink href="stock">Stock</NavLink>
-    <NavLink href="ventas">Ventas</NavLink>
-    <NavLink href="reportes">Reportes</NavLink>
-</nav>
+@if (AuthService.UsuarioActual is not null)
+{
+    <div class="user-chip">
+        <strong>@AuthService.UsuarioActual.Nombre</strong>
+        <small>@(AuthService.UsuarioActual.EsAdministrador ? "Administrador" : "Vendedor")</small>
+    </div>
+
+    <nav class="nav-menu">
+        <NavLink href="" Match="NavLinkMatch.All">Dashboard</NavLink>
+        <NavLink href="clientes">Clientes</NavLink>
+        <NavLink href="stock">Stock</NavLink>
+        <NavLink href="ventas">Ventas</NavLink>
+        @if (AuthService.UsuarioActual.EsAdministrador)
+        {
+            <NavLink href="reportes">Reportes</NavLink>
+            <NavLink href="usuarios">Usuarios</NavLink>
+        }
+    </nav>
+
+    <button class="button ghost logout-button" @onclick="CerrarSesionAsync">Cerrar sesión</button>
+}
+
+@code {
+    private async Task CerrarSesionAsync()
+    {
+        await AuthService.CerrarSesionAsync();
+        Navigation.NavigateTo("/login", true);
+    }
+}

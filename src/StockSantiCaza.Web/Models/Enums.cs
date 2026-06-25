@@ -60,3 +60,9 @@ public enum TipoMovimientoStock
     Ajuste = 3,
     AnulacionVenta = 4
 }
+
+public enum RolUsuario
+{
+    Administrador = 1,
+    Vendedor = 2
+}

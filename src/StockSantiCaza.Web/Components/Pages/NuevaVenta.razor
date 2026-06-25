@@ -1,263 +1,272 @@
 @page "/ventas/nueva"
 @inject IDbContextFactory<ApplicationDbContext> DbContextFactory
 @inject IVentasService VentasService
+@inject IUsuariosService UsuariosService
+@inject IAuthService AuthService
 
-<PageTitle>Nueva venta - StockSantiCAZA</PageTitle>
+<AuthorizeAccess>
+    <PageTitle>Nueva venta - StockSantiCAZA</PageTitle>
 
-<h1>Nueva venta</h1>
+    <h1>Nueva venta</h1>
 
-@if (cargando)
-{
-    <p>Cargando datos comerciales...</p>
-}
-else
-{
-    <EditForm Model="form" OnValidSubmit="ConfirmarVentaAsync">
-        <DataAnnotationsValidator />
-        <ValidationSummary />
+    @if (cargando)
+    {
+        <p>Cargando datos comerciales...</p>
+    }
+    else
+    {
+        <EditForm Model="form" OnValidSubmit="ConfirmarVentaAsync">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
 
-        @if (errores.Count > 0)
-        {
-            <div class="alert alert-danger">
-                <strong>No se pudo confirmar la venta</strong>
-                <ul>
-                    @foreach (var error in errores)
-                    {
-                        <li>@error</li>
-                    }
-                </ul>
-            </div>
-        }
-
-        @if (resultado is not null)
-        {
-            <div class="alert alert-success">
-                Venta confirmada: <strong>@resultado.NumeroComprobante</strong> por @Formatos.MonedaUsd(resultado.Total).
-                <a class="button ghost" href="@($"ventas/{resultado.VentaId}/imprimir")" target="_blank">Abrir impresión</a>
-                @if (resultado.Advertencias.Count > 0)
-                {
+            @if (errores.Count > 0)
+            {
+                <div class="alert alert-danger">
+                    <strong>No se pudo confirmar la venta</strong>
                     <ul>
-                        @foreach (var advertencia in resultado.Advertencias)
+                        @foreach (var error in errores)
                         {
-                            <li>@advertencia</li>
+                            <li>@error</li>
                         }
                     </ul>
-                }
-            </div>
-        }
-
-        <section class="panel">
-            <div class="grid sale-header">
-                <label>
-                    Cliente
-                    <InputSelect class="input" @bind-Value="form.ClienteId" @bind-Value:after="ActualizarClienteSeleccionado">
-                        <option value="">Seleccione...</option>
-                        @foreach (var cliente in clientes)
-                        {
-                            <option value="@cliente.Id">@FormatearCliente(cliente)</option>
-                        }
-                    </InputSelect>
-                </label>
-
-                <label>
-                    Vendedor
-                    <InputText class="input" @bind-Value="form.Vendedor" placeholder="Nombre de quien vendió" />
-                </label>
-
-                <label>
-                    Comprobante
-                    <InputSelect class="input" @bind-Value="form.TipoComprobante">
-                        @foreach (var tipo in Enum.GetValues<TipoComprobante>())
-                        {
-                            <option value="@tipo">@tipo</option>
-                        }
-                    </InputSelect>
-                </label>
-            </div>
-
-            @if (clienteSeleccionado is not null)
-            {
-                var clu = clienteSeleccionado.CredencialCLU;
-                <div class="clu-card @(clu?.EstaVigente == true ? "ok" : "warning")">
-                    <strong>CLU:</strong>
-                    @if (clu is null)
-                    {
-                        <span>Sin credencial cargada. La venta se permite y quedará informada como advertencia.</span>
-                    }
-                    else
-                    {
-                        <span>Legajo @clu.NumeroLegajo - vence @clu.FechaVencimiento.ToString("dd/MM/yyyy")</span>
-                        @if (!clu.EstaVigente)
-                        {
-                            <strong> VENCIDA - no bloquea la venta</strong>
-                        }
-                    }
-                </div>
-            }
-        </section>
-
-        <section class="panel">
-                <h2>Alta rápida de cliente</h2>
-                <p>Agregue un cliente sin salir de la venta y quedará seleccionado automáticamente.</p>
-            <div class="grid client-entry">
-                <label>
-                    Nombre del cliente
-                    <InputText class="input" @bind-Value="clienteRapido.Nombre" placeholder="Nombre y apellido o razón social" />
-                </label>
-
-                <label>
-                    Celular
-                    <InputText class="input" @bind-Value="clienteRapido.Celular" placeholder="Ej: 11 5555-5555" />
-                </label>
-
-                <label>
-                    DNI/CUIT opcional
-                    <InputText class="input" @bind-Value="clienteRapido.DniCuit" placeholder="Si se conoce" />
-                </label>
-            </div>
-            <button type="button" class="button" @onclick="CrearClienteRapidoAsync" disabled="@procesandoCliente">
-                @(procesandoCliente ? "Agregando..." : "Agregar y seleccionar cliente")
-            </button>
-        </section>
-
-        <section class="panel">
-            <h2>Seleccionar y agregar producto</h2>
-            <div class="grid product-entry">
-                <label>
-                    Buscar
-                    <InputText class="input" @bind-Value="busqueda" placeholder="SKU, nombre, marca, calibre..." />
-                </label>
-
-                <label>
-                    Producto
-                    <InputSelect class="input" @bind-Value="productoSeleccionadoId" @bind-Value:after="ActualizarProductoSeleccionado">
-                        <option value="0">Seleccione...</option>
-                        @foreach (var producto in ProductosFiltrados)
-                        {
-                            <option value="@producto.Id">@producto.Sku - @producto.Nombre (@producto.StockActual)</option>
-                        }
-                    </InputSelect>
-                </label>
-
-                <label>
-                    Cantidad
-                    <InputNumber class="input" @bind-Value="cantidad" />
-                </label>
-
-                <label>
-                    Precio unitario USD
-                    <InputNumber class="input" @bind-Value="precioUnitario" />
-                </label>
-
-                <label>
-                    Descuento línea
-                    <InputNumber class="input" @bind-Value="descuentoLinea" />
-                </label>
-            </div>
-
-            @if (productoSeleccionado is not null)
-            {
-                <div class="product-alerts">
-                    @if (productoSeleccionado.StockActual <= productoSeleccionado.StockMinimo)
-                    {
-                        <span class="badge danger">Stock mínimo: @productoSeleccionado.StockActual/@productoSeleccionado.StockMinimo</span>
-                    }
-
-                    @if (productoSeleccionado.Categoria == ProductoCategoria.Arma)
-                    {
-                        <label>
-                            Número de serie obligatorio
-                            <InputSelect class="input" @bind-Value="armaSeleccionadaId">
-                                <option value="">Seleccione serie...</option>
-                                @foreach (var arma in armasDisponibles)
-                                {
-                                    <option value="@arma.Id">@arma.NumeroSerie - @arma.Marca @arma.Modelo - @arma.Calibre</option>
-                                }
-                            </InputSelect>
-                        </label>
-                    }
-
-                    @if (productoSeleccionado.Categoria == ProductoCategoria.Municion)
-                    {
-                        <label>
-                            Lote obligatorio
-                            <InputSelect class="input" @bind-Value="loteSeleccionadoId">
-                                <option value="">Seleccione lote...</option>
-                                @foreach (var lote in lotesDisponibles)
-                                {
-                                    <option value="@lote.Id">@lote.NumeroLote - @lote.Calibre - disp. @lote.CantidadDisponible</option>
-                                }
-                            </InputSelect>
-                        </label>
-                    }
                 </div>
             }
 
-            <button type="button" class="button" @onclick="AgregarItem" disabled="@(productoSeleccionado is null)">Agregar</button>
-        </section>
-
-        <section class="panel">
-            <h2>Detalle</h2>
-            @if (items.Count == 0)
+            @if (resultado is not null)
             {
-                <p>No hay productos agregados.</p>
-            }
-            else
-            {
-                <div class="table-wrap">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Producto</th>
-                                <th>Trazabilidad</th>
-                                <th>Cant.</th>
-                                <th>Precio USD</th>
-                                <th>Desc. USD</th>
-                                <th>Total USD</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var item in items)
+                <div class="alert alert-success">
+                    Venta confirmada: <strong>@resultado.NumeroComprobante</strong> por @MonedaHelper.FormatearUsd(resultado.Total).
+                    <a class="button ghost" href="@($"ventas/{resultado.VentaId}/imprimir")" target="_blank">Abrir impresión</a>
+                    @if (resultado.Advertencias.Count > 0)
+                    {
+                        <ul>
+                            @foreach (var advertencia in resultado.Advertencias)
                             {
-                                <tr class="@(item.Producto.StockActual <= item.Producto.StockMinimo ? "danger-row" : null)">
-                                    <td>@item.Producto.Nombre</td>
-                                    <td>@item.Trazabilidad</td>
-                                    <td>@item.Cantidad</td>
-                                    <td>@Formatos.MonedaUsd(item.PrecioUnitario)</td>
-                                    <td>@Formatos.MonedaUsd(item.Descuento)</td>
-                                    <td>@Formatos.MonedaUsd(item.TotalEstimado)</td>
-                                    <td><button type="button" class="link-button" @onclick="() => QuitarItem(item)">Quitar</button></td>
-                                </tr>
+                                <li>@advertencia</li>
                             }
-                        </tbody>
-                    </table>
+                        </ul>
+                    }
                 </div>
             }
 
-            <div class="totals">
-                <label>
-                    Descuento general USD
-                    <InputNumber class="input" @bind-Value="form.DescuentoGeneral" />
-                </label>
-                <div>
-                    <span>Subtotal sin IVA: @Formatos.MonedaUsd(Subtotal)</span>
-                    <strong>Total USD: @Formatos.MonedaUsd(Total)</strong>
-                </div>
-            </div>
-        </section>
+            <section class="panel">
+                <h2>1. Seleccionar productos</h2>
+                <div class="grid product-entry">
+                    <label>
+                        Buscar
+                        <InputText class="input" @bind-Value="busqueda" placeholder="SKU, nombre, marca, calibre..." />
+                    </label>
 
-        <section class="panel">
-            <label>
-                Observaciones
-                <InputTextArea class="input" @bind-Value="form.Observaciones" />
-            </label>
-            <button type="submit" class="button primary" disabled="@procesando">
-                @(procesando ? "Confirmando..." : "Confirmar venta")
-            </button>
-        </section>
-    </EditForm>
-}
+                    <label>
+                        Producto
+                        <InputSelect class="input" @bind-Value="productoSeleccionadoId" @bind-Value:after="ActualizarProductoSeleccionado">
+                            <option value="0">Seleccione...</option>
+                            @foreach (var producto in ProductosFiltrados)
+                            {
+                                <option value="@producto.Id">@producto.Sku - @producto.Nombre (@producto.StockActual) - @MonedaHelper.FormatearUsd(producto.PrecioUnitario)</option>
+                            }
+                        </InputSelect>
+                    </label>
+
+                    <label>
+                        Cantidad
+                        <InputNumber class="input" @bind-Value="cantidad" />
+                    </label>
+
+                    <label>
+                        Precio USD
+                        <InputNumber class="input" @bind-Value="precioUnitario" />
+                    </label>
+
+                    <label>
+                        Descuento USD
+                        <InputNumber class="input" @bind-Value="descuentoLinea" />
+                    </label>
+                </div>
+
+                @if (productoSeleccionado is not null)
+                {
+                    <div class="product-alerts">
+                        @if (productoSeleccionado.StockActual <= productoSeleccionado.StockMinimo)
+                        {
+                            <span class="badge danger">Stock mínimo: @productoSeleccionado.StockActual/@productoSeleccionado.StockMinimo</span>
+                        }
+
+                        @if (productoSeleccionado.Categoria == ProductoCategoria.Arma)
+                        {
+                            <label>
+                                Número de serie obligatorio
+                                <InputSelect class="input" @bind-Value="armaSeleccionadaId">
+                                    <option value="">Seleccione serie...</option>
+                                    @foreach (var arma in armasDisponibles)
+                                    {
+                                        <option value="@arma.Id">@arma.NumeroSerie - @arma.Marca @arma.Modelo - @arma.Calibre</option>
+                                    }
+                                </InputSelect>
+                            </label>
+                        }
+
+                        @if (productoSeleccionado.Categoria == ProductoCategoria.Municion)
+                        {
+                            <label>
+                                Lote obligatorio
+                                <InputSelect class="input" @bind-Value="loteSeleccionadoId">
+                                    <option value="">Seleccione lote...</option>
+                                    @foreach (var lote in lotesDisponibles)
+                                    {
+                                        <option value="@lote.Id">@lote.NumeroLote - @lote.Calibre - disp. @lote.CantidadDisponible</option>
+                                    }
+                                </InputSelect>
+                            </label>
+                        }
+                    </div>
+                }
+
+                <button type="button" class="button" @onclick="AgregarItem" disabled="@(productoSeleccionado is null)">Agregar producto</button>
+            </section>
+
+            <section class="panel">
+                <h2>2. Detalle de la venta</h2>
+                @if (items.Count == 0)
+                {
+                    <p>Agregue al menos un producto para continuar.</p>
+                }
+                else
+                {
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Producto</th>
+                                    <th>Trazabilidad</th>
+                                    <th>Cant.</th>
+                                    <th>Precio USD</th>
+                                    <th>Desc. USD</th>
+                                    <th>Total USD</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in items)
+                                {
+                                    <tr class="@(item.Producto.StockActual <= item.Producto.StockMinimo ? "danger-row" : null)">
+                                        <td>@item.Producto.Nombre</td>
+                                        <td>@item.Trazabilidad</td>
+                                        <td>@item.Cantidad</td>
+                                        <td>@MonedaHelper.FormatearUsd(item.PrecioUnitario)</td>
+                                        <td>@MonedaHelper.FormatearUsd(item.Descuento)</td>
+                                        <td>@MonedaHelper.FormatearUsd(item.TotalEstimado)</td>
+                                        <td><button type="button" class="link-button" @onclick="() => QuitarItem(item)">Quitar</button></td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="totals">
+                        <label>
+                            Descuento general USD
+                            <InputNumber class="input" @bind-Value="form.DescuentoGeneral" />
+                        </label>
+                        <div>
+                            <span>Subtotal: @MonedaHelper.FormatearUsd(Subtotal)</span>
+                            <strong>Total: @MonedaHelper.FormatearUsd(Total)</strong>
+                        </div>
+                    </div>
+                }
+            </section>
+
+            <section class="panel">
+                <h2>3. Cliente y vendedor</h2>
+                <div class="grid sale-header">
+                    <label>
+                        Cliente
+                        <InputSelect class="input" @bind-Value="form.ClienteId" @bind-Value:after="ActualizarClienteSeleccionado">
+                            <option value="">Seleccione...</option>
+                            @foreach (var cliente in clientes)
+                            {
+                                <option value="@cliente.Id">@FormatearCliente(cliente)</option>
+                            }
+                        </InputSelect>
+                    </label>
+
+                    <label>
+                        Vendedor
+                        <InputSelect class="input" @bind-Value="form.VendedorId">
+                            <option value="">Seleccione...</option>
+                            @foreach (var vendedor in vendedores)
+                            {
+                                <option value="@vendedor.Id">@vendedor.Nombre (@vendedor.Rol)</option>
+                            }
+                        </InputSelect>
+                    </label>
+
+                    <label>
+                        Comprobante
+                        <InputSelect class="input" @bind-Value="form.TipoComprobante">
+                            @foreach (var tipo in Enum.GetValues<TipoComprobante>())
+                            {
+                                <option value="@tipo">@tipo</option>
+                            }
+                        </InputSelect>
+                    </label>
+                </div>
+
+                @if (clienteSeleccionado is not null)
+                {
+                    var clu = clienteSeleccionado.CredencialCLU;
+                    <div class="clu-card @(clu?.EstaVigente == true ? "ok" : "warning")">
+                        <strong>CLU:</strong>
+                        @if (clu is null)
+                        {
+                            <span>Sin credencial cargada. La venta se permite y quedará informada como advertencia.</span>
+                        }
+                        else
+                        {
+                            <span>Legajo @clu.NumeroLegajo - vence @clu.FechaVencimiento.ToString("dd/MM/yyyy")</span>
+                            @if (!clu.EstaVigente)
+                            {
+                                <strong> VENCIDA - no bloquea la venta</strong>
+                            }
+                        }
+                    </div>
+                }
+
+                <div class="subpanel">
+                    <h3>Alta rápida de cliente</h3>
+                    <p>Si el cliente no está registrado, carguelo acá y quedará seleccionado automáticamente.</p>
+                    <div class="grid client-entry">
+                        <label>
+                            Nombre del cliente
+                            <InputText class="input" @bind-Value="clienteRapido.Nombre" placeholder="Nombre y apellido o razón social" />
+                        </label>
+                        <label>
+                            Celular
+                            <InputText class="input" @bind-Value="clienteRapido.Celular" placeholder="Ej: 11 5555-5555" />
+                        </label>
+                        <label>
+                            DNI/CUIT opcional
+                            <InputText class="input" @bind-Value="clienteRapido.DniCuit" placeholder="Si se conoce" />
+                        </label>
+                    </div>
+                    <button type="button" class="button" @onclick="CrearClienteRapidoAsync" disabled="@procesandoCliente">
+                        @(procesandoCliente ? "Agregando..." : "Agregar y seleccionar cliente")
+                    </button>
+                </div>
+            </section>
+
+            <section class="panel">
+                <label>
+                    Observaciones
+                    <InputTextArea class="input" @bind-Value="form.Observaciones" />
+                </label>
+                <button type="submit" class="button primary" disabled="@procesando || items.Count == 0">
+                    @(procesando ? "Confirmando..." : "Confirmar venta")
+                </button>
+            </section>
+        </EditForm>
+    }
+</AuthorizeAccess>
 
 @code {
     private readonly NuevaVentaRequest form = new();
@@ -265,6 +274,7 @@ else
     private readonly List<string> errores = [];
     private List<Cliente> clientes = [];
     private List<Producto> productos = [];
+    private List<Usuario> vendedores = [];
     private List<Arma> armasDisponibles = [];
     private List<MunicionLote> lotesDisponibles = [];
     private Cliente? clienteSeleccionado;
@@ -304,7 +314,14 @@ else
             .OrderBy(x => x.NombreRazonSocial)
             .ToListAsync();
 
-        await RecargarProductosAsync();
+        productos = await db.Productos
+            .AsNoTracking()
+            .Where(x => x.Activo)
+            .OrderBy(x => x.Nombre)
+            .ToListAsync();
+
+        vendedores = (await UsuariosService.ListarVendedoresActivosAsync()).ToList();
+        form.VendedorId = AuthService.UsuarioActual?.Id;
 
         cargando = false;
     }
@@ -464,6 +481,7 @@ else
         cantidad = 1;
         precioUnitario = 0;
         descuentoLinea = 0;
+        busqueda = string.Empty;
     }
 
     private void QuitarItem(LineaVentaVm item)
@@ -485,7 +503,8 @@ else
             items.Clear();
             form.Items.Clear();
             form.DescuentoGeneral = 0;
-            await RecargarProductosAsync();
+            form.ClienteId = null;
+            clienteSeleccionado = null;
         }
         catch (VentaValidationException ex)
         {
@@ -512,16 +531,6 @@ else
             PrecioUnitario = x.PrecioUnitario,
             Descuento = x.Descuento
         }).ToList();
-    }
-
-    private async Task RecargarProductosAsync()
-    {
-        await using var db = await DbContextFactory.CreateDbContextAsync();
-        productos = await db.Productos
-            .AsNoTracking()
-            .Where(x => x.Activo)
-            .OrderBy(x => x.Nombre)
-            .ToListAsync();
     }
 
     private static Cliente CrearCliente(string nombre, string celular, string dniCuit) => new()

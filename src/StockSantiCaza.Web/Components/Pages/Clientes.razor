@@ -1,6 +1,7 @@
 @page "/clientes"
 @inject IDbContextFactory<ApplicationDbContext> DbContextFactory
 
+<AuthorizeAccess>
 <PageTitle>Clientes - StockSantiCAZA</PageTitle>
 
 <h1>Clientes</h1>
@@ -205,6 +206,8 @@ else
         </div>
     </section>
 }
+
+</AuthorizeAccess>
 
 @code {
     private readonly List<string> errores = [];

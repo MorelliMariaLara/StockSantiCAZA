@@ -8,8 +8,8 @@ public class NuevaVentaRequest
     [Required]
     public int? ClienteId { get; set; }
 
-    [Required, MaxLength(120)]
-    public string Vendedor { get; set; } = string.Empty;
+    [Required]
+    public int? VendedorId { get; set; }
 
     public TipoComprobante TipoComprobante { get; set; } = TipoComprobante.FacturaB;
 

@@ -2,114 +2,128 @@
 @inject IReportesService ReportesService
 @inject IJSRuntime Js
 
-<PageTitle>Reportes - StockSantiCAZA</PageTitle>
+<AuthorizeAccess RequiereAdministrador="true">
+    <PageTitle>Reportes - StockSantiCAZA</PageTitle>
 
-<h1>Reportes</h1>
+    <h1>Reportes de ventas y ganancias</h1>
 
-<section class="panel no-print">
-    <div class="grid filters">
-        <label>
-            Desde
-            <InputDate class="input" @bind-Value="fechaDesde" />
-        </label>
-        <label>
-            Hasta
-            <InputDate class="input" @bind-Value="fechaHasta" />
-        </label>
-        <button class="button" @onclick="CargarDashboardAsync">Actualizar</button>
-        <button class="button primary" @onclick="DescargarExcelAsync" disabled="@descargando">@(descargando ? "Generando..." : "Descargar Excel")</button>
-        <button class="button ghost" @onclick="ImprimirAsync">Imprimir</button>
-    </div>
-
-    @if (!string.IsNullOrWhiteSpace(error))
-    {
-        <div class="alert alert-danger">@error</div>
-    }
-</section>
-
-@if (resumen is null)
-{
-    <p>Cargando reporte...</p>
-}
-else
-{
-    <section class="print-area">
-        <header class="print-header">
-            <h2>Resumen operativo</h2>
-            <p>Período: @fechaDesde.ToString("dd/MM/yyyy") a @fechaHasta.ToString("dd/MM/yyyy")</p>
-        </header>
-
-        <div class="grid cards">
-            <div class="card">
-                <span class="metric-label">Ventas</span>
-                <strong>@resumen.CantidadVentas</strong>
-            </div>
-            <div class="card">
-                <span class="metric-label">Total vendido USD sin IVA</span>
-                <strong>@Formatos.MonedaUsd(resumen.TotalVentas)</strong>
-            </div>
-            <div class="card">
-                <span class="metric-label">Movimientos de stock</span>
-                <strong>@resumen.MovimientosStock</strong>
-            </div>
-            <div class="card warning-card">
-                <span class="metric-label">Alertas de stock</span>
-                <strong>@resumen.ProductosConStockMinimo</strong>
-            </div>
+    <section class="panel no-print">
+        <div class="grid filters">
+            <label>
+                Desde
+                <InputDate class="input" @bind-Value="fechaDesde" />
+            </label>
+            <label>
+                Hasta
+                <InputDate class="input" @bind-Value="fechaHasta" />
+            </label>
+            <button class="button" @onclick="CargarReporteAsync">Actualizar</button>
+            <button class="button primary" @onclick="DescargarExcelAsync" disabled="@descargando">@(descargando ? "Generando..." : "Descargar Excel")</button>
+            <button class="button ghost" @onclick="ImprimirAsync">Imprimir</button>
         </div>
 
-        <section class="panel report-card">
-            <h3>Productos en stock mínimo</h3>
-            @if (resumen.AlertasStock.Count == 0)
-            {
-                <p>Sin alertas de stock mínimo.</p>
-            }
-            else
-            {
-                <div class="table-wrap">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>SKU</th>
-                                <th>Producto</th>
-                                <th>Stock</th>
-                                <th>Mínimo</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var item in resumen.AlertasStock)
-                            {
-                                <tr class="danger-row">
-                                    <td>@item.Sku</td>
-                                    <td>@item.Nombre</td>
-                                    <td>@item.StockActual</td>
-                                    <td>@item.StockMinimo</td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
-            }
-        </section>
+        @if (!string.IsNullOrWhiteSpace(error))
+        {
+            <div class="alert alert-danger">@error</div>
+        }
     </section>
-}
+
+    @if (resumen is null)
+    {
+        <p>Cargando reporte...</p>
+    }
+    else
+    {
+        <section class="print-area">
+            <header class="print-header">
+                <h2>Resumen operativo</h2>
+                <p>Período: @fechaDesde.ToString("dd/MM/yyyy") a @fechaHasta.ToString("dd/MM/yyyy")</p>
+            </header>
+
+            <div class="grid cards">
+                <div class="card">
+                    <span class="metric-label">Ventas</span>
+                    <strong>@resumen.CantidadVentas</strong>
+                </div>
+                <div class="card">
+                    <span class="metric-label">Total vendido (USD)</span>
+                    <strong>@MonedaHelper.FormatearUsd(resumen.TotalVentas)</strong>
+                </div>
+                <div class="card">
+                    <span class="metric-label">Ganancia (USD)</span>
+                    <strong>@MonedaHelper.FormatearUsd(resumen.GananciaTotal)</strong>
+                </div>
+                <div class="card">
+                    <span class="metric-label">Movimientos de stock</span>
+                    <strong>@resumen.MovimientosStock</strong>
+                </div>
+                <div class="card warning-card">
+                    <span class="metric-label">Alertas de stock</span>
+                    <strong>@resumen.ProductosConStockMinimo</strong>
+                </div>
+            </div>
+
+            <section class="panel report-card">
+                <h3>Productos en stock mínimo</h3>
+                @if (resumen.AlertasStock.Count == 0)
+                {
+                    <p>Sin alertas de stock mínimo.</p>
+                }
+                else
+                {
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>SKU</th>
+                                    <th>Producto</th>
+                                    <th>Stock</th>
+                                    <th>Mínimo</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in resumen.AlertasStock)
+                                {
+                                    <tr class="danger-row">
+                                        <td>@item.Sku</td>
+                                        <td>@item.Nombre</td>
+                                        <td>@item.StockActual</td>
+                                        <td>@item.StockMinimo</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </section>
+        </section>
+    }
+</AuthorizeAccess>
 
 @code {
-    private DashboardResumenDto? resumen;
-    private DateTime fechaDesde = DateTime.Today;
+    private ReportePeriodoDto? resumen;
+    private DateTime fechaDesde = DateTime.Today.AddDays(-30);
     private DateTime fechaHasta = DateTime.Today;
     private bool descargando;
     private string? error;
 
     protected override async Task OnInitializedAsync()
     {
-        await CargarDashboardAsync();
+        await CargarReporteAsync();
     }
 
-    private async Task CargarDashboardAsync()
+    private async Task CargarReporteAsync()
     {
         error = null;
-        resumen = await ReportesService.ObtenerDashboardAsync(DateOnly.FromDateTime(fechaDesde));
+        if (fechaDesde.Date > fechaHasta.Date)
+        {
+            error = "La fecha desde no puede ser posterior a la fecha hasta.";
+            return;
+        }
+
+        resumen = await ReportesService.ObtenerReportePeriodoAsync(
+            DateOnly.FromDateTime(fechaDesde),
+            DateOnly.FromDateTime(fechaHasta));
     }
 
     private async Task DescargarExcelAsync()

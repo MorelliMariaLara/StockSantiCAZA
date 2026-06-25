@@ -1,4 +1,5 @@
 @page "/ventas/{VentaId:int}/imprimir"
+@layout EmptyLayout
 @inject IDbContextFactory<ApplicationDbContext> DbContextFactory
 @inject IJSRuntime Js
 
@@ -48,16 +49,16 @@ else
                             }
                         </td>
                         <td>@detalle.Cantidad</td>
-                        <td>@Formatos.MonedaUsd(detalle.Total)</td>
+                        <td>@MonedaHelper.FormatearUsd(detalle.Total)</td>
                     </tr>
                 }
             </tbody>
         </table>
 
         <footer>
-            <p>Subtotal sin IVA: @Formatos.MonedaUsd(venta.Subtotal)</p>
-            <p>Descuento: @Formatos.MonedaUsd(venta.DescuentoTotal)</p>
-            <strong>Total USD: @Formatos.MonedaUsd(venta.Total)</strong>
+            <p>Subtotal: @MonedaHelper.FormatearUsd(venta.Subtotal)</p>
+            <p>Descuento: @MonedaHelper.FormatearUsd(venta.DescuentoTotal)</p>
+            <strong>Total USD: @MonedaHelper.FormatearUsd(venta.Total)</strong>
             @if (!string.IsNullOrWhiteSpace(venta.Cae))
             {
                 <p>CAE @venta.Cae - vto. @(venta.CaeVencimiento?.ToString("dd/MM/yyyy"))</p>

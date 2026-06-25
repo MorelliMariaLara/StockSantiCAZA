@@ -1,0 +1,197 @@
+@page "/usuarios"
+@inject IUsuariosService UsuariosService
+
+<AuthorizeAccess RequiereAdministrador="true">
+    <PageTitle>Usuarios - StockSantiCAZA</PageTitle>
+
+    <h1>Usuarios y vendedores</h1>
+
+    @if (!string.IsNullOrWhiteSpace(mensaje))
+    {
+        <div class="alert alert-success">@mensaje</div>
+    }
+
+    @if (errores.Count > 0)
+    {
+        <div class="alert alert-danger">
+            <ul>
+                @foreach (var error in errores)
+                {
+                    <li>@error</li>
+                }
+            </ul>
+        </div>
+    }
+
+    <section class="panel">
+        <h2>@(form.Id is null ? "Nuevo usuario" : "Editar usuario")</h2>
+        <EditForm Model="form" OnValidSubmit="GuardarAsync">
+            <div class="grid client-form">
+                <label>
+                    Nombre
+                    <InputText class="input" @bind-Value="form.Nombre" />
+                </label>
+                <label>
+                    Usuario de acceso
+                    <InputText class="input" @bind-Value="form.Login" />
+                </label>
+                <label>
+                    Contraseña @(form.Id is null ? string.Empty : "(opcional)")
+                    <InputText class="input" type="password" @bind-Value="form.Password" />
+                </label>
+                <label>
+                    Rol
+                    <InputSelect class="input" @bind-Value="form.Rol">
+                        @foreach (var rol in Enum.GetValues<RolUsuario>())
+                        {
+                            <option value="@rol">@rol</option>
+                        }
+                    </InputSelect>
+                </label>
+                <label>
+                    Estado
+                    <InputSelect class="input" @bind-Value="form.Activo">
+                        <option value="true">Activo</option>
+                        <option value="false">Inactivo</option>
+                    </InputSelect>
+                </label>
+            </div>
+            <div class="actions">
+                <button type="submit" class="button primary" disabled="@guardando">@(guardando ? "Guardando..." : "Guardar usuario")</button>
+                <button type="button" class="button ghost" @onclick="NuevoUsuario">Limpiar</button>
+            </div>
+        </EditForm>
+    </section>
+
+    <section class="panel">
+        <h2>Perfiles registrados</h2>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Nombre</th>
+                        <th>Login</th>
+                        <th>Rol</th>
+                        <th>Estado</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var usuario in usuarios)
+                    {
+                        <tr>
+                            <td>@usuario.Nombre</td>
+                            <td>@usuario.Login</td>
+                            <td>@usuario.Rol</td>
+                            <td>
+                                <span class="@(usuario.Activo ? "badge ok" : "badge warning")">
+                                    @(usuario.Activo ? "Activo" : "Inactivo")
+                                </span>
+                            </td>
+                            <td>
+                                <button type="button" class="link-button" @onclick="() => Editar(usuario)">Editar</button>
+                                <button type="button" class="link-button" @onclick="() => CambiarEstadoAsync(usuario.Id)">
+                                    @(usuario.Activo ? "Desactivar" : "Activar")
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </section>
+</AuthorizeAccess>
+
+@code {
+    private readonly List<string> errores = [];
+    private List<Usuario> usuarios = [];
+    private UsuarioForm form = new();
+    private bool guardando;
+    private string? mensaje;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RecargarAsync();
+    }
+
+    private async Task GuardarAsync()
+    {
+        errores.Clear();
+        mensaje = null;
+        guardando = true;
+
+        try
+        {
+            await UsuariosService.GuardarAsync(new UsuarioFormRequest
+            {
+                Id = form.Id,
+                Nombre = form.Nombre,
+                Login = form.Login,
+                Password = form.Password,
+                Rol = form.Rol,
+                Activo = form.Activo
+            });
+
+            mensaje = form.Id is null ? "Usuario creado correctamente." : "Usuario actualizado correctamente.";
+            NuevoUsuario();
+            await RecargarAsync();
+        }
+        catch (Exception ex)
+        {
+            errores.Add(ex.Message);
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+
+    private async Task CambiarEstadoAsync(int usuarioId)
+    {
+        errores.Clear();
+        mensaje = null;
+
+        try
+        {
+            await UsuariosService.CambiarEstadoAsync(usuarioId);
+            mensaje = "Estado actualizado correctamente.";
+            await RecargarAsync();
+        }
+        catch (Exception ex)
+        {
+            errores.Add(ex.Message);
+        }
+    }
+
+    private async Task RecargarAsync()
+    {
+        usuarios = (await UsuariosService.ListarAsync()).ToList();
+    }
+
+    private void NuevoUsuario()
+    {
+        form = new UsuarioForm();
+    }
+
+    private void Editar(Usuario usuario)
+    {
+        form = new UsuarioForm
+        {
+            Id = usuario.Id,
+            Nombre = usuario.Nombre,
+            Login = usuario.Login,
+            Rol = usuario.Rol,
+            Activo = usuario.Activo
+        };
+    }
+
+    private sealed class UsuarioForm
+    {
+        public int? Id { get; set; }
+        public string Nombre { get; set; } = string.Empty;
+        public string Login { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
+        public RolUsuario Rol { get; set; } = RolUsuario.Vendedor;
+        public bool Activo { get; set; } = true;
+    }
+}

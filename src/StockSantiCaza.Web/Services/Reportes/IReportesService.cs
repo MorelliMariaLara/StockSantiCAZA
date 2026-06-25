@@ -4,5 +4,10 @@ public interface IReportesService
 {
     Task<DashboardResumenDto> ObtenerDashboardAsync(DateOnly fecha, CancellationToken cancellationToken = default);
 
+    Task<ReportePeriodoDto> ObtenerReportePeriodoAsync(
+        DateOnly desde,
+        DateOnly hasta,
+        CancellationToken cancellationToken = default);
+
     Task<byte[]> ExportarVentasExcelAsync(DateOnly desde, DateOnly hasta, CancellationToken cancellationToken = default);
 }

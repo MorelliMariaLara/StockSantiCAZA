@@ -1,96 +1,220 @@
 @page "/stock"
-@using ClosedXML.Excel
-@using System.Globalization
 @inject IDbContextFactory<ApplicationDbContext> DbContextFactory
+@inject IStockImportService ImportService
+@inject IJSRuntime Js
 
-<PageTitle>Stock - StockSantiCAZA</PageTitle>
+<AuthorizeAccess>
+    <PageTitle>Stock - StockSantiCAZA</PageTitle>
 
-<h1>Stock</h1>
+    <h1>Stock</h1>
 
-@if (cargando)
-{
-    <p>Cargando productos...</p>
-}
-else
-{
-    @if (errores.Count > 0)
+    @if (cargando)
     {
-        <div class="alert alert-danger">
-            <strong>No se pudo completar la operación</strong>
-            <ul>
-                @foreach (var error in errores)
-                {
-                    <li>@error</li>
-                }
-            </ul>
-        </div>
+        <p>Cargando productos...</p>
     }
-
-    @if (!string.IsNullOrWhiteSpace(mensaje))
+    else
     {
-        <div class="alert alert-success">@mensaje</div>
-    }
-
-    <section class="grid cards">
-        <div class="card">
-            <span class="metric-label">Productos activos</span>
-            <strong>@productos.Count(x => x.Activo)</strong>
-        </div>
-        <div class="card warning-card">
-            <span class="metric-label">En stock mínimo</span>
-            <strong>@productos.Count(x => x.Activo && x.StockActual > 0 && x.StockActual <= x.StockMinimo)</strong>
-        </div>
-        <div class="card danger-card">
-            <span class="metric-label">Sin stock</span>
-            <strong>@productos.Count(x => x.Activo && x.StockActual <= 0)</strong>
-        </div>
-        <div class="card">
-            <span class="metric-label">Unidades totales</span>
-            <strong>@productos.Where(x => x.Activo).Sum(x => x.StockActual)</strong>
-        </div>
-    </section>
-
-    <section class="panel">
-        <div class="section-header">
-            <div>
-                <h2>@(form.Id is null ? "Agregar producto" : "Editar producto")</h2>
-                <p>Complete la clasificación, características, precio en USD y cantidad disponible.</p>
+        @if (errores.Count > 0)
+        {
+            <div class="alert alert-danger">
+                <strong>No se pudo guardar el producto</strong>
+                <ul>
+                    @foreach (var error in errores)
+                    {
+                        <li>@error</li>
+                    }
+                </ul>
             </div>
-            <div class="section-actions">
+        }
+
+        @if (!string.IsNullOrWhiteSpace(mensaje))
+        {
+            <div class="alert alert-success">@mensaje</div>
+        }
+
+        <section class="grid cards">
+            <div class="card">
+                <span class="metric-label">Productos activos</span>
+                <strong>@productos.Count(x => x.Activo)</strong>
+            </div>
+            <div class="card warning-card">
+                <span class="metric-label">En stock mínimo</span>
+                <strong>@productos.Count(x => x.Activo && x.StockActual > 0 && x.StockActual <= x.StockMinimo)</strong>
+            </div>
+            <div class="card danger-card">
+                <span class="metric-label">Sin stock</span>
+                <strong>@productos.Count(x => x.Activo && x.StockActual <= 0)</strong>
+            </div>
+            <div class="card">
+                <span class="metric-label">Unidades totales</span>
+                <strong>@productos.Where(x => x.Activo).Sum(x => x.StockActual)</strong>
+            </div>
+        </section>
+
+        <section class="panel">
+            <div class="section-header">
+                <div>
+                    <h2>@(form.Id is null ? "Agregar producto" : "Editar producto")</h2>
+                    <p>Complete la clasificación, características y cantidad disponible.</p>
+                </div>
                 @if (form.Id is not null)
                 {
                     <button type="button" class="button ghost" @onclick="NuevoProducto">Nuevo producto</button>
                 }
-                <InputFile id="stock-import-file" class="visually-hidden" OnChange="ImportarStockAsync" accept=".xlsx,.xls" />
-                <label class="@ObtenerClaseBotonImportar()" for="stock-import-file">
-                    @(importandoStock ? "Importando..." : "Importar Excel")
+            </div>
+
+            <EditForm Model="form" OnValidSubmit="GuardarProductoAsync">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
+
+                <div class="grid stock-form">
+                    <label>
+                        SKU
+                        <InputText class="input" @bind-Value="form.Sku" />
+                    </label>
+
+                    <label>
+                        Nombre
+                        <InputText class="input" @bind-Value="form.Nombre" />
+                    </label>
+
+                    <label>
+                        Clasificación
+                        <InputSelect class="input" @bind-Value="form.Categoria">
+                            @foreach (var categoria in Enum.GetValues<ProductoCategoria>())
+                            {
+                                <option value="@categoria">@categoria</option>
+                            }
+                        </InputSelect>
+                    </label>
+
+                    <label>
+                        Marca
+                        <InputText class="input" @bind-Value="form.Marca" />
+                    </label>
+
+                    <label>
+                        Modelo
+                        <InputText class="input" @bind-Value="form.Modelo" />
+                    </label>
+
+                    <label>
+                        Calibre / medida
+                        <InputText class="input" @bind-Value="form.Calibre" />
+                    </label>
+
+                    <label>
+                        Precio unitario (USD)
+                        <InputNumber class="input" @bind-Value="form.PrecioUnitario" />
+                    </label>
+
+                    <label>
+                        Costo unitario (USD)
+                        <InputNumber class="input" @bind-Value="form.CostoUnitario" />
+                    </label>
+
+                    <label>
+                        Stock actual
+                        <InputNumber class="input" @bind-Value="form.StockActual" />
+                    </label>
+
+                    <label>
+                        Stock mínimo
+                        <InputNumber class="input" @bind-Value="form.StockMinimo" />
+                    </label>
+
+                    <label>
+                        Estado
+                        <InputSelect class="input" @bind-Value="form.Activo">
+                            <option value="true">Activo</option>
+                            <option value="false">Inactivo</option>
+                        </InputSelect>
+                    </label>
+                </div>
+
+                <label>
+                    Características / descripción
+                    <InputTextArea class="input" @bind-Value="form.Descripcion" />
+                </label>
+
+                <div class="actions">
+                    <button type="submit" class="button primary" disabled="@guardando">
+                        @(guardando ? "Guardando..." : "Guardar producto")
+                    </button>
+                    <button type="button" class="button ghost" @onclick="NuevoProducto">Limpiar</button>
+                </div>
+            </EditForm>
+        </section>
+
+        <section class="panel">
+            <div class="section-header">
+                <div>
+                    <h2>Importar desde Excel</h2>
+                    <p>Cargue o actualice productos masivamente desde un archivo .xlsx.</p>
+                </div>
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(errorImportacion))
+            {
+                <div class="alert alert-danger">@errorImportacion</div>
+            }
+
+            @if (resultadoImportacion is not null)
+            {
+                <div class="alert alert-success">
+                    <strong>Importación completada</strong>
+                    <p>Productos creados: @resultadoImportacion.Creados. Productos actualizados: @resultadoImportacion.Actualizados.</p>
+                    @if (resultadoImportacion.Errores.Count > 0)
+                    {
+                        <ul>
+                            @foreach (var error in resultadoImportacion.Errores)
+                            {
+                                <li>@error</li>
+                            }
+                        </ul>
+                    }
+                </div>
+            }
+
+            <div class="grid stock-filters">
+                <label>
+                    Archivo Excel (.xlsx)
+                    <InputFile OnChange="OnArchivoImportacionSeleccionado" accept=".xlsx" />
+                    @if (archivoImportacion is not null)
+                    {
+                        <small>@archivoImportacion.Name</small>
+                    }
                 </label>
             </div>
-        </div>
 
-        <p class="hint">
-            El Excel debe incluir encabezados como SKU, Nombre, Precio y Stock. También se aceptan Categoría,
-            Marca, Modelo, Calibre, Descripción, Mínimo y Activo.
-        </p>
+            <div class="actions">
+                <button type="button" class="button ghost" @onclick="DescargarPlantillaAsync" disabled="@descargandoPlantilla">
+                    @(descargandoPlantilla ? "Generando..." : "Descargar plantilla")
+                </button>
+                <button type="button" class="button primary" @onclick="ImportarExcelAsync" disabled="@(importando || archivoImportacion is null)">
+                    @(importando ? "Importando..." : "Importar")
+                </button>
+            </div>
+        </section>
 
-        <EditForm Model="form" OnValidSubmit="GuardarProductoAsync">
-            <DataAnnotationsValidator />
-            <ValidationSummary />
+        <section class="panel">
+            <div class="section-header">
+                <div>
+                    <h2>Existencias</h2>
+                    <p>Consulte cuánto hay disponible y qué productos faltan reponer.</p>
+                </div>
+            </div>
 
-            <div class="grid stock-form">
+            <div class="grid stock-filters">
                 <label>
-                    SKU
-                    <InputText class="input" @bind-Value="form.Sku" />
-                </label>
-
-                <label>
-                    Nombre
-                    <InputText class="input" @bind-Value="form.Nombre" />
+                    Buscar
+                    <InputText class="input" @bind-Value="busqueda" placeholder="SKU, nombre, marca, modelo, calibre..." />
                 </label>
 
                 <label>
                     Clasificación
-                    <InputSelect class="input" @bind-Value="form.Categoria">
+                    <InputSelect class="input" @bind-Value="categoriaFiltro">
+                        <option value="">Todas</option>
                         @foreach (var categoria in Enum.GetValues<ProductoCategoria>())
                         {
                             <option value="@categoria">@categoria</option>
@@ -99,156 +223,85 @@ else
                 </label>
 
                 <label>
-                    Marca
-                    <InputText class="input" @bind-Value="form.Marca" />
-                </label>
-
-                <label>
-                    Modelo
-                    <InputText class="input" @bind-Value="form.Modelo" />
-                </label>
-
-                <label>
-                    Calibre / medida
-                    <InputText class="input" @bind-Value="form.Calibre" />
-                </label>
-
-                <label>
-                    Precio unitario USD
-                    <InputNumber class="input" @bind-Value="form.PrecioUnitario" />
-                </label>
-
-                <label>
-                    Stock actual
-                    <InputNumber class="input" @bind-Value="form.StockActual" />
-                </label>
-
-                <label>
-                    Stock mínimo
-                    <InputNumber class="input" @bind-Value="form.StockMinimo" />
-                </label>
-
-                <label>
-                    Estado
-                    <InputSelect class="input" @bind-Value="form.Activo">
-                        <option value="true">Activo</option>
-                        <option value="false">Inactivo</option>
+                    Estado de stock
+                    <InputSelect class="input" @bind-Value="estadoStockFiltro">
+                        <option value="">Todos</option>
+                        <option value="sin-stock">Sin stock</option>
+                        <option value="minimo">Stock mínimo</option>
+                        <option value="disponible">Disponible</option>
                     </InputSelect>
                 </label>
             </div>
 
-            <label>
-                Características / descripción
-                <InputTextArea class="input" @bind-Value="form.Descripcion" />
-            </label>
-
-            <div class="actions">
-                <button type="submit" class="button primary" disabled="@guardando">
-                    @(guardando ? "Guardando..." : "Guardar producto")
-                </button>
-                <button type="button" class="button ghost" @onclick="NuevoProducto">Limpiar</button>
-            </div>
-        </EditForm>
-    </section>
-
-    <section class="panel">
-        <div class="section-header">
-            <div>
-                <h2>Existencias</h2>
-                <p>Consulte cuánto hay disponible y qué productos faltan reponer.</p>
-            </div>
-        </div>
-
-        <div class="grid stock-filters">
-            <label>
-                Buscar
-                <InputText class="input" @bind-Value="busqueda" placeholder="SKU, nombre, marca, modelo, calibre..." />
-            </label>
-
-            <label>
-                Clasificación
-                <InputSelect class="input" @bind-Value="categoriaFiltro">
-                    <option value="">Todas</option>
-                    @foreach (var categoria in Enum.GetValues<ProductoCategoria>())
-                    {
-                        <option value="@categoria">@categoria</option>
-                    }
-                </InputSelect>
-            </label>
-
-            <label>
-                Estado de stock
-                <InputSelect class="input" @bind-Value="estadoStockFiltro">
-                    <option value="">Todos</option>
-                    <option value="sin-stock">Sin stock</option>
-                    <option value="minimo">Stock mínimo</option>
-                    <option value="disponible">Disponible</option>
-                </InputSelect>
-            </label>
-        </div>
-
-        <div class="table-wrap">
-            <table>
-                <thead>
-                    <tr>
-                        <th>SKU</th>
-                        <th>Producto</th>
-                        <th>Clasificación</th>
-                        <th>Características</th>
-                        <th>Stock</th>
-                        <th>Precio USD</th>
-                        <th>Estado</th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var producto in ProductosFiltrados)
-                    {
-                        <tr class="@ObtenerClaseFila(producto)">
-                            <td>@producto.Sku</td>
-                            <td>
-                                <strong>@producto.Nombre</strong>
-                                @if (!string.IsNullOrWhiteSpace(producto.Descripcion))
-                                {
-                                    <small>@producto.Descripcion</small>
-                                }
-                            </td>
-                            <td>@producto.Categoria</td>
-                            <td>@FormatearCaracteristicas(producto)</td>
-                            <td>
-                                <strong>@producto.StockActual</strong>
-                                <small>Mínimo @producto.StockMinimo</small>
-                            </td>
-                            <td>@Formatos.MonedaUsd(producto.PrecioUnitario)</td>
-                            <td>
-                                <span class="@ObtenerClaseBadge(producto)">@ObtenerEstadoStock(producto)</span>
-                                @if (!producto.Activo)
-                                {
-                                    <span class="badge muted">Inactivo</span>
-                                }
-                            </td>
-                            <td>
-                                <button type="button" class="link-button" @onclick="() => EditarProducto(producto)">Editar</button>
-                            </td>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>SKU</th>
+                            <th>Producto</th>
+                            <th>Clasificación</th>
+                            <th>Características</th>
+                            <th>Stock</th>
+                            <th>Precio</th>
+                            <th>Estado</th>
+                            <th></th>
                         </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
-    </section>
-}
+                    </thead>
+                    <tbody>
+                        @foreach (var producto in ProductosFiltrados)
+                        {
+                            <tr class="@ObtenerClaseFila(producto)">
+                                <td>@producto.Sku</td>
+                                <td>
+                                    <strong>@producto.Nombre</strong>
+                                    @if (!string.IsNullOrWhiteSpace(producto.Descripcion))
+                                    {
+                                        <small>@producto.Descripcion</small>
+                                    }
+                                </td>
+                                <td>@producto.Categoria</td>
+                                <td>@FormatearCaracteristicas(producto)</td>
+                                <td>
+                                    <strong>@producto.StockActual</strong>
+                                    <small>Mínimo @producto.StockMinimo</small>
+                                </td>
+                                <td>@MonedaHelper.FormatearUsd(producto.PrecioUnitario)</td>
+                                <td>
+                                    <span class="@ObtenerClaseBadge(producto)">@ObtenerEstadoStock(producto)</span>
+                                    @if (!producto.Activo)
+                                    {
+                                        <span class="badge muted">Inactivo</span>
+                                    }
+                                </td>
+                                <td>
+                                    <button type="button" class="link-button" @onclick="() => EditarProducto(producto)">Editar</button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    }
+</AuthorizeAccess>
 
 @code {
+    private const long MaxTamanoArchivoImportacion = 10 * 1024 * 1024;
+
     private readonly List<string> errores = [];
     private List<Producto> productos = [];
     private ProductoForm form = new();
     private bool cargando = true;
     private bool guardando;
-    private bool importandoStock;
+    private bool importando;
+    private bool descargandoPlantilla;
     private string? mensaje;
+    private string? errorImportacion;
     private string busqueda = string.Empty;
     private string categoriaFiltro = string.Empty;
     private string estadoStockFiltro = string.Empty;
+    private IBrowserFile? archivoImportacion;
+    private StockImportResult? resultadoImportacion;
 
     private IEnumerable<Producto> ProductosFiltrados
     {
@@ -315,11 +368,6 @@ else
             errores.Add("El stock actual no puede ser negativo.");
         }
 
-        if (form.PrecioUnitario < 0)
-        {
-            errores.Add("El precio unitario no puede ser negativo.");
-        }
-
         if (form.StockMinimo < 0)
         {
             errores.Add("El stock mínimo no puede ser negativo.");
@@ -379,7 +427,7 @@ else
             producto.Modelo = NormalizarTextoOpcional(form.Modelo);
             producto.Calibre = NormalizarTextoOpcional(form.Calibre);
             producto.PrecioUnitario = form.PrecioUnitario;
-            producto.AlicuotaIva = 0m;
+            producto.CostoUnitario = form.CostoUnitario;
             producto.StockActual = form.StockActual;
             producto.StockMinimo = form.StockMinimo;
             producto.Activo = form.Activo;
@@ -400,17 +448,17 @@ else
             }
 
             await db.SaveChangesAsync();
-            mensaje = esNuevo
-                ? "Producto agregado correctamente. Alta completada, ya puede cargar otro producto."
-                : "Producto actualizado correctamente.";
             await RecargarProductosAsync();
+
             if (esNuevo)
             {
-                form = new ProductoForm();
+                NuevoProducto();
+                mensaje = "Producto cargado correctamente.";
             }
             else
             {
-                EditarProducto(productos.Single(x => x.Id == producto.Id));
+                mensaje = "Producto actualizado correctamente.";
+                EditarProducto(producto);
             }
         }
         catch (Exception ex)
@@ -421,242 +469,6 @@ else
         {
             guardando = false;
         }
-    }
-
-    private async Task ImportarStockAsync(InputFileChangeEventArgs e)
-    {
-        errores.Clear();
-        mensaje = null;
-
-        if (importandoStock)
-        {
-            return;
-        }
-
-        var archivo = e.File;
-        if (archivo is null)
-        {
-            return;
-        }
-
-        try
-        {
-            importandoStock = true;
-            var filas = await LeerFilasImportacionAsync(archivo);
-            if (errores.Count > 0)
-            {
-                return;
-            }
-
-            await GuardarImportacionAsync(filas);
-            await RecargarProductosAsync();
-            form = new ProductoForm();
-        }
-        catch (Exception ex)
-        {
-            errores.Add($"No se pudo importar el Excel: {ex.Message}");
-        }
-        finally
-        {
-            importandoStock = false;
-        }
-    }
-
-    private async Task<List<StockImportRow>> LeerFilasImportacionAsync(IBrowserFile archivo)
-    {
-        await using var stream = new MemoryStream();
-        await archivo.OpenReadStream(10 * 1024 * 1024).CopyToAsync(stream);
-        stream.Position = 0;
-
-        using var workbook = new XLWorkbook(stream);
-        var worksheet = workbook.Worksheets.FirstOrDefault();
-        if (worksheet is null)
-        {
-            errores.Add("El Excel no contiene hojas para importar.");
-            return [];
-        }
-
-        var columnas = ObtenerColumnas(worksheet);
-        var columnaSku = BuscarColumna(columnas, "sku", "codigo", "código");
-        var columnaNombre = BuscarColumna(columnas, "nombre", "producto", "articulo", "artículo");
-        var columnaPrecio = BuscarColumna(columnas, "precio", "precio unitario", "precio usd", "precio dolar", "precio dólar");
-        var columnaStock = BuscarColumna(columnas, "stock", "stock actual", "cantidad", "existencia", "existencias");
-
-        if (columnaSku == 0)
-        {
-            errores.Add("El Excel debe incluir una columna SKU.");
-        }
-
-        if (columnaNombre == 0)
-        {
-            errores.Add("El Excel debe incluir una columna Nombre o Producto.");
-        }
-
-        if (columnaPrecio == 0)
-        {
-            errores.Add("El Excel debe incluir una columna Precio.");
-        }
-
-        if (columnaStock == 0)
-        {
-            errores.Add("El Excel debe incluir una columna Stock o Cantidad.");
-        }
-
-        if (errores.Count > 0)
-        {
-            return [];
-        }
-
-        var columnaCategoria = BuscarColumna(columnas, "categoria", "categoría", "clasificacion", "clasificación");
-        var columnaDescripcion = BuscarColumna(columnas, "descripcion", "descripción", "caracteristicas", "características");
-        var columnaMarca = BuscarColumna(columnas, "marca");
-        var columnaModelo = BuscarColumna(columnas, "modelo");
-        var columnaCalibre = BuscarColumna(columnas, "calibre", "medida");
-        var columnaStockMinimo = BuscarColumna(columnas, "minimo", "mínimo", "stock minimo", "stock mínimo");
-        var columnaActivo = BuscarColumna(columnas, "activo", "estado");
-        var ultimaFila = worksheet.LastRowUsed()?.RowNumber() ?? 1;
-        var ultimaColumna = Math.Max(columnas.Values.DefaultIfEmpty(0).Max(), 1);
-        var filas = new List<StockImportRow>();
-        var skusArchivo = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        for (var fila = 2; fila <= ultimaFila; fila++)
-        {
-            if (FilaVacia(worksheet, fila, ultimaColumna))
-            {
-                continue;
-            }
-
-            var sku = LeerTexto(worksheet, fila, columnaSku)?.ToUpperInvariant();
-            var nombre = LeerTexto(worksheet, fila, columnaNombre);
-            if (string.IsNullOrWhiteSpace(sku))
-            {
-                errores.Add($"Fila {fila}: el SKU es obligatorio.");
-                continue;
-            }
-
-            if (!skusArchivo.Add(sku))
-            {
-                errores.Add($"Fila {fila}: el SKU {sku} está duplicado en el Excel.");
-                continue;
-            }
-
-            if (string.IsNullOrWhiteSpace(nombre))
-            {
-                errores.Add($"Fila {fila}: el nombre del producto es obligatorio.");
-                continue;
-            }
-
-            if (!TryLeerDecimal(worksheet, fila, columnaPrecio, out var precio) || precio < 0)
-            {
-                errores.Add($"Fila {fila}: el precio debe ser un número mayor o igual a cero.");
-                continue;
-            }
-
-            if (!TryLeerEntero(worksheet, fila, columnaStock, out var stockActual) || stockActual < 0)
-            {
-                errores.Add($"Fila {fila}: el stock debe ser un número entero mayor o igual a cero.");
-                continue;
-            }
-
-            var stockMinimo = 1;
-            if (columnaStockMinimo > 0
-                && (!TryLeerEntero(worksheet, fila, columnaStockMinimo, out stockMinimo) || stockMinimo < 0))
-            {
-                errores.Add($"Fila {fila}: el stock mínimo debe ser un número entero mayor o igual a cero.");
-                continue;
-            }
-
-            if (!TryLeerCategoria(LeerTexto(worksheet, fila, columnaCategoria), out var categoria))
-            {
-                errores.Add($"Fila {fila}: la categoría debe ser General, Arma o Municion.");
-                continue;
-            }
-
-            filas.Add(new StockImportRow(
-                fila,
-                sku,
-                nombre,
-                NormalizarTextoOpcional(LeerTexto(worksheet, fila, columnaDescripcion)),
-                categoria,
-                NormalizarTextoOpcional(LeerTexto(worksheet, fila, columnaMarca)),
-                NormalizarTextoOpcional(LeerTexto(worksheet, fila, columnaModelo)),
-                NormalizarTextoOpcional(LeerTexto(worksheet, fila, columnaCalibre)),
-                precio,
-                stockActual,
-                stockMinimo,
-                LeerActivo(LeerTexto(worksheet, fila, columnaActivo))));
-        }
-
-        if (filas.Count == 0 && errores.Count == 0)
-        {
-            errores.Add("El Excel no contiene filas de productos para importar.");
-        }
-
-        return filas;
-    }
-
-    private async Task GuardarImportacionAsync(IReadOnlyCollection<StockImportRow> filas)
-    {
-        await using var db = await DbContextFactory.CreateDbContextAsync();
-        await using var transaction = await db.Database.BeginTransactionAsync();
-        var skus = filas.Select(x => x.Sku).ToArray();
-        var productosExistentes = await db.Productos
-            .Where(x => skus.Contains(x.Sku))
-            .ToListAsync();
-        var existentes = productosExistentes.ToDictionary(x => x.Sku, StringComparer.OrdinalIgnoreCase);
-
-        var creados = 0;
-        var actualizados = 0;
-
-        foreach (var fila in filas)
-        {
-            var esNuevo = !existentes.TryGetValue(fila.Sku, out var producto);
-            producto ??= new Producto
-            {
-                Sku = fila.Sku,
-                CreadoEn = DateTime.UtcNow
-            };
-
-            if (esNuevo)
-            {
-                db.Productos.Add(producto);
-                creados++;
-            }
-            else
-            {
-                actualizados++;
-            }
-
-            var stockAnterior = esNuevo ? 0 : producto.StockActual;
-            producto.Nombre = fila.Nombre;
-            producto.Descripcion = fila.Descripcion;
-            producto.Categoria = fila.Categoria;
-            producto.Marca = fila.Marca;
-            producto.Modelo = fila.Modelo;
-            producto.Calibre = fila.Calibre;
-            producto.PrecioUnitario = fila.PrecioUnitario;
-            producto.AlicuotaIva = 0m;
-            producto.StockActual = fila.StockActual;
-            producto.StockMinimo = fila.StockMinimo;
-            producto.Activo = fila.Activo;
-
-            var diferenciaStock = producto.StockActual - stockAnterior;
-            if (diferenciaStock != 0)
-            {
-                db.MovimientosStock.Add(new MovimientoStock
-                {
-                    Producto = producto,
-                    Tipo = esNuevo && diferenciaStock > 0 ? TipoMovimientoStock.Ingreso : TipoMovimientoStock.Ajuste,
-                    Cantidad = diferenciaStock,
-                    StockResultante = producto.StockActual,
-                    Observacion = $"Importación Excel fila {fila.NumeroFila}"
-                });
-            }
-        }
-
-        await db.SaveChangesAsync();
-        await transaction.CommitAsync();
-        mensaje = $"Importación completada: {creados} producto(s) nuevo(s) y {actualizados} actualizado(s).";
     }
 
     private async Task RecargarProductosAsync()
@@ -688,163 +500,74 @@ else
             Modelo = producto.Modelo ?? string.Empty,
             Calibre = producto.Calibre ?? string.Empty,
             PrecioUnitario = producto.PrecioUnitario,
+            CostoUnitario = producto.CostoUnitario,
             StockActual = producto.StockActual,
             StockMinimo = producto.StockMinimo,
             Activo = producto.Activo
         };
     }
 
+    private void OnArchivoImportacionSeleccionado(InputFileChangeEventArgs e)
+    {
+        archivoImportacion = e.File;
+        resultadoImportacion = null;
+        errorImportacion = null;
+    }
+
+    private async Task DescargarPlantillaAsync()
+    {
+        errorImportacion = null;
+
+        try
+        {
+            descargandoPlantilla = true;
+            var bytes = StockImportService.GenerarPlantilla();
+            await using var stream = new MemoryStream(bytes);
+            using var streamRef = new DotNetStreamReference(stream);
+            await Js.InvokeVoidAsync("stockSanti.downloadFileFromStream", "plantilla-stock.xlsx", streamRef);
+        }
+        catch (Exception ex)
+        {
+            errorImportacion = $"No se pudo generar la plantilla: {ex.Message}";
+        }
+        finally
+        {
+            descargandoPlantilla = false;
+        }
+    }
+
+    private async Task ImportarExcelAsync()
+    {
+        if (archivoImportacion is null)
+        {
+            return;
+        }
+
+        errorImportacion = null;
+        resultadoImportacion = null;
+
+        try
+        {
+            importando = true;
+            await using var stream = archivoImportacion.OpenReadStream(MaxTamanoArchivoImportacion);
+            resultadoImportacion = await ImportService.ImportarAsync(stream);
+            archivoImportacion = null;
+            await RecargarProductosAsync();
+        }
+        catch (Exception ex)
+        {
+            errorImportacion = $"No se pudo importar el archivo: {ex.Message}";
+        }
+        finally
+        {
+            importando = false;
+        }
+    }
+
     private static string? NormalizarTextoOpcional(string? valor)
     {
         var normalizado = valor?.Trim();
         return string.IsNullOrWhiteSpace(normalizado) ? null : normalizado;
-    }
-
-    private static Dictionary<string, int> ObtenerColumnas(IXLWorksheet worksheet)
-    {
-        var columnas = new Dictionary<string, int>();
-        var ultimaColumna = worksheet.Row(1).LastCellUsed()?.Address.ColumnNumber ?? 0;
-
-        for (var columna = 1; columna <= ultimaColumna; columna++)
-        {
-            var encabezado = worksheet.Cell(1, columna).GetFormattedString();
-            var clave = NormalizarClave(encabezado);
-            if (!string.IsNullOrWhiteSpace(clave) && !columnas.ContainsKey(clave))
-            {
-                columnas.Add(clave, columna);
-            }
-        }
-
-        return columnas;
-    }
-
-    private static int BuscarColumna(IReadOnlyDictionary<string, int> columnas, params string[] nombres)
-    {
-        foreach (var nombre in nombres)
-        {
-            if (columnas.TryGetValue(NormalizarClave(nombre), out var columna))
-            {
-                return columna;
-            }
-        }
-
-        return 0;
-    }
-
-    private static bool FilaVacia(IXLWorksheet worksheet, int fila, int ultimaColumna) =>
-        worksheet.Row(fila)
-            .Cells(1, ultimaColumna)
-            .All(x => string.IsNullOrWhiteSpace(x.GetFormattedString()));
-
-    private static string? LeerTexto(IXLWorksheet worksheet, int fila, int columna)
-    {
-        if (columna <= 0)
-        {
-            return null;
-        }
-
-        var texto = worksheet.Cell(fila, columna).GetFormattedString()?.Trim();
-        return string.IsNullOrWhiteSpace(texto) ? null : texto;
-    }
-
-    private static bool TryLeerEntero(IXLWorksheet worksheet, int fila, int columna, out int valor)
-    {
-        valor = 0;
-        if (!TryLeerDecimal(worksheet, fila, columna, out var decimalValor)
-            || decimalValor != decimal.Truncate(decimalValor)
-            || decimalValor < int.MinValue
-            || decimalValor > int.MaxValue)
-        {
-            return false;
-        }
-
-        valor = (int)decimalValor;
-        return true;
-    }
-
-    private static bool TryLeerDecimal(IXLWorksheet worksheet, int fila, int columna, out decimal valor)
-    {
-        valor = 0m;
-        if (columna <= 0)
-        {
-            return false;
-        }
-
-        var celda = worksheet.Cell(fila, columna);
-        if (celda.TryGetValue<decimal>(out var valorNumerico))
-        {
-            valor = valorNumerico;
-            return true;
-        }
-
-        var texto = celda.GetFormattedString()
-            .Replace("USD", string.Empty, StringComparison.OrdinalIgnoreCase)
-            .Replace("$", string.Empty, StringComparison.Ordinal)
-            .Trim();
-
-        return decimal.TryParse(texto, NumberStyles.Number, CultureInfo.GetCultureInfo("en-US"), out valor)
-            || decimal.TryParse(texto, NumberStyles.Number, CultureInfo.GetCultureInfo("es-AR"), out valor)
-            || decimal.TryParse(texto, NumberStyles.Number, CultureInfo.InvariantCulture, out valor);
-    }
-
-    private static bool TryLeerCategoria(string? texto, out ProductoCategoria categoria)
-    {
-        categoria = ProductoCategoria.General;
-        if (string.IsNullOrWhiteSpace(texto))
-        {
-            return true;
-        }
-
-        if (Enum.TryParse<ProductoCategoria>(texto, ignoreCase: true, out categoria))
-        {
-            return true;
-        }
-
-        if (int.TryParse(texto, out var numero)
-            && Enum.IsDefined(typeof(ProductoCategoria), numero))
-        {
-            categoria = (ProductoCategoria)numero;
-            return true;
-        }
-
-        categoria = NormalizarClave(texto) switch
-        {
-            "arma" or "armas" => ProductoCategoria.Arma,
-            "municion" or "municiones" => ProductoCategoria.Municion,
-            "general" => ProductoCategoria.General,
-            _ => ProductoCategoria.General
-        };
-
-        return NormalizarClave(texto) is "arma" or "armas" or "municion" or "municiones" or "general";
-    }
-
-    private static bool LeerActivo(string? texto)
-    {
-        if (string.IsNullOrWhiteSpace(texto))
-        {
-            return true;
-        }
-
-        return NormalizarClave(texto) is not ("inactivo" or "baja" or "no" or "false" or "0");
-    }
-
-    private static string NormalizarClave(string valor)
-    {
-        var builder = new System.Text.StringBuilder();
-        foreach (var caracter in valor.Trim().ToLowerInvariant().Normalize(System.Text.NormalizationForm.FormD))
-        {
-            if (CharUnicodeInfo.GetUnicodeCategory(caracter) == UnicodeCategory.NonSpacingMark)
-            {
-                continue;
-            }
-
-            if (char.IsLetterOrDigit(caracter))
-            {
-                builder.Append(caracter);
-            }
-        }
-
-        return builder.ToString();
     }
 
     private static string FormatearCaracteristicas(Producto producto)
@@ -889,23 +612,6 @@ else
         return producto.StockActual <= producto.StockMinimo ? "warning-row" : null;
     }
 
-    private string ObtenerClaseBotonImportar() =>
-        importandoStock ? "button primary disabled" : "button primary";
-
-    private sealed record StockImportRow(
-        int NumeroFila,
-        string Sku,
-        string Nombre,
-        string? Descripcion,
-        ProductoCategoria Categoria,
-        string? Marca,
-        string? Modelo,
-        string? Calibre,
-        decimal PrecioUnitario,
-        int StockActual,
-        int StockMinimo,
-        bool Activo);
-
     private sealed class ProductoForm
     {
         public int? Id { get; set; }
@@ -932,6 +638,9 @@ else
 
         [Range(0, 999999999)]
         public decimal PrecioUnitario { get; set; }
+
+        [Range(0, 999999999)]
+        public decimal CostoUnitario { get; set; }
 
         [Range(0, int.MaxValue)]
         public int StockActual { get; set; }

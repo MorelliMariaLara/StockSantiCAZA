@@ -1,0 +1,78 @@
+@page "/login"
+@layout EmptyLayout
+@inject IAuthService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>Iniciar sesión - StockSantiCAZA</PageTitle>
+
+<section class="login-shell">
+    <div class="login-card panel">
+        <h1>StockSantiCAZA</h1>
+        <p>Ingrese con su usuario para operar el sistema.</p>
+
+        @if (!string.IsNullOrWhiteSpace(error))
+        {
+            <div class="alert alert-danger">@error</div>
+        }
+
+        <EditForm Model="form" OnValidSubmit="IniciarSesionAsync">
+            <label>
+                Usuario
+                <InputText class="input" @bind-Value="form.Login" autocomplete="username" />
+            </label>
+
+            <label>
+                Contraseña
+                <InputText class="input" type="password" @bind-Value="form.Password" autocomplete="current-password" />
+            </label>
+
+            <button class="button primary" type="submit" disabled="@procesando">
+                @(procesando ? "Ingresando..." : "Ingresar")
+            </button>
+        </EditForm>
+
+        <small>Usuario inicial: admin / Admin123!</small>
+    </div>
+</section>
+
+@code {
+    private readonly LoginForm form = new();
+    private string? error;
+    private bool procesando;
+
+    protected override void OnInitialized()
+    {
+        if (AuthService.UsuarioActual is not null)
+        {
+            Navigation.NavigateTo("/");
+        }
+    }
+
+    private async Task IniciarSesionAsync()
+    {
+        error = null;
+        procesando = true;
+
+        try
+        {
+            var ok = await AuthService.IniciarSesionAsync(form.Login, form.Password);
+            if (!ok)
+            {
+                error = "Usuario o contraseña incorrectos.";
+                return;
+            }
+
+            Navigation.NavigateTo("/");
+        }
+        finally
+        {
+            procesando = false;
+        }
+    }
+
+    private sealed class LoginForm
+    {
+        public string Login { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
+    }
+}

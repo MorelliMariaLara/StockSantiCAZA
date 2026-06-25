@@ -13,6 +13,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<Venta> Ventas => Set<Venta>();
     public DbSet<DetalleVenta> DetallesVenta => Set<DetalleVenta>();
     public DbSet<MovimientoStock> MovimientosStock => Set<MovimientoStock>();
+    public DbSet<Usuario> Usuarios => Set<Usuario>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -22,7 +23,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         {
             entity.HasIndex(x => x.Sku).IsUnique();
             entity.Property(x => x.PrecioUnitario).HasPrecision(18, 2);
-            entity.Property(x => x.AlicuotaIva).HasPrecision(5, 2);
+            entity.Property(x => x.CostoUnitario).HasPrecision(18, 2);
             entity.Property(x => x.Sku).HasMaxLength(40);
             entity.Property(x => x.Nombre).HasMaxLength(180);
         });
@@ -71,6 +72,15 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
+        modelBuilder.Entity<Usuario>(entity =>
+        {
+            entity.HasIndex(x => x.Login).IsUnique();
+            entity.Property(x => x.Nombre).HasMaxLength(120);
+            entity.Property(x => x.Login).HasMaxLength(60);
+            entity.Property(x => x.PasswordHash).HasMaxLength(256);
+            entity.Property(x => x.Activo).HasDefaultValue(true);
+        });
+
         modelBuilder.Entity<Venta>(entity =>
         {
             entity.Property(x => x.Subtotal).HasPrecision(18, 2);
@@ -82,6 +92,10 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
                 .WithMany(x => x.Ventas)
                 .HasForeignKey(x => x.ClienteId)
                 .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.VendedorUsuario)
+                .WithMany(x => x.VentasRealizadas)
+                .HasForeignKey(x => x.VendedorId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<DetalleVenta>(entity =>

@@ -11,17 +11,37 @@ public class ReportesService(IDbContextFactory<ApplicationDbContext> dbContextFa
         DateOnly fecha,
         CancellationToken cancellationToken = default)
     {
+        var reporte = await ObtenerReportePeriodoAsync(fecha, fecha, cancellationToken);
+        return new DashboardResumenDto(
+            reporte.CantidadVentas,
+            reporte.TotalVentas,
+            reporte.GananciaTotal,
+            reporte.MovimientosStock,
+            reporte.ProductosConStockMinimo,
+            reporte.AlertasStock);
+    }
+
+    public async Task<ReportePeriodoDto> ObtenerReportePeriodoAsync(
+        DateOnly desde,
+        DateOnly hasta,
+        CancellationToken cancellationToken = default)
+    {
         await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken);
-        var desde = fecha.ToDateTime(TimeOnly.MinValue);
-        var hasta = fecha.ToDateTime(TimeOnly.MaxValue);
+        var desdeDate = desde.ToDateTime(TimeOnly.MinValue);
+        var hastaDate = hasta.ToDateTime(TimeOnly.MaxValue);
 
-        var ventasQuery = db.Ventas.AsNoTracking()
-            .Where(x => x.Fecha >= desde && x.Fecha <= hasta && x.Estado != EstadoVenta.Anulada);
+        var ventas = await db.Ventas.AsNoTracking()
+            .Include(x => x.Detalles)
+                .ThenInclude(x => x.Producto)
+            .Where(x => x.Fecha >= desdeDate && x.Fecha <= hastaDate && x.Estado != EstadoVenta.Anulada)
+            .ToListAsync(cancellationToken);
 
-        var cantidadVentas = await ventasQuery.CountAsync(cancellationToken);
-        var totalVentas = await ventasQuery.SumAsync(x => (decimal?)x.Total, cancellationToken) ?? 0m;
+        var cantidadVentas = ventas.Count;
+        var totalVentas = ventas.Sum(x => x.Total);
+        var gananciaTotal = ventas.Sum(CalcularGananciaVenta);
+
         var movimientos = await db.MovimientosStock.AsNoTracking()
-            .CountAsync(x => x.Fecha >= desde && x.Fecha <= hasta, cancellationToken);
+            .CountAsync(x => x.Fecha >= desdeDate && x.Fecha <= hastaDate, cancellationToken);
 
         var alertas = await db.Productos.AsNoTracking()
             .Where(x => x.Activo && x.StockActual <= x.StockMinimo)
@@ -31,9 +51,10 @@ public class ReportesService(IDbContextFactory<ApplicationDbContext> dbContextFa
             .Select(x => new StockAlertaDto(x.Sku, x.Nombre, x.StockActual, x.StockMinimo))
             .ToListAsync(cancellationToken);
 
-        return new DashboardResumenDto(
+        return new ReportePeriodoDto(
             cantidadVentas,
             totalVentas,
+            gananciaTotal,
             movimientos,
             alertas.Count,
             alertas);
@@ -70,9 +91,10 @@ public class ReportesService(IDbContextFactory<ApplicationDbContext> dbContextFa
                 x.Marca,
                 x.Modelo,
                 x.Calibre,
-                x.PrecioUnitario,
                 x.StockActual,
                 x.StockMinimo,
+                x.PrecioUnitario,
+                x.CostoUnitario,
                 x.StockActual <= x.StockMinimo ? "ALERTA" : "OK"))
             .ToListAsync(cancellationToken);
 
@@ -86,12 +108,23 @@ public class ReportesService(IDbContextFactory<ApplicationDbContext> dbContextFa
         return stream.ToArray();
     }
 
+    private static decimal CalcularGananciaVenta(Venta venta)
+    {
+        var gananciaLineas = venta.Detalles.Sum(detalle =>
+        {
+            var margenUnitario = detalle.PrecioUnitario - detalle.Producto.CostoUnitario;
+            return (margenUnitario * detalle.Cantidad) - detalle.Descuento;
+        });
+
+        return gananciaLineas - venta.DescuentoTotal;
+    }
+
     private static void AgregarHojaVentas(XLWorkbook workbook, IReadOnlyList<Venta> ventas)
     {
         var ws = workbook.Worksheets.Add("Ventas");
         var headers = new[]
         {
-            "Fecha", "Comprobante", "Tipo", "Cliente", "DNI/CUIT", "Vendedor", "Subtotal USD", "Descuento USD", "Total USD", "CAE"
+            "Fecha", "Comprobante", "Tipo", "Cliente", "DNI/CUIT", "Vendedor", "Subtotal USD", "Descuento USD", "Total USD", "Ganancia USD", "CAE"
         };
 
         for (var i = 0; i < headers.Length; i++)
@@ -112,7 +145,8 @@ public class ReportesService(IDbContextFactory<ApplicationDbContext> dbContextFa
             ws.Cell(excelRow, 7).Value = venta.Subtotal;
             ws.Cell(excelRow, 8).Value = venta.DescuentoTotal;
             ws.Cell(excelRow, 9).Value = venta.Total;
-            ws.Cell(excelRow, 10).Value = venta.Cae;
+            ws.Cell(excelRow, 10).Value = CalcularGananciaVenta(venta);
+            ws.Cell(excelRow, 11).Value = venta.Cae;
         }
 
         FormatearTabla(ws, headers.Length);
@@ -123,7 +157,7 @@ public class ReportesService(IDbContextFactory<ApplicationDbContext> dbContextFa
         var ws = workbook.Worksheets.Add("Detalle");
         var headers = new[]
         {
-            "Comprobante", "Vendedor", "SKU", "Producto", "Categoría", "Serie arma", "Lote munición", "Calibre", "Cantidad", "Precio USD", "Descuento USD", "Total USD"
+            "Comprobante", "Vendedor", "SKU", "Producto", "Categoría", "Serie arma", "Lote munición", "Calibre", "Cantidad", "Precio USD", "Total USD", "Ganancia USD"
         };
 
         for (var i = 0; i < headers.Length; i++)
@@ -134,6 +168,9 @@ public class ReportesService(IDbContextFactory<ApplicationDbContext> dbContextFa
         var row = 2;
         foreach (var detalle in ventas.SelectMany(x => x.Detalles, (venta, detalle) => new { venta, detalle }))
         {
+            var gananciaLinea = ((detalle.detalle.PrecioUnitario - detalle.detalle.Producto.CostoUnitario) * detalle.detalle.Cantidad)
+                - detalle.detalle.Descuento;
+
             ws.Cell(row, 1).Value = detalle.venta.NumeroComprobante;
             ws.Cell(row, 2).Value = FormatearVendedor(detalle.venta);
             ws.Cell(row, 3).Value = detalle.detalle.Producto.Sku;
@@ -144,8 +181,8 @@ public class ReportesService(IDbContextFactory<ApplicationDbContext> dbContextFa
             ws.Cell(row, 8).Value = detalle.detalle.Arma?.Calibre ?? detalle.detalle.MunicionLote?.Calibre ?? detalle.detalle.Producto.Calibre;
             ws.Cell(row, 9).Value = detalle.detalle.Cantidad;
             ws.Cell(row, 10).Value = detalle.detalle.PrecioUnitario;
-            ws.Cell(row, 11).Value = detalle.detalle.Descuento;
-            ws.Cell(row, 12).Value = detalle.detalle.Total;
+            ws.Cell(row, 11).Value = detalle.detalle.Total;
+            ws.Cell(row, 12).Value = gananciaLinea;
             row++;
         }
 
@@ -155,7 +192,7 @@ public class ReportesService(IDbContextFactory<ApplicationDbContext> dbContextFa
     private static void AgregarHojaStock(XLWorkbook workbook, IEnumerable<StockExportRow> stock)
     {
         var ws = workbook.Worksheets.Add("Stock");
-        var headers = new[] { "SKU", "Producto", "Categoría", "Marca", "Modelo", "Calibre", "Precio USD", "Stock", "Mínimo", "Estado" };
+        var headers = new[] { "SKU", "Producto", "Categoría", "Marca", "Modelo", "Calibre", "Stock", "Mínimo", "Precio USD", "Costo USD", "Estado" };
 
         for (var i = 0; i < headers.Length; i++)
         {
@@ -171,10 +208,11 @@ public class ReportesService(IDbContextFactory<ApplicationDbContext> dbContextFa
             ws.Cell(row, 4).Value = item.Marca;
             ws.Cell(row, 5).Value = item.Modelo;
             ws.Cell(row, 6).Value = item.Calibre;
-            ws.Cell(row, 7).Value = item.PrecioUnitario;
-            ws.Cell(row, 8).Value = item.StockActual;
-            ws.Cell(row, 9).Value = item.StockMinimo;
-            ws.Cell(row, 10).Value = item.Estado;
+            ws.Cell(row, 7).Value = item.StockActual;
+            ws.Cell(row, 8).Value = item.StockMinimo;
+            ws.Cell(row, 9).Value = item.PrecioUnitario;
+            ws.Cell(row, 10).Value = item.CostoUnitario;
+            ws.Cell(row, 11).Value = item.Estado;
             if (item.Estado == "ALERTA")
             {
                 ws.Row(row).Style.Fill.BackgroundColor = XLColor.LightPink;
@@ -206,8 +244,9 @@ public class ReportesService(IDbContextFactory<ApplicationDbContext> dbContextFa
         string? Marca,
         string? Modelo,
         string? Calibre,
-        decimal PrecioUnitario,
         int StockActual,
         int StockMinimo,
+        decimal PrecioUnitario,
+        decimal CostoUnitario,
         string Estado);
 }

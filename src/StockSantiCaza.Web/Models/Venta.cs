@@ -21,6 +21,9 @@ public class Venta
     [MaxLength(40)]
     public string? NumeroComprobante { get; set; }
 
+    public int? VendedorId { get; set; }
+    public Usuario? VendedorUsuario { get; set; }
+
     [Required, MaxLength(120)]
     public string Vendedor { get; set; } = string.Empty;
 

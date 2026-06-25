@@ -1,0 +1,57 @@
+@using StockSantiCaza.Web.Services.Auth
+@inject IAuthService AuthService
+@inject NavigationManager Navigation
+
+@if (Autorizado)
+{
+    @ChildContent
+}
+else if (Redirigiendo)
+{
+    <p>Redirigiendo al inicio de sesión...</p>
+}
+else if (!string.IsNullOrWhiteSpace(Mensaje))
+{
+    <section class="panel">
+        <div class="alert alert-danger">@Mensaje</div>
+    </section>
+}
+
+@code {
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    [Parameter]
+    public bool RequiereAdministrador { get; set; }
+
+    private bool Autorizado { get; set; }
+
+    private bool Redirigiendo { get; set; }
+
+    private string? Mensaje { get; set; }
+
+    protected override void OnInitialized()
+    {
+        if (AuthService.UsuarioActual is null)
+        {
+            Redirigiendo = true;
+            return;
+        }
+
+        if (RequiereAdministrador && !AuthService.UsuarioActual.EsAdministrador)
+        {
+            Mensaje = "No tiene permisos para acceder a esta sección.";
+            return;
+        }
+
+        Autorizado = true;
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender && Redirigiendo)
+        {
+            Navigation.NavigateTo("/login");
+        }
+    }
+}

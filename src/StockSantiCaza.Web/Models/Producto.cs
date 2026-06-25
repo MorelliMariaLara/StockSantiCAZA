@@ -28,7 +28,7 @@ public class Producto
 
     public decimal PrecioUnitario { get; set; }
 
-    public decimal AlicuotaIva { get; set; }
+    public decimal CostoUnitario { get; set; }
 
     public int StockActual { get; set; }
 

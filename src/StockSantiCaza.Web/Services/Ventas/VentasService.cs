@@ -20,10 +20,9 @@ public class VentasService(
             errores.Add("Debe seleccionar un cliente.");
         }
 
-        var vendedor = (request.Vendedor ?? string.Empty).Trim();
-        if (string.IsNullOrWhiteSpace(vendedor))
+        if (request.VendedorId is null)
         {
-            errores.Add("Debe indicar quién realizó la venta.");
+            errores.Add("Debe seleccionar el vendedor que realizó la venta.");
         }
 
         if (request.Items.Count == 0)
@@ -54,6 +53,14 @@ public class VentasService(
             throw new VentaValidationException(["El cliente seleccionado está dado de baja."]);
         }
 
+        var vendedor = await db.Usuarios
+            .SingleOrDefaultAsync(x => x.Id == request.VendedorId && x.Activo, cancellationToken);
+
+        if (vendedor is null)
+        {
+            throw new VentaValidationException(["El vendedor seleccionado no existe o está inactivo."]);
+        }
+
         var productoIds = request.Items.Select(x => x.ProductoId).Distinct().ToArray();
         var productos = await db.Productos
             .Where(x => productoIds.Contains(x.Id))
@@ -80,7 +87,8 @@ public class VentasService(
         var venta = new Venta
         {
             ClienteId = cliente.Id,
-            Vendedor = vendedor,
+            VendedorId = vendedor.Id,
+            Vendedor = vendedor.Nombre,
             TipoComprobante = request.TipoComprobante,
             Estado = request.TipoComprobante == TipoComprobante.Presupuesto ? EstadoVenta.Confirmada : EstadoVenta.Facturada,
             DescuentoTotal = request.DescuentoGeneral,
@@ -126,7 +134,8 @@ public class VentasService(
 
             var lineaBruta = item.PrecioUnitario * item.Cantidad;
             var descuento = Math.Min(item.Descuento, lineaBruta);
-            var baseImponible = lineaBruta - descuento;
+            var subtotal = lineaBruta - descuento;
+
             venta.Detalles.Add(new DetalleVenta
             {
                 ProductoId = producto.Id,
@@ -135,10 +144,10 @@ public class VentasService(
                 Cantidad = item.Cantidad,
                 PrecioUnitario = item.PrecioUnitario,
                 Descuento = descuento,
-                AlicuotaIva = 0m,
-                Subtotal = baseImponible,
-                Iva = 0m,
-                Total = baseImponible
+                AlicuotaIva = 0,
+                Subtotal = subtotal,
+                Iva = 0,
+                Total = subtotal
             });
 
             if (descuentaStock && errores.Count == 0)
@@ -153,7 +162,7 @@ public class VentasService(
         }
 
         venta.Subtotal = venta.Detalles.Sum(x => x.Subtotal);
-        venta.IvaTotal = 0m;
+        venta.IvaTotal = 0;
         venta.Total = venta.Subtotal - request.DescuentoGeneral;
         if (venta.Total < 0)
         {
