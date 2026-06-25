@@ -1,0 +1,71 @@
+@page "/"
+@inject IReportesService ReportesService
+
+<PageTitle>Dashboard - StockSantiCAZA</PageTitle>
+
+<h1>Dashboard</h1>
+
+@if (resumen is null)
+{
+    <p>Cargando indicadores...</p>
+}
+else
+{
+    <section class="grid cards">
+        <div class="card">
+            <span class="metric-label">Ventas del día</span>
+            <strong>@resumen.CantidadVentas</strong>
+        </div>
+        <div class="card">
+            <span class="metric-label">Facturación neta</span>
+            <strong>@resumen.TotalVentas.ToString("C")</strong>
+        </div>
+        <div class="card warning-card">
+            <span class="metric-label">Productos con stock mínimo</span>
+            <strong>@resumen.ProductosConStockMinimo</strong>
+        </div>
+        <div class="card">
+            <span class="metric-label">Movimientos de stock</span>
+            <strong>@resumen.MovimientosStock</strong>
+        </div>
+    </section>
+
+    @if (resumen.AlertasStock.Count > 0)
+    {
+        <section class="panel">
+            <h2>Alertas de stock mínimo</h2>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>SKU</th>
+                            <th>Producto</th>
+                            <th>Stock</th>
+                            <th>Mínimo</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var alerta in resumen.AlertasStock)
+                        {
+                            <tr class="danger-row">
+                                <td>@alerta.Sku</td>
+                                <td>@alerta.Nombre</td>
+                                <td>@alerta.StockActual</td>
+                                <td>@alerta.StockMinimo</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    }
+}
+
+@code {
+    private DashboardResumenDto? resumen;
+
+    protected override async Task OnInitializedAsync()
+    {
+        resumen = await ReportesService.ObtenerDashboardAsync(DateOnly.FromDateTime(DateTime.Today));
+    }
+}

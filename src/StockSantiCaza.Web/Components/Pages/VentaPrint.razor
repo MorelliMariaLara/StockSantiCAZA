@@ -1,0 +1,91 @@
+@page "/ventas/{VentaId:int}/imprimir"
+@inject IDbContextFactory<ApplicationDbContext> DbContextFactory
+@inject IJSRuntime Js
+
+<PageTitle>Impresión de comprobante</PageTitle>
+
+@if (venta is null)
+{
+    <p>Cargando comprobante...</p>
+}
+else
+{
+    <section class="ticket print-area">
+        <header>
+            <h1>StockSantiCAZA</h1>
+            <p>Comprobante @venta.NumeroComprobante</p>
+            <p>@venta.Fecha.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</p>
+        </header>
+
+        <section>
+            <strong>Cliente</strong>
+            <p>@venta.Cliente.NombreRazonSocial - @venta.Cliente.DniCuit</p>
+        </section>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Producto</th>
+                    <th>Cant.</th>
+                    <th>Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var detalle in venta.Detalles)
+                {
+                    <tr>
+                        <td>
+                            @detalle.Producto.Nombre
+                            @if (detalle.Arma is not null)
+                            {
+                                <small>Serie @detalle.Arma.NumeroSerie</small>
+                            }
+                            @if (detalle.MunicionLote is not null)
+                            {
+                                <small>Lote @detalle.MunicionLote.NumeroLote</small>
+                            }
+                        </td>
+                        <td>@detalle.Cantidad</td>
+                        <td>@detalle.Total.ToString("C")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        <footer>
+            <p>Subtotal: @venta.Subtotal.ToString("C")</p>
+            <p>IVA: @venta.IvaTotal.ToString("C")</p>
+            <p>Descuento: @venta.DescuentoTotal.ToString("C")</p>
+            <strong>Total: @venta.Total.ToString("C")</strong>
+            @if (!string.IsNullOrWhiteSpace(venta.Cae))
+            {
+                <p>CAE @venta.Cae - vto. @(venta.CaeVencimiento?.ToString("dd/MM/yyyy"))</p>
+            }
+        </footer>
+    </section>
+
+    <button class="button primary no-print" @onclick="ImprimirAsync">Imprimir</button>
+}
+
+@code {
+    [Parameter]
+    public int VentaId { get; set; }
+
+    private Venta? venta;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await using var db = await DbContextFactory.CreateDbContextAsync();
+        venta = await db.Ventas.AsNoTracking()
+            .Include(x => x.Cliente)
+            .Include(x => x.Detalles)
+                .ThenInclude(x => x.Producto)
+            .Include(x => x.Detalles)
+                .ThenInclude(x => x.Arma)
+            .Include(x => x.Detalles)
+                .ThenInclude(x => x.MunicionLote)
+            .SingleOrDefaultAsync(x => x.Id == VentaId);
+    }
+
+    private async Task ImprimirAsync() => await Js.InvokeVoidAsync("stockSanti.printPage");
+}
