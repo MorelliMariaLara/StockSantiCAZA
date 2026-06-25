@@ -32,7 +32,17 @@ Requisitos:
 
 ### 1. Base de datos
 
-Si la base `StockSantiCAZA` existe pero está vacía, cree las tablas con:
+Si la base `StockSantiCAZA` existe pero está vacía, cree las tablas con una de estas opciones:
+
+**Opción A - Script SQL en SSMS**
+
+Ejecute el archivo:
+
+```text
+scripts/sql/001_InitialCreate_StockSantiCAZA.sql
+```
+
+**Opción B - Entity Framework**
 
 ```bash
 dotnet ef database update --project src/StockSantiCaza.Web
