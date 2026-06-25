@@ -1,0 +1,432 @@
+@page "/ventas/nueva"
+@inject IDbContextFactory<ApplicationDbContext> DbContextFactory
+@inject IVentasService VentasService
+
+<PageTitle>Nueva venta - StockSantiCAZA</PageTitle>
+
+<h1>Nueva venta</h1>
+
+@if (cargando)
+{
+    <p>Cargando datos comerciales...</p>
+}
+else
+{
+    <EditForm Model="form" OnValidSubmit="ConfirmarVentaAsync">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        @if (errores.Count > 0)
+        {
+            <div class="alert alert-danger">
+                <strong>No se pudo confirmar la venta</strong>
+                <ul>
+                    @foreach (var error in errores)
+                    {
+                        <li>@error</li>
+                    }
+                </ul>
+            </div>
+        }
+
+        @if (resultado is not null)
+        {
+            <div class="alert alert-success">
+                Venta confirmada: <strong>@resultado.NumeroComprobante</strong> por @resultado.Total.ToString("C").
+                <a class="button ghost" href="@($"ventas/{resultado.VentaId}/imprimir")" target="_blank">Abrir impresión</a>
+                @if (resultado.Advertencias.Count > 0)
+                {
+                    <ul>
+                        @foreach (var advertencia in resultado.Advertencias)
+                        {
+                            <li>@advertencia</li>
+                        }
+                    </ul>
+                }
+            </div>
+        }
+
+        <section class="panel">
+            <div class="grid two-columns">
+                <label>
+                    Cliente
+                    <InputSelect class="input" @bind-Value="form.ClienteId" @bind-Value:after="ActualizarClienteSeleccionado">
+                        <option value="">Seleccione...</option>
+                        @foreach (var cliente in clientes)
+                        {
+                            <option value="@cliente.Id">@cliente.NombreRazonSocial - @cliente.DniCuit</option>
+                        }
+                    </InputSelect>
+                </label>
+
+                <label>
+                    Comprobante
+                    <InputSelect class="input" @bind-Value="form.TipoComprobante">
+                        @foreach (var tipo in Enum.GetValues<TipoComprobante>())
+                        {
+                            <option value="@tipo">@tipo</option>
+                        }
+                    </InputSelect>
+                </label>
+            </div>
+
+            @if (clienteSeleccionado is not null)
+            {
+                var clu = clienteSeleccionado.CredencialCLU;
+                <div class="clu-card @(clu?.EstaVigente == true ? "ok" : "expired")">
+                    <strong>CLU:</strong>
+                    @if (clu is null)
+                    {
+                        <span>Sin credencial cargada. La venta de armas y municiones será bloqueada.</span>
+                    }
+                    else
+                    {
+                        <span>Legajo @clu.NumeroLegajo - vence @clu.FechaVencimiento.ToString("dd/MM/yyyy")</span>
+                        @if (!clu.EstaVigente)
+                        {
+                            <strong> VENCIDA</strong>
+                        }
+                    }
+                </div>
+            }
+        </section>
+
+        <section class="panel">
+            <h2>Agregar producto</h2>
+            <div class="grid product-entry">
+                <label>
+                    Buscar
+                    <InputText class="input" @bind-Value="busqueda" placeholder="SKU, nombre, marca, calibre..." />
+                </label>
+
+                <label>
+                    Producto
+                    <InputSelect class="input" @bind-Value="productoSeleccionadoId" @bind-Value:after="ActualizarProductoSeleccionado">
+                        <option value="0">Seleccione...</option>
+                        @foreach (var producto in ProductosFiltrados)
+                        {
+                            <option value="@producto.Id">@producto.Sku - @producto.Nombre (@producto.StockActual)</option>
+                        }
+                    </InputSelect>
+                </label>
+
+                <label>
+                    Cantidad
+                    <InputNumber class="input" @bind-Value="cantidad" />
+                </label>
+
+                <label>
+                    Precio unitario
+                    <InputNumber class="input" @bind-Value="precioUnitario" />
+                </label>
+
+                <label>
+                    Descuento línea
+                    <InputNumber class="input" @bind-Value="descuentoLinea" />
+                </label>
+            </div>
+
+            @if (productoSeleccionado is not null)
+            {
+                <div class="product-alerts">
+                    @if (productoSeleccionado.StockActual <= productoSeleccionado.StockMinimo)
+                    {
+                        <span class="badge danger">Stock mínimo: @productoSeleccionado.StockActual/@productoSeleccionado.StockMinimo</span>
+                    }
+
+                    @if (productoSeleccionado.Categoria == ProductoCategoria.Arma)
+                    {
+                        <label>
+                            Número de serie obligatorio
+                            <InputSelect class="input" @bind-Value="armaSeleccionadaId">
+                                <option value="">Seleccione serie...</option>
+                                @foreach (var arma in armasDisponibles)
+                                {
+                                    <option value="@arma.Id">@arma.NumeroSerie - @arma.Marca @arma.Modelo - @arma.Calibre</option>
+                                }
+                            </InputSelect>
+                        </label>
+                    }
+
+                    @if (productoSeleccionado.Categoria == ProductoCategoria.Municion)
+                    {
+                        <label>
+                            Lote obligatorio
+                            <InputSelect class="input" @bind-Value="loteSeleccionadoId">
+                                <option value="">Seleccione lote...</option>
+                                @foreach (var lote in lotesDisponibles)
+                                {
+                                    <option value="@lote.Id">@lote.NumeroLote - @lote.Calibre - disp. @lote.CantidadDisponible</option>
+                                }
+                            </InputSelect>
+                        </label>
+                    }
+                </div>
+            }
+
+            <button type="button" class="button" @onclick="AgregarItem" disabled="@(productoSeleccionado is null)">Agregar</button>
+        </section>
+
+        <section class="panel">
+            <h2>Detalle</h2>
+            @if (items.Count == 0)
+            {
+                <p>No hay productos agregados.</p>
+            }
+            else
+            {
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Producto</th>
+                                <th>Trazabilidad</th>
+                                <th>Cant.</th>
+                                <th>Precio</th>
+                                <th>Desc.</th>
+                                <th>Total estimado</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in items)
+                            {
+                                <tr class="@(item.Producto.StockActual <= item.Producto.StockMinimo ? "danger-row" : null)">
+                                    <td>@item.Producto.Nombre</td>
+                                    <td>@item.Trazabilidad</td>
+                                    <td>@item.Cantidad</td>
+                                    <td>@item.PrecioUnitario.ToString("C")</td>
+                                    <td>@item.Descuento.ToString("C")</td>
+                                    <td>@item.TotalEstimado.ToString("C")</td>
+                                    <td><button type="button" class="link-button" @onclick="() => QuitarItem(item)">Quitar</button></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+
+            <div class="totals">
+                <label>
+                    Descuento general
+                    <InputNumber class="input" @bind-Value="form.DescuentoGeneral" />
+                </label>
+                <div>
+                    <span>Subtotal: @Subtotal.ToString("C")</span>
+                    <span>IVA: @Iva.ToString("C")</span>
+                    <strong>Total: @Total.ToString("C")</strong>
+                </div>
+            </div>
+        </section>
+
+        <section class="panel">
+            <label>
+                Observaciones
+                <InputTextArea class="input" @bind-Value="form.Observaciones" />
+            </label>
+            <button type="submit" class="button primary" disabled="@procesando">
+                @(procesando ? "Confirmando..." : "Confirmar venta")
+            </button>
+        </section>
+    </EditForm>
+}
+
+@code {
+    private readonly NuevaVentaRequest form = new();
+    private readonly List<LineaVentaVm> items = [];
+    private readonly List<string> errores = [];
+    private List<Cliente> clientes = [];
+    private List<Producto> productos = [];
+    private List<Arma> armasDisponibles = [];
+    private List<MunicionLote> lotesDisponibles = [];
+    private Cliente? clienteSeleccionado;
+    private Producto? productoSeleccionado;
+    private VentaConfirmadaDto? resultado;
+    private bool cargando = true;
+    private bool procesando;
+    private string busqueda = string.Empty;
+    private int productoSeleccionadoId;
+    private int? armaSeleccionadaId;
+    private int? loteSeleccionadoId;
+    private int cantidad = 1;
+    private decimal precioUnitario;
+    private decimal descuentoLinea;
+
+    private IEnumerable<Producto> ProductosFiltrados => string.IsNullOrWhiteSpace(busqueda)
+        ? productos.Take(30)
+        : productos.Where(x =>
+                x.Sku.Contains(busqueda, StringComparison.OrdinalIgnoreCase)
+                || x.Nombre.Contains(busqueda, StringComparison.OrdinalIgnoreCase)
+                || (x.Marca?.Contains(busqueda, StringComparison.OrdinalIgnoreCase) ?? false)
+                || (x.Calibre?.Contains(busqueda, StringComparison.OrdinalIgnoreCase) ?? false))
+            .Take(30);
+
+    private decimal Subtotal => items.Sum(x => x.Subtotal);
+    private decimal Iva => items.Sum(x => x.Iva);
+    private decimal Total => Math.Max(0, Subtotal + Iva - form.DescuentoGeneral);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var db = await DbContextFactory.CreateDbContextAsync();
+        clientes = await db.Clientes
+            .AsNoTracking()
+            .Include(x => x.CredencialCLU)
+            .OrderBy(x => x.NombreRazonSocial)
+            .ToListAsync();
+
+        productos = await db.Productos
+            .AsNoTracking()
+            .Where(x => x.Activo)
+            .OrderBy(x => x.Nombre)
+            .ToListAsync();
+
+        cargando = false;
+    }
+
+    private Task ActualizarClienteSeleccionado()
+    {
+        clienteSeleccionado = clientes.SingleOrDefault(x => x.Id == form.ClienteId);
+        return Task.CompletedTask;
+    }
+
+    private async Task ActualizarProductoSeleccionado()
+    {
+        productoSeleccionado = productos.SingleOrDefault(x => x.Id == productoSeleccionadoId);
+        armasDisponibles = [];
+        lotesDisponibles = [];
+        armaSeleccionadaId = null;
+        loteSeleccionadoId = null;
+
+        if (productoSeleccionado is null)
+        {
+            precioUnitario = 0;
+            return;
+        }
+
+        precioUnitario = productoSeleccionado.PrecioUnitario;
+        cantidad = productoSeleccionado.Categoria == ProductoCategoria.Arma ? 1 : Math.Max(1, cantidad);
+
+        await using var db = await DbContextFactory.CreateDbContextAsync();
+        if (productoSeleccionado.Categoria == ProductoCategoria.Arma)
+        {
+            armasDisponibles = await db.Armas.AsNoTracking()
+                .Where(x => x.ProductoId == productoSeleccionado.Id
+                    && x.ClienteActualId == null
+                    && x.EstadoTramiteAnmac == EstadoTramiteAnmac.Autorizado)
+                .OrderBy(x => x.NumeroSerie)
+                .ToListAsync();
+        }
+        else if (productoSeleccionado.Categoria == ProductoCategoria.Municion)
+        {
+            lotesDisponibles = await db.MunicionLotes.AsNoTracking()
+                .Where(x => x.ProductoId == productoSeleccionado.Id && x.CantidadDisponible > 0)
+                .OrderBy(x => x.FechaIngreso)
+                .ToListAsync();
+        }
+    }
+
+    private void AgregarItem()
+    {
+        errores.Clear();
+        resultado = null;
+
+        if (productoSeleccionado is null)
+        {
+            return;
+        }
+
+        if (productoSeleccionado.Categoria == ProductoCategoria.Arma && armaSeleccionadaId is null)
+        {
+            errores.Add("Debe seleccionar el número de serie del arma.");
+            return;
+        }
+
+        if (productoSeleccionado.Categoria == ProductoCategoria.Municion && loteSeleccionadoId is null)
+        {
+            errores.Add("Debe seleccionar el lote de munición.");
+            return;
+        }
+
+        var arma = armasDisponibles.SingleOrDefault(x => x.Id == armaSeleccionadaId);
+        var lote = lotesDisponibles.SingleOrDefault(x => x.Id == loteSeleccionadoId);
+        items.Add(new LineaVentaVm(productoSeleccionado, arma, lote, cantidad, precioUnitario, descuentoLinea));
+        SincronizarRequest();
+
+        productoSeleccionadoId = 0;
+        productoSeleccionado = null;
+        armasDisponibles = [];
+        lotesDisponibles = [];
+        armaSeleccionadaId = null;
+        loteSeleccionadoId = null;
+        cantidad = 1;
+        precioUnitario = 0;
+        descuentoLinea = 0;
+    }
+
+    private void QuitarItem(LineaVentaVm item)
+    {
+        items.Remove(item);
+        SincronizarRequest();
+    }
+
+    private async Task ConfirmarVentaAsync()
+    {
+        errores.Clear();
+        resultado = null;
+        SincronizarRequest();
+
+        try
+        {
+            procesando = true;
+            resultado = await VentasService.ConfirmarVentaAsync(form);
+            items.Clear();
+            form.Items.Clear();
+            form.DescuentoGeneral = 0;
+        }
+        catch (VentaValidationException ex)
+        {
+            errores.AddRange(ex.Errores);
+        }
+        catch (Exception ex)
+        {
+            errores.Add($"Error inesperado al confirmar la venta: {ex.Message}");
+        }
+        finally
+        {
+            procesando = false;
+        }
+    }
+
+    private void SincronizarRequest()
+    {
+        form.Items = items.Select(x => new ItemVentaRequest
+        {
+            ProductoId = x.Producto.Id,
+            ArmaId = x.Arma?.Id,
+            MunicionLoteId = x.Lote?.Id,
+            Cantidad = x.Cantidad,
+            PrecioUnitario = x.PrecioUnitario,
+            Descuento = x.Descuento
+        }).ToList();
+    }
+
+    private sealed record LineaVentaVm(
+        Producto Producto,
+        Arma? Arma,
+        MunicionLote? Lote,
+        int Cantidad,
+        decimal PrecioUnitario,
+        decimal Descuento)
+    {
+        public string Trazabilidad => Producto.Categoria switch
+        {
+            ProductoCategoria.Arma => $"Serie: {Arma?.NumeroSerie}",
+            ProductoCategoria.Municion => $"Lote: {Lote?.NumeroLote} - Calibre {Lote?.Calibre}",
+            _ => "No aplica"
+        };
+
+        public decimal Subtotal => Math.Max(0, (PrecioUnitario * Cantidad) - Descuento);
+        public decimal Iva => Math.Round(Subtotal * Producto.AlicuotaIva / 100m, 2, MidpointRounding.AwayFromZero);
+        public decimal TotalEstimado => Subtotal + Iva;
+    }
+}
