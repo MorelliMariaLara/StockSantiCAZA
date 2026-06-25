@@ -18,8 +18,9 @@
         {
             <NavLink href="" Match="NavLinkMatch.All"><span class="nav-icon">◆</span> Dashboard</NavLink>
         }
-        <NavLink href="ventas/nueva"><span class="nav-icon">◆</span> Nueva venta</NavLink>
-        <NavLink href="ventas" Match="NavLinkMatch.Prefix"><span class="nav-icon">◆</span> Historial ventas</NavLink>
+        <NavLink href="ventas/nueva"><span class="nav-icon">◆</span> Nueva venta / factura</NavLink>
+        <NavLink href="ventas?vista=facturas"><span class="nav-icon">◆</span> Facturas emitidas</NavLink>
+        <NavLink href="ventas"><span class="nav-icon">◆</span> Historial ventas</NavLink>
         <NavLink href="clientes"><span class="nav-icon">◆</span> Clientes</NavLink>
         <NavLink href="stock"><span class="nav-icon">◆</span> Stock</NavLink>
         @if (AuthService.UsuarioActual.EsAdministrador)

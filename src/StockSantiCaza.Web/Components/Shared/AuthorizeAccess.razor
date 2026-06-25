@@ -53,6 +53,12 @@ else if (!string.IsNullOrWhiteSpace(Mensaje))
             return;
         }
 
+        if (Modulo == ModuloSistema.Ventas && !AuthService.UsuarioActual.PuedeVerFacturas)
+        {
+            Mensaje = "No tiene permisos para ver ni emitir facturas.";
+            return;
+        }
+
         Autorizado = true;
     }
 

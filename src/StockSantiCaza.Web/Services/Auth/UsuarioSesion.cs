@@ -12,5 +12,9 @@ public sealed record UsuarioSesion(
 
     public bool PuedeAcceder(ModuloSistema modulo) => PermisosAcceso.PuedeAcceder(Rol, modulo);
 
+    public bool PuedeFacturar => PermisosAcceso.PuedeFacturar(Rol);
+
+    public bool PuedeVerFacturas => PermisosAcceso.PuedeVerFacturas(Rol);
+
     public bool PuedeEditarStock => PermisosAcceso.PuedeEditarStock(Rol);
 }

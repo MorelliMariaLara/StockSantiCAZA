@@ -2,14 +2,24 @@
 @inject IDbContextFactory<ApplicationDbContext> DbContextFactory
 
 <AuthorizeAccess Modulo="ModuloSistema.Ventas">
-<PageTitle>Ventas - StockSantiCAZA</PageTitle>
+<PageTitle>@(vistaFacturas ? "Facturas" : "Ventas") - StockSantiCAZA</PageTitle>
 
 <div class="section-header">
     <div>
-        <h1>Ventas</h1>
-        <p>Consulte ventas, clientes, vendedores y trazabilidad de armas o municiones.</p>
+        <h1>@(vistaFacturas ? "Facturas emitidas" : "Ventas")</h1>
+        <p>@(vistaFacturas ? "Consulte e imprima facturas fiscales emitidas." : "Consulte ventas, facturas, clientes y trazabilidad.")</p>
     </div>
-    <a class="button primary" href="ventas/nueva">Nueva venta</a>
+    <div class="section-actions">
+        <a class="button primary" href="ventas/nueva">Hacer factura</a>
+        @if (vistaFacturas)
+        {
+            <a class="button ghost" href="ventas">Ver todo el historial</a>
+        }
+        else
+        {
+            <a class="button ghost" href="ventas?vista=facturas">Solo facturas</a>
+        }
+    </div>
 </div>
 
 <section class="panel">
@@ -27,6 +37,15 @@
         <label>
             Buscar
             <InputText class="input" @bind-Value="busqueda" placeholder="Cliente, vendedor, comprobante, producto, serie o lote..." />
+        </label>
+
+        <label>
+            Comprobante
+            <InputSelect class="input" @bind-Value="tipoComprobanteFiltro">
+                <option value="">Todos</option>
+                <option value="facturas">Solo facturas</option>
+                <option value="presupuestos">Solo presupuestos</option>
+            </InputSelect>
         </label>
 
         <label>
@@ -99,6 +118,7 @@ else
                             <th>Cliente</th>
                             <th>Vendedor</th>
                             <th>Estado</th>
+                            <th>Tipo</th>
                             <th>Total</th>
                             <th></th>
                         </tr>
@@ -118,6 +138,16 @@ else
                                 </td>
                                 <td>@FormatearVendedor(venta)</td>
                                 <td><span class="@ObtenerClaseEstado(venta.Estado)">@venta.Estado</span></td>
+                                <td>
+                                    @if (FacturaHelper.EsFactura(venta.TipoComprobante))
+                                    {
+                                        <span class="badge ok">Factura</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge muted">Presupuesto</span>
+                                    }
+                                </td>
                                 <td>@MonedaHelper.FormatearUsd(venta.Total)</td>
                                 <td>
                                     <a class="link-button" href="@($"ventas/{venta.Id}/imprimir")" target="_blank">
@@ -126,7 +156,7 @@ else
                                 </td>
                             </tr>
                             <tr class="sale-detail-row">
-                                <td colspan="7">
+                                <td colspan="8">
                                     <div class="sale-detail">
                                         @if (!string.IsNullOrWhiteSpace(venta.Observaciones))
                                         {
@@ -175,19 +205,33 @@ else
 </AuthorizeAccess>
 
 @code {
+    [SupplyParameterFromQuery(Name = "vista")]
+    public string? Vista { get; set; }
+
     private List<Venta> ventas = [];
     private DateTime fechaDesde = DateTime.Today.AddDays(-30);
     private DateTime fechaHasta = DateTime.Today;
     private string busqueda = string.Empty;
     private string estadoFiltro = string.Empty;
+    private string tipoComprobanteFiltro = string.Empty;
     private string? error;
     private bool cargando = true;
+    private bool vistaFacturas;
 
     private IEnumerable<Venta> VentasFiltradas
     {
         get
         {
             var query = ventas.AsEnumerable();
+
+            if (vistaFacturas || tipoComprobanteFiltro == "facturas")
+            {
+                query = query.Where(x => FacturaHelper.EsFactura(x.TipoComprobante));
+            }
+            else if (tipoComprobanteFiltro == "presupuestos")
+            {
+                query = query.Where(x => x.TipoComprobante == TipoComprobante.Presupuesto);
+            }
 
             if (Enum.TryParse<EstadoVenta>(estadoFiltro, out var estado))
             {
@@ -205,6 +249,12 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        vistaFacturas = string.Equals(Vista, "facturas", StringComparison.OrdinalIgnoreCase);
+        if (vistaFacturas)
+        {
+            tipoComprobanteFiltro = "facturas";
+        }
+
         await CargarVentasAsync();
     }
 
