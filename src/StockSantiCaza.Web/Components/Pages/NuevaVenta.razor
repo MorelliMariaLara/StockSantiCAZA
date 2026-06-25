@@ -9,7 +9,7 @@
     <PageTitle>Nueva venta - StockSantiCAZA</PageTitle>
 
     <h1>Nueva venta</h1>
-    <p class="page-intro">Todos los usuarios pueden <strong>ver y emitir facturas</strong>. Seleccione producto y cliente, luego use <strong>Hacer factura</strong>.</p>
+    <p class="page-intro">Seleccione producto y cliente, luego confirme con <strong>Guardar venta</strong>. El formulario se limpia automáticamente para la siguiente operación.</p>
 
     @if (cargando)
     {
@@ -25,7 +25,7 @@
                     @if (ultimaVentaId.HasValue)
                     {
                         <a class="button ghost" href="@($"ventas/{ultimaVentaId}/imprimir")" target="_blank">
-                            @(ultimaFueFactura ? "Ver factura" : "Ver comprobante")
+                            Ver comprobante
                         </a>
                     }
                 </div>
@@ -171,7 +171,7 @@
                 {
                     <div class="alert alert-success client-selected">
                         <strong>@clienteSeleccionado.NombreRazonSocial</strong>
-                        @if (!FacturaHelper.EsDniInterno(clienteSeleccionado.DniCuit))
+                        @if (!ClienteHelper.EsDniInterno(clienteSeleccionado.DniCuit))
                         {
                             <span> — @clienteSeleccionado.DniCuit</span>
                         }
@@ -185,15 +185,15 @@
                             <h3>Alta rápida de cliente</h3>
                             <button type="button" class="link-button" @onclick="CerrarNuevoCliente">Cancelar</button>
                         </div>
-                        <p class="hint">Para <strong>facturar</strong> debe indicar DNI/CUIT. Sin documento solo se puede guardar como presupuesto.</p>
+                        <p class="hint">El DNI/CUIT es opcional. Sin documento se genera un identificador interno.</p>
                         <div class="grid client-form">
                             <label>
                                 Nombre / razón social *
                                 <InputText class="input" @bind-Value="clienteNuevo.Nombre" />
                             </label>
                             <label>
-                                DNI/CUIT @(requiereDocumentoFactura ? "*" : "")
-                                <InputText class="input" @bind-Value="clienteNuevo.DniCuit" placeholder="Requerido para facturar" />
+                                DNI/CUIT
+                                <InputText class="input" @bind-Value="clienteNuevo.DniCuit" placeholder="Opcional" />
                             </label>
                             <label>
                                 Teléfono
@@ -201,7 +201,7 @@
                             </label>
                             <label>
                                 Domicilio
-                                <InputText class="input" @bind-Value="clienteNuevo.Domicilio" placeholder="Opcional en factura" />
+                                <InputText class="input" @bind-Value="clienteNuevo.Domicilio" placeholder="Opcional" />
                             </label>
                         </div>
                         <div class="actions">
@@ -214,17 +214,9 @@
             </section>
 
             <section class="panel venta-guardar step-panel" id="venta-guardar">
-                <h2><span class="step-badge">3</span> Facturación</h2>
+                <h2><span class="step-badge">3</span> Confirmar venta</h2>
 
                 <div class="grid sale-header">
-                    <label>
-                        Tipo de factura
-                        <InputSelect class="input" @bind-Value="tipoFacturaSeleccionado">
-                            <option value="@TipoComprobante.FacturaC">Factura C — Consumidor final</option>
-                            <option value="@TipoComprobante.FacturaB">Factura B</option>
-                            <option value="@TipoComprobante.FacturaA">Factura A — Responsable inscripto</option>
-                        </InputSelect>
-                    </label>
                     <label>
                         Observaciones (opcional)
                         <InputText class="input" @bind-Value="form.Observaciones" placeholder="Opcional" />
@@ -238,20 +230,14 @@
                     <li class="@(ClienteListo ? "ok" : "pending")">
                         @(ClienteListo ? "✓" : "○") Cliente seleccionado
                     </li>
-                    <li class="@(ClienteDocumentado ? "ok" : "pending")">
-                        @(ClienteDocumentado ? "✓" : "○") DNI/CUIT para facturar
-                    </li>
                 </ul>
 
                 <div class="venta-acciones-finales">
-                    <button type="button" class="button primary button-xl" disabled="@(!PuedeConfirmarVenta)" @onclick="() => ConfirmarVentaAsync(emitirFactura: true)">
-                        @(procesando ? "Procesando..." : "Hacer factura")
-                    </button>
-                    <button type="button" class="button ghost button-xl" disabled="@(!PuedeConfirmarVenta)" @onclick="() => ConfirmarVentaAsync(emitirFactura: false)">
-                        Solo guardar (presupuesto)
+                    <button type="button" class="button primary button-xl" disabled="@(!PuedeConfirmarVenta)" @onclick="ConfirmarVentaAsync">
+                        @(procesando ? "Guardando..." : "Guardar venta")
                     </button>
                 </div>
-                <p class="sale-hint">Tras guardar, el formulario se limpia automáticamente para la próxima venta. La factura se abre en una pestaña nueva.</p>
+                <p class="sale-hint">Tras guardar, el formulario se limpia automáticamente para la próxima venta.</p>
             </section>
         </div>
     }
@@ -268,7 +254,6 @@
     private Producto? productoSeleccionado;
     private string? mensajeExito;
     private int? ultimaVentaId;
-    private bool ultimaFueFactura;
     private bool cargando = true;
     private bool procesando;
     private bool procesandoCliente;
@@ -282,8 +267,6 @@
     private decimal precioUnitario;
     private decimal descuentoLinea;
     private ClienteNuevoForm clienteNuevo = new();
-    private TipoComprobante tipoFacturaSeleccionado = TipoComprobante.FacturaC;
-    private bool requiereDocumentoFactura;
 
     private IEnumerable<Producto> ProductosFiltrados
     {
@@ -350,9 +333,6 @@
     private bool ClienteListo =>
         clienteIdSeleccionado > 0
         || (mostrarFormularioCliente && !string.IsNullOrWhiteSpace(clienteNuevo.Nombre));
-    private bool ClienteDocumentado =>
-        clienteIdSeleccionado > 0 && clienteSeleccionado is not null && !FacturaHelper.EsDniInterno(clienteSeleccionado.DniCuit)
-        || mostrarFormularioCliente && !string.IsNullOrWhiteSpace(clienteNuevo.DniCuit.Trim());
     private bool TieneProductos => items.Count > 0 || productoSeleccionadoId > 0;
     private bool PuedeConfirmarVenta =>
         !procesando
@@ -622,8 +602,6 @@
         form.Items.Clear();
         form.DescuentoGeneral = 0;
         form.Observaciones = null;
-        form.TipoComprobante = TipoComprobante.FacturaC;
-        tipoFacturaSeleccionado = TipoComprobante.FacturaC;
         clienteIdSeleccionado = 0;
         clienteSeleccionado = null;
         busquedaCliente = string.Empty;
@@ -646,11 +624,10 @@
         SincronizarRequest();
     }
 
-    private async Task ConfirmarVentaAsync(bool emitirFactura)
+    private async Task ConfirmarVentaAsync()
     {
         errores.Clear();
         mensajeExito = null;
-        requiereDocumentoFactura = emitirFactura;
 
         if (clienteIdSeleccionado <= 0 && mostrarFormularioCliente)
         {
@@ -661,13 +638,6 @@
         }
 
         if (!AgregarProductoPendienteSiCorresponde())
-        {
-            return;
-        }
-
-        form.TipoComprobante = emitirFactura ? tipoFacturaSeleccionado : TipoComprobante.Presupuesto;
-
-        if (emitirFactura && !ValidarClienteParaFactura())
         {
             return;
         }
@@ -696,17 +666,9 @@
         {
             procesando = true;
             var ventaGuardada = await VentasService.ConfirmarVentaAsync(form);
-            ultimaFueFactura = ventaGuardada.EsFactura;
             ultimaVentaId = ventaGuardada.VentaId;
 
-            mensajeExito = ventaGuardada.EsFactura
-                ? $"Factura {ventaGuardada.NumeroComprobante} emitida — {MonedaHelper.FormatearUsd(ventaGuardada.Total)}. CAE: {ventaGuardada.Cae}"
-                : $"Presupuesto {ventaGuardada.NumeroComprobante} guardado — {MonedaHelper.FormatearUsd(ventaGuardada.Total)}.";
-
-            if (ventaGuardada.EsFactura)
-            {
-                await Js.InvokeVoidAsync("stockSanti.openInNewTab", $"/ventas/{ventaGuardada.VentaId}/imprimir");
-            }
+            mensajeExito = $"Venta {ventaGuardada.NumeroComprobante} registrada — {MonedaHelper.FormatearUsd(ventaGuardada.Total)}.";
 
             await ReiniciarParaNuevaVentaAsync();
         }
@@ -738,23 +700,6 @@
         }).ToList();
     }
 
-    private bool ValidarClienteParaFactura()
-    {
-        if (clienteSeleccionado is not null && FacturaHelper.EsDniInterno(clienteSeleccionado.DniCuit))
-        {
-            errores.Add("Para facturar el cliente debe tener DNI/CUIT. Edítelo en Clientes o créelo de nuevo con documento.");
-            return false;
-        }
-
-        if (mostrarFormularioCliente && string.IsNullOrWhiteSpace(clienteNuevo.DniCuit))
-        {
-            errores.Add("Para facturar debe indicar el DNI/CUIT del cliente en el alta rápida.");
-            return false;
-        }
-
-        return true;
-    }
-
     private static Cliente CrearCliente(
         string nombre,
         string? telefono,
@@ -782,7 +727,7 @@
     private static string FormatearCliente(Cliente cliente)
     {
         var datos = new List<string>();
-        if (!FacturaHelper.EsDniInterno(cliente.DniCuit))
+        if (!ClienteHelper.EsDniInterno(cliente.DniCuit))
         {
             datos.Add(cliente.DniCuit);
         }

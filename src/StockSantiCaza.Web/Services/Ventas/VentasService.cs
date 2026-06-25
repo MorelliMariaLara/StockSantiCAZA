@@ -1,14 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using StockSantiCaza.Web.Data;
-using StockSantiCaza.Web.Helpers;
 using StockSantiCaza.Web.Models;
-using StockSantiCaza.Web.Services.Facturacion;
 
 namespace StockSantiCaza.Web.Services.Ventas;
 
-public class VentasService(
-    IDbContextFactory<ApplicationDbContext> dbContextFactory,
-    IFacturacionElectronicaService facturacionElectronicaService) : IVentasService
+public class VentasService(IDbContextFactory<ApplicationDbContext> dbContextFactory) : IVentasService
 {
     public async Task<VentaConfirmadaDto> ConfirmarVentaAsync(
         NuevaVentaRequest request,
@@ -54,12 +50,6 @@ public class VentasService(
             throw new VentaValidationException(["El cliente seleccionado está dado de baja."]);
         }
 
-        if (FacturaHelper.EsFactura(request.TipoComprobante) && FacturaHelper.EsDniInterno(cliente.DniCuit))
-        {
-            throw new VentaValidationException(
-                ["Para emitir factura el cliente debe tener DNI/CUIT válido. Puede completarlo desde Nuevo cliente."]);
-        }
-
         var vendedor = await db.Usuarios
             .SingleOrDefaultAsync(x => x.Id == request.VendedorId && x.Activo, cancellationToken);
 
@@ -96,14 +86,12 @@ public class VentasService(
             ClienteId = cliente.Id,
             VendedorId = vendedor.Id,
             Vendedor = vendedor.Nombre,
-            TipoComprobante = request.TipoComprobante,
-            Estado = request.TipoComprobante == TipoComprobante.Presupuesto ? EstadoVenta.Confirmada : EstadoVenta.Facturada,
+            TipoComprobante = TipoComprobante.Presupuesto,
+            Estado = EstadoVenta.Confirmada,
             DescuentoTotal = request.DescuentoGeneral,
             Observaciones = request.Observaciones,
             Fecha = DateTime.UtcNow
         };
-
-        var descuentaStock = request.TipoComprobante != TipoComprobante.Presupuesto;
 
         foreach (var item in request.Items)
         {
@@ -145,7 +133,7 @@ public class VentasService(
                 Total = subtotal
             });
 
-            if (descuentaStock && errores.Count == 0)
+            if (errores.Count == 0)
             {
                 DescontarStock(db, venta, producto, item, arma, lote, cliente.Id);
             }
@@ -168,11 +156,7 @@ public class VentasService(
         db.Ventas.Add(venta);
         await db.SaveChangesAsync(cancellationToken);
 
-        var comprobante = await facturacionElectronicaService.EmitirAsync(venta, cancellationToken);
-        venta.PuntoVenta = comprobante.PuntoVenta;
-        venta.NumeroComprobante = comprobante.NumeroComprobante;
-        venta.Cae = comprobante.Cae;
-        venta.CaeVencimiento = comprobante.CaeVencimiento;
+        venta.NumeroComprobante = $"VTA-{venta.Id:D8}";
 
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
@@ -185,13 +169,9 @@ public class VentasService(
 
         return new VentaConfirmadaDto(
             venta.Id,
-            venta.NumeroComprobante ?? "Sin comprobante",
+            venta.NumeroComprobante ?? "Sin número",
             venta.Total,
             venta.Estado,
-            venta.TipoComprobante,
-            FacturaHelper.EsFactura(venta.TipoComprobante),
-            venta.Cae,
-            venta.CaeVencimiento,
             advertencias);
     }
 

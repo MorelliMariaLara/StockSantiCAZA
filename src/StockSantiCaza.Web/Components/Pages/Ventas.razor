@@ -1,68 +1,61 @@
 @page "/ventas"
 @inject IDbContextFactory<ApplicationDbContext> DbContextFactory
+@inject IAuthService AuthService
 
 <AuthorizeAccess Modulo="ModuloSistema.Ventas">
-<PageTitle>@(vistaFacturas ? "Facturas" : "Ventas") - StockSantiCAZA</PageTitle>
+<PageTitle>Ventas - StockSantiCAZA</PageTitle>
 
 <div class="section-header">
     <div>
-        <h1>@(vistaFacturas ? "Facturas emitidas" : "Ventas")</h1>
-        <p>@(vistaFacturas ? "Consulte e imprima facturas fiscales emitidas." : "Consulte ventas, facturas, clientes y trazabilidad.")</p>
+        <h1>Ventas</h1>
+        <p>@(EsAdministrador ? "Consulte ventas, totales y trazabilidad." : "Consulte el registro de ventas y trazabilidad.")</p>
     </div>
-    <div class="section-actions">
-        <a class="button primary" href="ventas/nueva">Hacer factura</a>
-        @if (vistaFacturas)
-        {
-            <a class="button ghost" href="ventas">Ver todo el historial</a>
-        }
-        else
-        {
-            <a class="button ghost" href="ventas?vista=facturas">Solo facturas</a>
-        }
-    </div>
+    <a class="button primary" href="ventas/nueva">Nueva venta</a>
 </div>
 
 <section class="panel">
     <div class="grid sales-filters">
-        <label>
-            Desde
-            <InputDate class="input" @bind-Value="fechaDesde" />
-        </label>
+        @if (EsAdministrador)
+        {
+            <label>
+                Desde
+                <InputDate class="input" @bind-Value="fechaDesde" />
+            </label>
 
-        <label>
-            Hasta
-            <InputDate class="input" @bind-Value="fechaHasta" />
-        </label>
+            <label>
+                Hasta
+                <InputDate class="input" @bind-Value="fechaHasta" />
+            </label>
+        }
 
         <label>
             Buscar
-            <InputText class="input" @bind-Value="busqueda" placeholder="Cliente, vendedor, comprobante, producto, serie o lote..." />
+            <InputText class="input" @bind-Value="busqueda" placeholder="Cliente, vendedor, número, producto, serie o lote..." />
         </label>
 
-        <label>
-            Comprobante
-            <InputSelect class="input" @bind-Value="tipoComprobanteFiltro">
-                <option value="">Todos</option>
-                <option value="facturas">Solo facturas</option>
-                <option value="presupuestos">Solo presupuestos</option>
-            </InputSelect>
-        </label>
-
-        <label>
-            Estado
-            <InputSelect class="input" @bind-Value="estadoFiltro">
-                <option value="">Todos</option>
-                @foreach (var estado in Enum.GetValues<EstadoVenta>())
-                {
-                    <option value="@estado">@estado</option>
-                }
-            </InputSelect>
-        </label>
+        @if (EsAdministrador)
+        {
+            <label>
+                Estado
+                <InputSelect class="input" @bind-Value="estadoFiltro">
+                    <option value="">Todos</option>
+                    @foreach (var estado in Enum.GetValues<EstadoVenta>())
+                    {
+                        <option value="@estado">@estado</option>
+                    }
+                </InputSelect>
+            </label>
+        }
 
         <button class="button" @onclick="CargarVentasAsync" disabled="@cargando">
             @(cargando ? "Cargando..." : "Actualizar")
         </button>
     </div>
+
+    @if (!EsAdministrador)
+    {
+        <p class="hint">Mostrando sus ventas recientes. Los totales y filtros por fecha son solo para administradores.</p>
+    }
 
     @if (!string.IsNullOrWhiteSpace(error))
     {
@@ -76,36 +69,39 @@
 }
 else
 {
-    <section class="grid cards">
-        <div class="card">
-            <span class="metric-label">Ventas filtradas</span>
-            <strong>@VentasFiltradas.Count()</strong>
-        </div>
-        <div class="card">
-            <span class="metric-label">Total vendido</span>
-            <strong>@MonedaHelper.FormatearUsd(VentasFiltradas.Where(x => x.Estado != EstadoVenta.Anulada).Sum(x => x.Total))</strong>
-        </div>
-        <div class="card">
-            <span class="metric-label">Productos vendidos</span>
-            <strong>@VentasFiltradas.SelectMany(x => x.Detalles).Sum(x => x.Cantidad)</strong>
-        </div>
-        <div class="card warning-card">
-            <span class="metric-label">Con trazabilidad</span>
-            <strong>@VentasFiltradas.SelectMany(x => x.Detalles).Count(x => x.Arma is not null || x.MunicionLote is not null)</strong>
-        </div>
-    </section>
+    @if (EsAdministrador)
+    {
+        <section class="grid cards">
+            <div class="card">
+                <span class="metric-label">Ventas filtradas</span>
+                <strong>@VentasFiltradas.Count()</strong>
+            </div>
+            <div class="card">
+                <span class="metric-label">Total vendido</span>
+                <strong>@MonedaHelper.FormatearUsd(VentasFiltradas.Where(x => x.Estado != EstadoVenta.Anulada).Sum(x => x.Total))</strong>
+            </div>
+            <div class="card">
+                <span class="metric-label">Productos vendidos</span>
+                <strong>@VentasFiltradas.SelectMany(x => x.Detalles).Sum(x => x.Cantidad)</strong>
+            </div>
+            <div class="card warning-card">
+                <span class="metric-label">Con trazabilidad</span>
+                <strong>@VentasFiltradas.SelectMany(x => x.Detalles).Count(x => x.Arma is not null || x.MunicionLote is not null)</strong>
+            </div>
+        </section>
+    }
 
     <section class="panel">
         <div class="section-header">
             <div>
-                <h2>Historial trazable</h2>
-                <p>Cada venta muestra cliente, vendedor, comprobante, totales y detalle por serie o lote.</p>
+                <h2>Registro de ventas</h2>
+                <p>Cliente, vendedor y detalle por serie o lote.</p>
             </div>
         </div>
 
         @if (!VentasFiltradas.Any())
         {
-            <p>No hay ventas para los filtros seleccionados.</p>
+            <p>No hay ventas para mostrar.</p>
         }
         else
         {
@@ -114,13 +110,14 @@ else
                     <thead>
                         <tr>
                             <th>Fecha</th>
-                            <th>Comprobante</th>
+                            <th>Nº venta</th>
                             <th>Cliente</th>
                             <th>Vendedor</th>
                             <th>Estado</th>
-                            <th>Tipo</th>
-                            <th>Total</th>
-                            <th></th>
+                            @if (EsAdministrador)
+                            {
+                                <th>Total</th>
+                            }
                         </tr>
                     </thead>
                     <tbody>
@@ -129,8 +126,7 @@ else
                             <tr>
                                 <td>@venta.Fecha.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
                                 <td>
-                                    <strong>@(venta.NumeroComprobante ?? "Sin comprobante")</strong>
-                                    <small>@venta.TipoComprobante</small>
+                                    <strong>@(venta.NumeroComprobante ?? $"VTA-{venta.Id:D8}")</strong>
                                 </td>
                                 <td>
                                     @venta.Cliente.NombreRazonSocial
@@ -138,25 +134,13 @@ else
                                 </td>
                                 <td>@FormatearVendedor(venta)</td>
                                 <td><span class="@ObtenerClaseEstado(venta.Estado)">@venta.Estado</span></td>
-                                <td>
-                                    @if (FacturaHelper.EsFactura(venta.TipoComprobante))
-                                    {
-                                        <span class="badge ok">Factura</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="badge muted">Presupuesto</span>
-                                    }
-                                </td>
-                                <td>@MonedaHelper.FormatearUsd(venta.Total)</td>
-                                <td>
-                                    <a class="link-button" href="@($"ventas/{venta.Id}/imprimir")" target="_blank">
-                                        @(FacturaHelper.EsFactura(venta.TipoComprobante) ? "Ver factura" : "Ver presupuesto")
-                                    </a>
-                                </td>
+                                @if (EsAdministrador)
+                                {
+                                    <td>@MonedaHelper.FormatearUsd(venta.Total)</td>
+                                }
                             </tr>
                             <tr class="sale-detail-row">
-                                <td colspan="8">
+                                <td colspan="@(EsAdministrador ? 6 : 5)">
                                     <div class="sale-detail">
                                         @if (!string.IsNullOrWhiteSpace(venta.Observaciones))
                                         {
@@ -170,8 +154,11 @@ else
                                                     <th>Categoría</th>
                                                     <th>Trazabilidad</th>
                                                     <th>Cant.</th>
-                                                    <th>Precio USD</th>
-                                                    <th>Total USD</th>
+                                                    @if (EsAdministrador)
+                                                    {
+                                                        <th>Precio USD</th>
+                                                        <th>Total USD</th>
+                                                    }
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -185,8 +172,11 @@ else
                                                         <td>@detalle.Producto.Categoria</td>
                                                         <td>@ObtenerTrazabilidad(detalle)</td>
                                                         <td>@detalle.Cantidad</td>
-                                                        <td>@MonedaHelper.FormatearUsd(detalle.PrecioUnitario)</td>
-                                                        <td>@MonedaHelper.FormatearUsd(detalle.Total)</td>
+                                                        @if (EsAdministrador)
+                                                        {
+                                                            <td>@MonedaHelper.FormatearUsd(detalle.PrecioUnitario)</td>
+                                                            <td>@MonedaHelper.FormatearUsd(detalle.Total)</td>
+                                                        }
                                                     </tr>
                                                 }
                                             </tbody>
@@ -205,18 +195,15 @@ else
 </AuthorizeAccess>
 
 @code {
-    [SupplyParameterFromQuery(Name = "vista")]
-    public string? Vista { get; set; }
-
     private List<Venta> ventas = [];
     private DateTime fechaDesde = DateTime.Today.AddDays(-30);
     private DateTime fechaHasta = DateTime.Today;
     private string busqueda = string.Empty;
     private string estadoFiltro = string.Empty;
-    private string tipoComprobanteFiltro = string.Empty;
     private string? error;
     private bool cargando = true;
-    private bool vistaFacturas;
+
+    private bool EsAdministrador => AuthService.UsuarioActual?.EsAdministrador == true;
 
     private IEnumerable<Venta> VentasFiltradas
     {
@@ -224,16 +211,12 @@ else
         {
             var query = ventas.AsEnumerable();
 
-            if (vistaFacturas || tipoComprobanteFiltro == "facturas")
+            if (!EsAdministrador && AuthService.UsuarioActual is not null)
             {
-                query = query.Where(x => FacturaHelper.EsFactura(x.TipoComprobante));
-            }
-            else if (tipoComprobanteFiltro == "presupuestos")
-            {
-                query = query.Where(x => x.TipoComprobante == TipoComprobante.Presupuesto);
+                query = query.Where(x => x.VendedorId == AuthService.UsuarioActual.Id);
             }
 
-            if (Enum.TryParse<EstadoVenta>(estadoFiltro, out var estado))
+            if (EsAdministrador && Enum.TryParse<EstadoVenta>(estadoFiltro, out var estado))
             {
                 query = query.Where(x => x.Estado == estado);
             }
@@ -249,19 +232,14 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        vistaFacturas = string.Equals(Vista, "facturas", StringComparison.OrdinalIgnoreCase);
-        if (vistaFacturas)
-        {
-            tipoComprobanteFiltro = "facturas";
-        }
-
         await CargarVentasAsync();
     }
 
     private async Task CargarVentasAsync()
     {
         error = null;
-        if (fechaDesde.Date > fechaHasta.Date)
+
+        if (EsAdministrador && fechaDesde.Date > fechaHasta.Date)
         {
             error = "La fecha desde no puede ser posterior a la fecha hasta.";
             return;
@@ -271,10 +249,8 @@ else
         {
             cargando = true;
             await using var db = await DbContextFactory.CreateDbContextAsync();
-            var desde = fechaDesde.Date;
-            var hasta = fechaHasta.Date.AddDays(1).AddTicks(-1);
 
-            ventas = await db.Ventas
+            var query = db.Ventas
                 .AsNoTracking()
                 .Include(x => x.Cliente)
                 .Include(x => x.Detalles)
@@ -283,7 +259,24 @@ else
                     .ThenInclude(x => x.Arma)
                 .Include(x => x.Detalles)
                     .ThenInclude(x => x.MunicionLote)
-                .Where(x => x.Fecha >= desde && x.Fecha <= hasta)
+                .AsQueryable();
+
+            if (EsAdministrador)
+            {
+                var desde = fechaDesde.Date;
+                var hasta = fechaHasta.Date.AddDays(1).AddTicks(-1);
+                query = query.Where(x => x.Fecha >= desde && x.Fecha <= hasta);
+            }
+            else if (AuthService.UsuarioActual is not null)
+            {
+                var usuarioId = AuthService.UsuarioActual.Id;
+                query = query
+                    .Where(x => x.VendedorId == usuarioId)
+                    .OrderByDescending(x => x.Fecha)
+                    .Take(100);
+            }
+
+            ventas = await query
                 .OrderByDescending(x => x.Fecha)
                 .Take(500)
                 .ToListAsync();
@@ -333,7 +326,7 @@ else
     {
         EstadoVenta.Anulada => "badge danger",
         EstadoVenta.Borrador => "badge muted",
-        EstadoVenta.Confirmada => "badge warning",
+        EstadoVenta.Confirmada => "badge ok",
         EstadoVenta.Facturada => "badge ok",
         _ => "badge muted"
     };

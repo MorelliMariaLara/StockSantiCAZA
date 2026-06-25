@@ -1,5 +1,4 @@
 using System.ComponentModel.DataAnnotations;
-using StockSantiCaza.Web.Models;
 
 namespace StockSantiCaza.Web.Services.Ventas;
 
@@ -8,8 +7,6 @@ public class NuevaVentaRequest
     public int? ClienteId { get; set; }
 
     public int? VendedorId { get; set; }
-
-    public TipoComprobante TipoComprobante { get; set; } = TipoComprobante.FacturaC;
 
     [Range(0, 999999999)]
     public decimal DescuentoGeneral { get; set; }
@@ -44,8 +41,4 @@ public sealed record VentaConfirmadaDto(
     string NumeroComprobante,
     decimal Total,
     EstadoVenta Estado,
-    TipoComprobante TipoComprobante,
-    bool EsFactura,
-    string? Cae,
-    DateOnly? CaeVencimiento,
     IReadOnlyList<string> Advertencias);
