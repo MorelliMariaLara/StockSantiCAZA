@@ -23,7 +23,7 @@ public class FacturacionElectronicaSimuladaService : IFacturacionElectronicaServ
             ? null
             : Random.Shared.NextInt64(10000000000000, 99999999999999).ToString();
 
-        var vencimiento = cae is null ? null : DateOnly.FromDateTime(DateTime.Today.AddDays(10));
+        DateOnly? vencimiento = cae is null ? null : DateOnly.FromDateTime(DateTime.Today.AddDays(10));
 
         return Task.FromResult(new ComprobanteFiscalDto(puntoVenta, numero, cae, vencimiento));
     }

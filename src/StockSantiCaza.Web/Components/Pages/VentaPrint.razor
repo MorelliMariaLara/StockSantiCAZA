@@ -87,5 +87,5 @@ else
             .SingleOrDefaultAsync(x => x.Id == VentaId);
     }
 
-    private ValueTask ImprimirAsync() => Js.InvokeVoidAsync("stockSanti.printPage");
+    private async Task ImprimirAsync() => await Js.InvokeVoidAsync("stockSanti.printPage");
 }
