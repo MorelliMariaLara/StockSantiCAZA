@@ -19,13 +19,13 @@ Requisitos:
 
 ### 1. Base de datos
 
-La cadena por defecto en `appsettings.json` apunta a LocalDB de Windows:
+La cadena por defecto apunta a SQL Server Express en la máquina local:
 
 ```json
-"DefaultConnection": "Server=(localdb)\\mssqllocaldb;Database=StockSantiCaza;Trusted_Connection=True;MultipleActiveResultSets=true;TrustServerCertificate=True"
+"DefaultConnection": "Server=LARA-NB\\SQLEXPRESS02;Database=StockSantiCAZA;Trusted_Connection=True;MultipleActiveResultSets=true;TrustServerCertificate=True"
 ```
 
-Si usa otra instancia, actualice `ConnectionStrings:DefaultConnection` en `appsettings.Development.json`.
+Si usa otra instancia o servidor, actualice `ConnectionStrings:DefaultConnection` en `appsettings.Development.json`.
 
 ### 2. Certificado HTTPS
 
