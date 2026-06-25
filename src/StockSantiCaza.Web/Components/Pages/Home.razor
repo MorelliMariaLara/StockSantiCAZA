@@ -8,8 +8,17 @@
 @if (!string.IsNullOrWhiteSpace(error))
 {
     <div class="alert alert-danger">
-        <strong>No se pudo conectar a SQL Server</strong>
+        <strong>No se pudo acceder a la base de datos</strong>
         <p>@error</p>
+        @if (error.Contains("Ventas", StringComparison.OrdinalIgnoreCase)
+            || error.Contains("no es válido", StringComparison.OrdinalIgnoreCase)
+            || error.Contains("Invalid object name", StringComparison.OrdinalIgnoreCase))
+        {
+            <p>Las tablas de la aplicación aún no existen en <strong>StockSantiCAZA</strong>.</p>
+            <p>Ejecute en la raíz del proyecto:</p>
+            <pre>dotnet ef database update --project src/StockSantiCaza.Web</pre>
+            <p>Luego reinicie la aplicación. En Development también se intentan aplicar migraciones automáticamente al iniciar.</p>
+        }
         <ul>
             <li>Verifique que el servicio <strong>SQL Server (SQLEXPRESS02)</strong> esté en ejecución en <strong>LARA-NB</strong>.</li>
             <li>Confirme en SSMS la conexión a <strong>LARA-NB\\SQLEXPRESS02</strong> y que exista la base <strong>StockSantiCAZA</strong>.</li>

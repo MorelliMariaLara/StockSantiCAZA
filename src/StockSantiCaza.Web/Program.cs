@@ -30,20 +30,11 @@ app.Logger.LogInformation(
 
 if (app.Environment.IsDevelopment())
 {
-    try
-    {
-        await using var scope = app.Services.CreateAsyncScope();
-        var dbFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<ApplicationDbContext>>();
-        await using var db = await dbFactory.CreateDbContextAsync();
-        await DbInitializer.InitializeAsync(db);
-        app.Logger.LogInformation("Base de datos inicializada correctamente.");
-    }
-    catch (Exception ex)
-    {
-        app.Logger.LogError(
-            ex,
-            "No se pudo conectar o inicializar SQL Server en LARA-NB\\SQLEXPRESS02. Verifique que el servicio SQLEXPRESS02 esté iniciado y que la base StockSantiCAZA exista.");
-    }
+    await using var scope = app.Services.CreateAsyncScope();
+    var dbFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<ApplicationDbContext>>();
+    await using var db = await dbFactory.CreateDbContextAsync();
+    await DbInitializer.InitializeAsync(db, app.Logger);
+    app.Logger.LogInformation("Base de datos inicializada correctamente.");
 }
 
 if (!app.Environment.IsDevelopment())

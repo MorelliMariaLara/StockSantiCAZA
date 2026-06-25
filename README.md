@@ -32,6 +32,14 @@ Requisitos:
 
 ### 1. Base de datos
 
+Si la base `StockSantiCAZA` existe pero está vacía, cree las tablas con:
+
+```bash
+dotnet ef database update --project src/StockSantiCaza.Web
+```
+
+En `Development`, la aplicación también intenta aplicar migraciones automáticamente al iniciar.
+
 La cadena por defecto apunta a tu servidor SQL Server Express:
 
 ```json

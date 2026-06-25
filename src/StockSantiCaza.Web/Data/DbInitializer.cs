@@ -1,18 +1,57 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using StockSantiCaza.Web.Models;
 
 namespace StockSantiCaza.Web.Data;
 
 public static class DbInitializer
 {
-    public static async Task InitializeAsync(ApplicationDbContext db, CancellationToken cancellationToken = default)
+    public static async Task ApplyMigrationsAsync(
+        ApplicationDbContext db,
+        ILogger logger,
+        CancellationToken cancellationToken = default)
     {
-        await db.Database.MigrateAsync(cancellationToken);
+        var pending = (await db.Database.GetPendingMigrationsAsync(cancellationToken)).ToList();
+        var applied = (await db.Database.GetAppliedMigrationsAsync(cancellationToken)).ToList();
 
-        if (await db.Productos.AnyAsync(cancellationToken))
+        logger.LogInformation(
+            "Migraciones EF: {Applied} aplicadas, {Pending} pendientes",
+            applied.Count,
+            pending.Count);
+
+        if (pending.Count > 0)
         {
+            logger.LogWarning(
+                "Aplicando migraciones pendientes en StockSantiCAZA: {Migrations}",
+                string.Join(", ", pending));
+
+            await db.Database.MigrateAsync(cancellationToken);
+            logger.LogInformation("Migraciones aplicadas correctamente.");
             return;
         }
+
+        if (!await SchemaExistsAsync(db, cancellationToken))
+        {
+            logger.LogWarning(
+                "La base StockSantiCAZA no contiene las tablas de la aplicación. Ejecutando MigrateAsync.");
+
+            await db.Database.MigrateAsync(cancellationToken);
+            logger.LogInformation("Esquema creado correctamente.");
+        }
+    }
+
+    public static async Task SeedDemoDataAsync(
+        ApplicationDbContext db,
+        ILogger logger,
+        CancellationToken cancellationToken = default)
+    {
+        if (await db.Productos.AnyAsync(cancellationToken))
+        {
+            logger.LogInformation("La base ya contiene datos. No se cargará el seed demo.");
+            return;
+        }
+
+        logger.LogInformation("Cargando datos demo de prueba...");
 
         var clienteVigente = new Cliente
         {
@@ -149,5 +188,31 @@ public static class DbInitializer
             FechaTransferencia = DateTime.UtcNow.AddYears(-1)
         });
         await db.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation("Datos demo cargados correctamente.");
+    }
+
+    public static async Task InitializeAsync(
+        ApplicationDbContext db,
+        ILogger logger,
+        CancellationToken cancellationToken = default)
+    {
+        await ApplyMigrationsAsync(db, logger, cancellationToken);
+        await SeedDemoDataAsync(db, logger, cancellationToken);
+    }
+
+    private static async Task<bool> SchemaExistsAsync(
+        ApplicationDbContext db,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await db.Ventas.AnyAsync(cancellationToken);
+            return true;
+        }
+        catch (Microsoft.Data.SqlClient.SqlException ex) when (ex.Number == 208)
+        {
+            return false;
+        }
     }
 }
