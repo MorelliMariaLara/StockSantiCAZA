@@ -8,7 +8,7 @@
       "applicationUrl": "https://localhost:53095;http://localhost:53096",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
-        "ConnectionStrings__DefaultConnection": "Server=.\\SQLEXPRESS02;Database=StockSantiCAZA;Integrated Security=True;TrustServerCertificate=True;MultipleActiveResultSets=True;Encrypt=False"
+        "ConnectionStrings__DefaultConnection": "Server=LARA-NB\\SQLEXPRESS02;Database=StockSantiCAZA;Integrated Security=True;TrustServerCertificate=True;MultipleActiveResultSets=True;Encrypt=False"
       }
     },
     "http": {
@@ -18,7 +18,7 @@
       "applicationUrl": "http://localhost:53096",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
-        "ConnectionStrings__DefaultConnection": "Server=.\\SQLEXPRESS02;Database=StockSantiCAZA;Integrated Security=True;TrustServerCertificate=True;MultipleActiveResultSets=True;Encrypt=False"
+        "ConnectionStrings__DefaultConnection": "Server=LARA-NB\\SQLEXPRESS02;Database=StockSantiCAZA;Integrated Security=True;TrustServerCertificate=True;MultipleActiveResultSets=True;Encrypt=False"
       }
     }
   }

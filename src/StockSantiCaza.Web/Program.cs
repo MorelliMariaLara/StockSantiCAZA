@@ -42,7 +42,7 @@ if (app.Environment.IsDevelopment())
     {
         app.Logger.LogError(
             ex,
-            "No se pudo conectar o inicializar SQL Server. Verifique que el servicio SQLEXPRESS02 esté iniciado y que la base StockSantiCAZA exista.");
+            "No se pudo conectar o inicializar SQL Server en LARA-NB\\SQLEXPRESS02. Verifique que el servicio SQLEXPRESS02 esté iniciado y que la base StockSantiCAZA exista.");
     }
 }
 
