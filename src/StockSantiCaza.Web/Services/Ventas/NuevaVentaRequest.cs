@@ -5,10 +5,8 @@ namespace StockSantiCaza.Web.Services.Ventas;
 
 public class NuevaVentaRequest
 {
-    [Required]
     public int? ClienteId { get; set; }
 
-    [Required]
     public int? VendedorId { get; set; }
 
     public TipoComprobante TipoComprobante { get; set; } = TipoComprobante.FacturaB;

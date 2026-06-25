@@ -470,6 +470,10 @@ td small {
     width: 100%;
 }
 
+.client-selected {
+    margin-top: 1rem;
+}
+
 @media (max-width: 980px) {
     .shell {
         display: block;

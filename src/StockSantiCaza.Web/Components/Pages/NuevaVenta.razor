@@ -16,9 +16,6 @@
     else
     {
         <EditForm Model="form" OnValidSubmit="ConfirmarVentaAsync">
-            <DataAnnotationsValidator />
-            <ValidationSummary />
-
             @if (errores.Count > 0)
             {
                 <div class="alert alert-danger">
@@ -53,8 +50,8 @@
                 <h2>1. Seleccionar productos</h2>
                 <div class="grid product-entry">
                     <label>
-                        Buscar
-                        <InputText class="input" @bind-Value="busqueda" placeholder="SKU, nombre, marca, calibre..." />
+                        Buscar producto
+                        <InputText class="input" @bind-Value="busquedaProducto" placeholder="SKU, nombre, marca, calibre..." />
                     </label>
 
                     <label>
@@ -144,13 +141,27 @@
             </section>
 
             <section class="panel">
-                <h2>3. Cliente y vendedor</h2>
+                <div class="section-header">
+                    <div>
+                        <h2>3. Cliente y vendedor</h2>
+                        <p>Busque un cliente existente o cree uno nuevo antes de confirmar.</p>
+                    </div>
+                    <button type="button" class="button ghost" @onclick="AbrirNuevoCliente">
+                        Nuevo cliente
+                    </button>
+                </div>
+
                 <div class="grid sale-header">
                     <label>
+                        Buscar cliente
+                        <InputText class="input" @bind-Value="busquedaCliente" placeholder="Nombre, DNI/CUIT, teléfono..." />
+                    </label>
+
+                    <label>
                         Cliente
-                        <InputSelect class="input" @bind-Value="form.ClienteId" @bind-Value:after="ActualizarClienteSeleccionado">
-                            <option value="">Seleccione...</option>
-                            @foreach (var cliente in clientes)
+                        <InputSelect class="input" @bind-Value="clienteIdSeleccionado" @bind-Value:after="ActualizarClienteSeleccionado">
+                            <option value="0">Seleccione...</option>
+                            @foreach (var cliente in ClientesFiltrados)
                             {
                                 <option value="@cliente.Id">@FormatearCliente(cliente)</option>
                             }
@@ -159,8 +170,8 @@
 
                     <label>
                         Vendedor
-                        <InputSelect class="input" @bind-Value="form.VendedorId">
-                            <option value="">Seleccione...</option>
+                        <InputSelect class="input" @bind-Value="vendedorIdSeleccionado">
+                            <option value="0">Seleccione...</option>
                             @foreach (var vendedor in vendedores)
                             {
                                 <option value="@vendedor.Id">@vendedor.Nombre (@vendedor.Rol)</option>
@@ -181,6 +192,18 @@
 
                 @if (clienteSeleccionado is not null)
                 {
+                    <div class="alert alert-success client-selected">
+                        <strong>Cliente seleccionado:</strong> @clienteSeleccionado.NombreRazonSocial
+                        @if (!EsDniInterno(clienteSeleccionado.DniCuit))
+                        {
+                            <span> - @clienteSeleccionado.DniCuit</span>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(clienteSeleccionado.Telefono))
+                        {
+                            <span> - @clienteSeleccionado.Telefono</span>
+                        }
+                    </div>
+
                     var clu = clienteSeleccionado.CredencialCLU;
                     <div class="clu-card @(clu?.EstaVigente == true ? "ok" : "warning")">
                         <strong>CLU:</strong>
@@ -199,33 +222,51 @@
                     </div>
                 }
 
-                <div class="subpanel">
-                    <h3>Alta rápida de cliente</h3>
-                    <p>Si el cliente no está registrado, carguelo acá y quedará seleccionado automáticamente.</p>
-                    <div class="grid client-entry">
-                        <label>
-                            Nombre del cliente
-                            <InputText class="input" @bind-Value="clienteRapido.Nombre" placeholder="Nombre y apellido o razón social" />
-                        </label>
-                        <label>
-                            Celular
-                            <InputText class="input" @bind-Value="clienteRapido.Celular" placeholder="Ej: 11 5555-5555" />
-                        </label>
-                        <label>
-                            DNI/CUIT opcional
-                            <InputText class="input" @bind-Value="clienteRapido.DniCuit" placeholder="Si se conoce" />
-                        </label>
+                @if (mostrarFormularioCliente)
+                {
+                    <div class="subpanel">
+                        <div class="section-header">
+                            <h3>Nuevo cliente</h3>
+                            <button type="button" class="link-button" @onclick="CerrarNuevoCliente">Cancelar</button>
+                        </div>
+                        <p>Complete los datos que tenga disponibles. Solo el nombre es obligatorio.</p>
+
+                        <div class="grid client-form">
+                            <label>
+                                Nombre / razón social
+                                <InputText class="input" @bind-Value="clienteNuevo.Nombre" />
+                            </label>
+                            <label>
+                                DNI/CUIT
+                                <InputText class="input" @bind-Value="clienteNuevo.DniCuit" placeholder="Opcional" />
+                            </label>
+                            <label>
+                                Teléfono / celular
+                                <InputText class="input" @bind-Value="clienteNuevo.Telefono" placeholder="Opcional" />
+                            </label>
+                            <label>
+                                Email
+                                <InputText class="input" @bind-Value="clienteNuevo.Email" placeholder="Opcional" />
+                            </label>
+                            <label>
+                                Domicilio
+                                <InputText class="input" @bind-Value="clienteNuevo.Domicilio" placeholder="Opcional" />
+                            </label>
+                        </div>
+
+                        <div class="actions">
+                            <button type="button" class="button" @onclick="GuardarNuevoClienteAsync" disabled="@procesandoCliente">
+                                @(procesandoCliente ? "Guardando..." : "Guardar y seleccionar")
+                            </button>
+                        </div>
                     </div>
-                    <button type="button" class="button" @onclick="CrearClienteRapidoAsync" disabled="@procesandoCliente">
-                        @(procesandoCliente ? "Agregando..." : "Agregar y seleccionar cliente")
-                    </button>
-                </div>
+                }
             </section>
 
             <section class="panel">
                 <label>
-                    Observaciones
-                    <InputTextArea class="input" @bind-Value="form.Observaciones" />
+                    Observaciones (opcional)
+                    <InputTextArea class="input" @bind-Value="form.Observaciones" placeholder="Opcional" />
                 </label>
                 <button type="submit" class="button primary" disabled="@procesando || items.Count == 0">
                     @(procesando ? "Confirmando..." : "Confirmar venta")
@@ -247,22 +288,47 @@
     private VentaConfirmadaDto? resultado;
     private bool cargando = true;
     private bool procesando;
-    private string busqueda = string.Empty;
+    private bool procesandoCliente;
+    private bool mostrarFormularioCliente;
+    private string busquedaProducto = string.Empty;
+    private string busquedaCliente = string.Empty;
     private int productoSeleccionadoId;
+    private int clienteIdSeleccionado;
+    private int vendedorIdSeleccionado;
     private int cantidad = 1;
     private decimal precioUnitario;
     private decimal descuentoLinea;
-    private bool procesandoCliente;
-    private ClienteRapidoForm clienteRapido = new();
+    private ClienteNuevoForm clienteNuevo = new();
 
-    private IEnumerable<Producto> ProductosFiltrados => string.IsNullOrWhiteSpace(busqueda)
+    private IEnumerable<Producto> ProductosFiltrados => string.IsNullOrWhiteSpace(busquedaProducto)
         ? productos.Take(30)
         : productos.Where(x =>
-                x.Sku.Contains(busqueda, StringComparison.OrdinalIgnoreCase)
-                || x.Nombre.Contains(busqueda, StringComparison.OrdinalIgnoreCase)
-                || (x.Marca?.Contains(busqueda, StringComparison.OrdinalIgnoreCase) ?? false)
-                || (x.Calibre?.Contains(busqueda, StringComparison.OrdinalIgnoreCase) ?? false))
+                x.Sku.Contains(busquedaProducto, StringComparison.OrdinalIgnoreCase)
+                || x.Nombre.Contains(busquedaProducto, StringComparison.OrdinalIgnoreCase)
+                || (x.Marca?.Contains(busquedaProducto, StringComparison.OrdinalIgnoreCase) ?? false)
+                || (x.Calibre?.Contains(busquedaProducto, StringComparison.OrdinalIgnoreCase) ?? false))
             .Take(30);
+
+    private IEnumerable<Cliente> ClientesFiltrados
+    {
+        get
+        {
+            var query = clientes.AsEnumerable();
+
+            if (!string.IsNullOrWhiteSpace(busquedaCliente))
+            {
+                query = query.Where(x =>
+                    x.NombreRazonSocial.Contains(busquedaCliente, StringComparison.OrdinalIgnoreCase)
+                    || x.DniCuit.Contains(busquedaCliente, StringComparison.OrdinalIgnoreCase)
+                    || (x.Telefono?.Contains(busquedaCliente, StringComparison.OrdinalIgnoreCase) ?? false)
+                    || (x.Email?.Contains(busquedaCliente, StringComparison.OrdinalIgnoreCase) ?? false));
+            }
+
+            return query
+                .OrderBy(x => x.NombreRazonSocial)
+                .Take(50);
+        }
+    }
 
     private decimal Subtotal => items.Sum(x => x.Subtotal);
     private decimal Total => Math.Max(0, Subtotal - form.DescuentoGeneral);
@@ -284,30 +350,67 @@
             .ToListAsync();
 
         vendedores = (await UsuariosService.ListarVendedoresActivosAsync()).ToList();
-        form.VendedorId = AuthService.UsuarioActual?.Id;
+        vendedorIdSeleccionado = AuthService.UsuarioActual?.Id ?? 0;
 
         cargando = false;
     }
 
+    private void AbrirNuevoCliente()
+    {
+        mostrarFormularioCliente = true;
+        clienteIdSeleccionado = 0;
+        clienteSeleccionado = null;
+        clienteNuevo = new();
+        errores.Clear();
+    }
+
+    private void CerrarNuevoCliente()
+    {
+        mostrarFormularioCliente = false;
+        clienteNuevo = new();
+    }
+
     private Task ActualizarClienteSeleccionado()
     {
-        clienteSeleccionado = clientes.SingleOrDefault(x => x.Id == form.ClienteId);
+        if (clienteIdSeleccionado > 0)
+        {
+            mostrarFormularioCliente = false;
+            clienteSeleccionado = clientes.SingleOrDefault(x => x.Id == clienteIdSeleccionado);
+        }
+        else
+        {
+            clienteSeleccionado = null;
+        }
+
         return Task.CompletedTask;
     }
 
-    private async Task CrearClienteRapidoAsync()
+    private async Task GuardarNuevoClienteAsync()
     {
         errores.Clear();
         resultado = null;
 
-        var nombre = clienteRapido.Nombre.Trim();
-        var celular = clienteRapido.Celular.Trim();
-        var dniCuit = clienteRapido.DniCuit.Trim();
+        if (!await CrearClienteDesdeFormularioAsync())
+        {
+            return;
+        }
+
+        mostrarFormularioCliente = false;
+        clienteNuevo = new();
+    }
+
+    private async Task<bool> CrearClienteDesdeFormularioAsync()
+    {
+        var nombre = clienteNuevo.Nombre.Trim();
+        var telefono = NormalizarTextoOpcional(clienteNuevo.Telefono);
+        var email = NormalizarTextoOpcional(clienteNuevo.Email);
+        var domicilio = NormalizarTextoOpcional(clienteNuevo.Domicilio);
+        var dniCuit = clienteNuevo.DniCuit.Trim();
 
         if (string.IsNullOrWhiteSpace(nombre))
         {
-            errores.Add("Debe escribir el nombre del cliente.");
-            return;
+            errores.Add("Debe indicar el nombre del cliente.");
+            return false;
         }
 
         try
@@ -324,33 +427,35 @@
 
                 if (clienteExistente is not null)
                 {
-                    clienteExistente.Telefono = string.IsNullOrWhiteSpace(celular)
-                        ? clienteExistente.Telefono
-                        : celular;
+                    clienteExistente.NombreRazonSocial = nombre;
+                    clienteExistente.Telefono = telefono ?? clienteExistente.Telefono;
+                    clienteExistente.Email = email ?? clienteExistente.Email;
+                    clienteExistente.Domicilio = domicilio ?? clienteExistente.Domicilio;
                     clienteExistente.Activo = true;
                     await db.SaveChangesAsync();
                     cliente = clienteExistente;
                 }
                 else
                 {
-                    cliente = CrearCliente(nombre, celular, dniCuit);
+                    cliente = CrearCliente(nombre, telefono, email, domicilio, dniCuit);
                     db.Clientes.Add(cliente);
                     await db.SaveChangesAsync();
                 }
             }
             else
             {
-                cliente = CrearCliente(nombre, celular, GenerarDniInterno());
+                cliente = CrearCliente(nombre, telefono, email, domicilio, GenerarDniInterno());
                 db.Clientes.Add(cliente);
                 await db.SaveChangesAsync();
             }
 
             await RecargarClientesAsync(cliente.Id);
-            clienteRapido = new();
+            return true;
         }
         catch (Exception ex)
         {
-            errores.Add($"No se pudo agregar el cliente: {ex.Message}");
+            errores.Add($"No se pudo guardar el cliente: {ex.Message}");
+            return false;
         }
         finally
         {
@@ -368,7 +473,7 @@
             .OrderBy(x => x.NombreRazonSocial)
             .ToListAsync();
 
-        form.ClienteId = clienteSeleccionadoId;
+        clienteIdSeleccionado = clienteSeleccionadoId;
         clienteSeleccionado = clientes.SingleOrDefault(x => x.Id == clienteSeleccionadoId);
     }
 
@@ -405,7 +510,7 @@
         cantidad = 1;
         precioUnitario = 0;
         descuentoLinea = 0;
-        busqueda = string.Empty;
+        busquedaProducto = string.Empty;
     }
 
     private void QuitarItem(LineaVentaVm item)
@@ -418,7 +523,34 @@
     {
         errores.Clear();
         resultado = null;
+
+        if (clienteIdSeleccionado <= 0 && mostrarFormularioCliente)
+        {
+            if (!await CrearClienteDesdeFormularioAsync())
+            {
+                return;
+            }
+        }
+
         SincronizarRequest();
+
+        if (form.ClienteId is null or <= 0)
+        {
+            errores.Add("Debe seleccionar un cliente o crear uno nuevo.");
+            return;
+        }
+
+        if (form.VendedorId is null or <= 0)
+        {
+            errores.Add("Debe seleccionar el vendedor.");
+            return;
+        }
+
+        if (form.Items.Count == 0)
+        {
+            errores.Add("Debe agregar al menos un producto.");
+            return;
+        }
 
         try
         {
@@ -427,8 +559,11 @@
             items.Clear();
             form.Items.Clear();
             form.DescuentoGeneral = 0;
-            form.ClienteId = null;
+            form.Observaciones = null;
+            clienteIdSeleccionado = 0;
             clienteSeleccionado = null;
+            mostrarFormularioCliente = false;
+            clienteNuevo = new();
         }
         catch (VentaValidationException ex)
         {
@@ -446,6 +581,9 @@
 
     private void SincronizarRequest()
     {
+        form.ClienteId = clienteIdSeleccionado > 0 ? clienteIdSeleccionado : null;
+        form.VendedorId = vendedorIdSeleccionado > 0 ? vendedorIdSeleccionado : null;
+        form.Observaciones = string.IsNullOrWhiteSpace(form.Observaciones) ? null : form.Observaciones.Trim();
         form.Items = items.Select(x => new ItemVentaRequest
         {
             ProductoId = x.Producto.Id,
@@ -455,13 +593,26 @@
         }).ToList();
     }
 
-    private static Cliente CrearCliente(string nombre, string celular, string dniCuit) => new()
+    private static Cliente CrearCliente(
+        string nombre,
+        string? telefono,
+        string? email,
+        string? domicilio,
+        string dniCuit) => new()
     {
         NombreRazonSocial = nombre,
         DniCuit = dniCuit,
-        Telefono = string.IsNullOrWhiteSpace(celular) ? null : celular,
+        Telefono = telefono,
+        Email = email,
+        Domicilio = domicilio,
         Activo = true
     };
+
+    private static string? NormalizarTextoOpcional(string? valor)
+    {
+        var normalizado = valor?.Trim();
+        return string.IsNullOrWhiteSpace(normalizado) ? null : normalizado;
+    }
 
     private static string GenerarDniInterno() =>
         $"S{DateTime.UtcNow:yyMMddHHmmss}{Random.Shared.Next(1000, 9999)}";
@@ -489,11 +640,13 @@
         && dniCuit.StartsWith('S')
         && dniCuit.Skip(1).All(char.IsDigit);
 
-    private sealed class ClienteRapidoForm
+    private sealed class ClienteNuevoForm
     {
         public string Nombre { get; set; } = string.Empty;
-        public string Celular { get; set; } = string.Empty;
         public string DniCuit { get; set; } = string.Empty;
+        public string Telefono { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string Domicilio { get; set; } = string.Empty;
     }
 
     private sealed record LineaVentaVm(
