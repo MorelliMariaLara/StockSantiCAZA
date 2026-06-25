@@ -1,0 +1,610 @@
+@page "/proveedores"
+@inject IDbContextFactory<ApplicationDbContext> DbContextFactory
+@inject IJSRuntime Js
+
+<AuthorizeAccess RequiereAdministrador="true">
+    <PageTitle>Proveedores - StockSantiCAZA</PageTitle>
+
+    <h1>Proveedores</h1>
+    <p class="page-intro">Administre proveedores, deudas y pagos. El saldo pendiente se calcula automáticamente.</p>
+
+    @if (cargando)
+    {
+        <p>Cargando proveedores...</p>
+    }
+    else
+    {
+        @if (!string.IsNullOrWhiteSpace(mensaje))
+        {
+            <div class="alert alert-success">@mensaje</div>
+        }
+
+        @if (errores.Count > 0)
+        {
+            <div class="alert alert-danger">
+                <strong>No se pudo completar la operación</strong>
+                <ul>
+                    @foreach (var error in errores)
+                    {
+                        <li>@error</li>
+                    }
+                </ul>
+            </div>
+        }
+
+        <section class="grid cards">
+            <div class="card danger-card">
+                <span class="metric-label">Saldo total adeudado</span>
+                <strong>@MonedaHelper.FormatearUsd(SaldoTotalAdeudado)</strong>
+            </div>
+            <div class="card">
+                <span class="metric-label">Proveedores activos</span>
+                <strong>@proveedores.Count(x => x.Activo)</strong>
+            </div>
+            <div class="card warning-card">
+                <span class="metric-label">Con saldo pendiente</span>
+                <strong>@proveedores.Count(x => x.Activo && ObtenerSaldo(x) > 0)</strong>
+            </div>
+        </section>
+
+        <section class="panel @(form.Id is not null ? "panel-editing" : null)" id="edit-form">
+            <div class="section-header">
+                <div>
+                    <h2>
+                        @if (form.Id is null)
+                        {
+                            <span class="step-badge">+</span>
+                            <span>Agregar proveedor</span>
+                        }
+                        else
+                        {
+                            <span class="step-badge edit">✎</span>
+                            <span>Editar proveedor #@form.Id</span>
+                        }
+                    </h2>
+                    <p>Datos de contacto y deuda inicial opcional al crear.</p>
+                </div>
+                @if (form.Id is not null)
+                {
+                    <button type="button" class="button ghost" @onclick="NuevoProveedor">Nuevo proveedor</button>
+                }
+            </div>
+
+            <EditForm Model="form" OnSubmit="GuardarProveedorAsync" @key="EditFormKey">
+                <div class="grid client-form">
+                    <label>
+                        Nombre / razón social *
+                        <InputText class="input" @bind-Value="form.NombreRazonSocial" />
+                    </label>
+                    <label>
+                        Teléfono
+                        <InputText class="input" @bind-Value="form.Telefono" />
+                    </label>
+                    <label>
+                        Email
+                        <InputText class="input" @bind-Value="form.Email" />
+                    </label>
+                    <label>
+                        Domicilio
+                        <InputText class="input" @bind-Value="form.Domicilio" />
+                    </label>
+                    <label>
+                        Observaciones
+                        <InputText class="input" @bind-Value="form.Observaciones" />
+                    </label>
+                    @if (form.Id is null)
+                    {
+                        <label>
+                            Deuda inicial USD
+                            <InputNumber class="input" @bind-Value="form.DeudaInicial" />
+                        </label>
+                    }
+                    <label>
+                        Estado
+                        <InputSelect class="input" @bind-Value="form.Activo">
+                            <option value="true">Activo</option>
+                            <option value="false">Inactivo</option>
+                        </InputSelect>
+                    </label>
+                </div>
+                <div class="actions">
+                    <button type="submit" class="button primary" disabled="@guardando">
+                        @(guardando ? "Guardando..." : "Guardar proveedor")
+                    </button>
+                    <button type="button" class="button ghost" @onclick="NuevoProveedor">Limpiar</button>
+                </div>
+            </EditForm>
+        </section>
+
+        @if (proveedorSeleccionado is not null)
+        {
+            <section class="panel panel-editing" id="proveedor-cuenta">
+                <div class="section-header">
+                    <div>
+                        <h2>Cuenta: @proveedorSeleccionado.NombreRazonSocial</h2>
+                        <p>
+                            Saldo pendiente:
+                            <strong class="@(SaldoProveedorSeleccionado > 0 ? "saldo-pendiente" : null)">
+                                @MonedaHelper.FormatearUsd(SaldoProveedorSeleccionado)
+                            </strong>
+                        </p>
+                    </div>
+                    <button type="button" class="button ghost" @onclick="CerrarCuentaProveedor">Cerrar</button>
+                </div>
+
+                <div class="grid sale-header">
+                    <section class="subpanel">
+                        <h3>Registrar deuda</h3>
+                        <p class="hint">Aumenta el saldo adeudado al proveedor.</p>
+                        <EditForm Model="formDeuda" OnSubmit="RegistrarDeudaAsync" @key="@($"deuda-{proveedorSeleccionado.Id}")">
+                            <div class="grid client-form">
+                                <label>
+                                    Fecha
+                                    <InputDate class="input" @bind-Value="formDeuda.Fecha" />
+                                </label>
+                                <label>
+                                    Monto USD *
+                                    <InputNumber class="input" @bind-Value="formDeuda.Monto" />
+                                </label>
+                                <label>
+                                    Observaciones
+                                    <InputText class="input" @bind-Value="formDeuda.Observaciones" placeholder="Opcional" />
+                                </label>
+                            </div>
+                            <div class="actions">
+                                <button type="submit" class="button" disabled="@guardandoMovimiento">Registrar deuda</button>
+                            </div>
+                        </EditForm>
+                    </section>
+
+                    <section class="subpanel">
+                        <h3>Registrar pago</h3>
+                        <p class="hint">Descuenta del saldo pendiente. Saldo actual: @MonedaHelper.FormatearUsd(SaldoProveedorSeleccionado)</p>
+                        <EditForm Model="formPago" OnSubmit="RegistrarPagoAsync" @key="@($"pago-{proveedorSeleccionado.Id}")">
+                            <div class="grid client-form">
+                                <label>
+                                    Fecha
+                                    <InputDate class="input" @bind-Value="formPago.Fecha" />
+                                </label>
+                                <label>
+                                    Monto USD *
+                                    <InputNumber class="input" @bind-Value="formPago.Monto" />
+                                </label>
+                                <label>
+                                    Observaciones
+                                    <InputText class="input" @bind-Value="formPago.Observaciones" placeholder="Opcional" />
+                                </label>
+                            </div>
+                            <div class="actions">
+                                <button type="submit" class="button primary" disabled="@guardandoMovimiento">Registrar pago</button>
+                            </div>
+                        </EditForm>
+                    </section>
+                </div>
+
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Tipo</th>
+                                <th>Monto USD</th>
+                                <th>Observaciones</th>
+                                <th>Saldo acumulado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @{
+                                var saldoAcumulado = 0m;
+                            }
+                            @foreach (var movimiento in MovimientosProveedorSeleccionado)
+                            {
+                                saldoAcumulado += movimiento.Tipo == TipoMovimientoProveedor.Deuda
+                                    ? movimiento.Monto
+                                    : -movimiento.Monto;
+                                <tr>
+                                    <td>@movimiento.Fecha.ToLocalTime().ToString("dd/MM/yyyy")</td>
+                                    <td>
+                                        <span class="@(movimiento.Tipo == TipoMovimientoProveedor.Pago ? "badge ok" : "badge warning")">
+                                            @(movimiento.Tipo == TipoMovimientoProveedor.Pago ? "Pago" : "Deuda")
+                                        </span>
+                                    </td>
+                                    <td>@MonedaHelper.FormatearUsd(movimiento.Monto)</td>
+                                    <td>@(string.IsNullOrWhiteSpace(movimiento.Observaciones) ? "—" : movimiento.Observaciones)</td>
+                                    <td>@MonedaHelper.FormatearUsd(saldoAcumulado)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        }
+
+        <section class="panel">
+            <div class="section-header">
+                <div>
+                    <h2>Proveedores registrados</h2>
+                    <p>Saldo = deudas registradas − pagos realizados.</p>
+                </div>
+                <label>
+                    Buscar
+                    <InputText class="input" @bind-Value="busqueda" placeholder="Nombre, teléfono o email..." />
+                </label>
+            </div>
+
+            @if (!ProveedoresFiltrados.Any())
+            {
+                <p>No hay proveedores para mostrar.</p>
+            }
+            else
+            {
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Proveedor</th>
+                                <th>Contacto</th>
+                                <th>Estado</th>
+                                <th>Saldo pendiente</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var proveedor in ProveedoresFiltrados)
+                            {
+                                var saldo = ObtenerSaldo(proveedor);
+                                <tr class="@(proveedorSeleccionado?.Id == proveedor.Id ? "panel-editing" : null)">
+                                    <td>
+                                        <strong>@proveedor.NombreRazonSocial</strong>
+                                        @if (!string.IsNullOrWhiteSpace(proveedor.Observaciones))
+                                        {
+                                            <small>@proveedor.Observaciones</small>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (!string.IsNullOrWhiteSpace(proveedor.Telefono))
+                                        {
+                                            <div>@proveedor.Telefono</div>
+                                        }
+                                        @if (!string.IsNullOrWhiteSpace(proveedor.Email))
+                                        {
+                                            <small>@proveedor.Email</small>
+                                        }
+                                    </td>
+                                    <td>
+                                        <span class="@(proveedor.Activo ? "badge ok" : "badge muted")">
+                                            @(proveedor.Activo ? "Activo" : "Inactivo")
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <strong class="@(saldo > 0 ? "saldo-pendiente" : null)">@MonedaHelper.FormatearUsd(saldo)</strong>
+                                    </td>
+                                    <td>
+                                        <button type="button" class="button btn-edit" @onclick="() => EditarProveedor(proveedor)">Editar</button>
+                                        <button type="button" class="button ghost" @onclick="() => AbrirCuentaProveedor(proveedor)">Cuenta</button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </section>
+    }
+</AuthorizeAccess>
+
+@code {
+    private readonly List<string> errores = [];
+    private List<Proveedor> proveedores = [];
+    private ProveedorForm form = new();
+    private MovimientoForm formDeuda = new();
+    private MovimientoForm formPago = new();
+    private Proveedor? proveedorSeleccionado;
+    private string busqueda = string.Empty;
+    private string? mensaje;
+    private bool cargando = true;
+    private bool guardando;
+    private bool guardandoMovimiento;
+
+    private string EditFormKey => $"proveedor-{form.Id ?? 0}";
+
+    private decimal SaldoTotalAdeudado =>
+        proveedores
+            .Where(x => x.Activo)
+            .Sum(ObtenerSaldo);
+
+    private decimal SaldoProveedorSeleccionado =>
+        proveedorSeleccionado is null ? 0 : ObtenerSaldo(proveedorSeleccionado);
+
+    private IEnumerable<Proveedor> ProveedoresFiltrados
+    {
+        get
+        {
+            var query = proveedores.AsEnumerable();
+
+            if (!string.IsNullOrWhiteSpace(busqueda))
+            {
+                query = query.Where(x =>
+                    x.NombreRazonSocial.Contains(busqueda, StringComparison.OrdinalIgnoreCase)
+                    || (x.Telefono?.Contains(busqueda, StringComparison.OrdinalIgnoreCase) ?? false)
+                    || (x.Email?.Contains(busqueda, StringComparison.OrdinalIgnoreCase) ?? false)
+                    || (x.Domicilio?.Contains(busqueda, StringComparison.OrdinalIgnoreCase) ?? false));
+            }
+
+            return query
+                .OrderByDescending(x => ObtenerSaldo(x))
+                .ThenBy(x => x.NombreRazonSocial);
+        }
+    }
+
+    private IEnumerable<MovimientoProveedor> MovimientosProveedorSeleccionado =>
+        proveedorSeleccionado?.Movimientos
+            .OrderBy(x => x.Fecha)
+            .ThenBy(x => x.Id)
+        ?? [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarProveedoresAsync();
+    }
+
+    private async Task CargarProveedoresAsync()
+    {
+        cargando = true;
+        errores.Clear();
+
+        try
+        {
+            await using var db = await DbContextFactory.CreateDbContextAsync();
+            proveedores = await db.Proveedores
+                .AsNoTracking()
+                .Include(x => x.Movimientos)
+                .OrderBy(x => x.NombreRazonSocial)
+                .ToListAsync();
+
+            if (proveedorSeleccionado is not null)
+            {
+                proveedorSeleccionado = proveedores.SingleOrDefault(x => x.Id == proveedorSeleccionado.Id);
+            }
+        }
+        catch (Exception ex)
+        {
+            errores.Add($"No se pudieron cargar los proveedores: {ex.Message}");
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private static decimal ObtenerSaldo(Proveedor proveedor) =>
+        ProveedorHelper.CalcularSaldo(proveedor.Movimientos);
+
+    private void NuevoProveedor()
+    {
+        form = new ProveedorForm();
+        errores.Clear();
+        mensaje = null;
+    }
+
+    private async Task EditarProveedor(Proveedor proveedor)
+    {
+        form = new ProveedorForm
+        {
+            Id = proveedor.Id,
+            NombreRazonSocial = proveedor.NombreRazonSocial,
+            Telefono = proveedor.Telefono ?? string.Empty,
+            Email = proveedor.Email ?? string.Empty,
+            Domicilio = proveedor.Domicilio ?? string.Empty,
+            Observaciones = proveedor.Observaciones ?? string.Empty,
+            Activo = proveedor.Activo
+        };
+
+        errores.Clear();
+        mensaje = null;
+        await Js.InvokeVoidAsync("stockSanti.scrollToElement", "edit-form");
+    }
+
+    private async Task AbrirCuentaProveedor(Proveedor proveedor)
+    {
+        proveedorSeleccionado = proveedor;
+        ReiniciarFormulariosMovimiento();
+        errores.Clear();
+        mensaje = null;
+        await Js.InvokeVoidAsync("stockSanti.scrollToElement", "proveedor-cuenta");
+    }
+
+    private void CerrarCuentaProveedor()
+    {
+        proveedorSeleccionado = null;
+        ReiniciarFormulariosMovimiento();
+    }
+
+    private void ReiniciarFormulariosMovimiento()
+    {
+        formDeuda = new MovimientoForm { Fecha = DateTime.Today };
+        formPago = new MovimientoForm { Fecha = DateTime.Today };
+    }
+
+    private async Task GuardarProveedorAsync()
+    {
+        errores.Clear();
+        mensaje = null;
+        guardando = true;
+
+        var nombre = form.NombreRazonSocial.Trim();
+        if (string.IsNullOrWhiteSpace(nombre))
+        {
+            errores.Add("Debe indicar el nombre del proveedor.");
+            guardando = false;
+            return;
+        }
+
+        if (form.Id is null && form.DeudaInicial < 0)
+        {
+            errores.Add("La deuda inicial no puede ser negativa.");
+            guardando = false;
+            return;
+        }
+
+        try
+        {
+            await using var db = await DbContextFactory.CreateDbContextAsync();
+
+            if (form.Id is null)
+            {
+                var proveedor = new Proveedor
+                {
+                    NombreRazonSocial = nombre,
+                    Telefono = NormalizarTexto(form.Telefono),
+                    Email = NormalizarTexto(form.Email),
+                    Domicilio = NormalizarTexto(form.Domicilio),
+                    Observaciones = NormalizarTexto(form.Observaciones),
+                    Activo = form.Activo
+                };
+
+                if (form.DeudaInicial > 0)
+                {
+                    proveedor.Movimientos.Add(new MovimientoProveedor
+                    {
+                        Tipo = TipoMovimientoProveedor.Deuda,
+                        Fecha = DateTime.UtcNow,
+                        Monto = form.DeudaInicial,
+                        Observaciones = "Deuda inicial"
+                    });
+                }
+
+                db.Proveedores.Add(proveedor);
+                await db.SaveChangesAsync();
+                mensaje = "Proveedor creado correctamente.";
+                form = new ProveedorForm();
+            }
+            else
+            {
+                var proveedor = await db.Proveedores.SingleOrDefaultAsync(x => x.Id == form.Id);
+                if (proveedor is null)
+                {
+                    errores.Add("El proveedor ya no existe.");
+                    return;
+                }
+
+                proveedor.NombreRazonSocial = nombre;
+                proveedor.Telefono = NormalizarTexto(form.Telefono);
+                proveedor.Email = NormalizarTexto(form.Email);
+                proveedor.Domicilio = NormalizarTexto(form.Domicilio);
+                proveedor.Observaciones = NormalizarTexto(form.Observaciones);
+                proveedor.Activo = form.Activo;
+                await db.SaveChangesAsync();
+                mensaje = "Proveedor actualizado correctamente.";
+            }
+
+            await CargarProveedoresAsync();
+        }
+        catch (Exception ex)
+        {
+            errores.Add($"No se pudo guardar el proveedor: {ex.Message}");
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+
+    private async Task RegistrarDeudaAsync()
+    {
+        await RegistrarMovimientoAsync(formDeuda, TipoMovimientoProveedor.Deuda, "Deuda registrada correctamente.");
+    }
+
+    private async Task RegistrarPagoAsync()
+    {
+        if (proveedorSeleccionado is not null && formPago.Monto > SaldoProveedorSeleccionado)
+        {
+            errores.Clear();
+            errores.Add($"El pago no puede superar el saldo pendiente ({MonedaHelper.FormatearUsd(SaldoProveedorSeleccionado)}).");
+            return;
+        }
+
+        await RegistrarMovimientoAsync(formPago, TipoMovimientoProveedor.Pago, "Pago registrado correctamente.");
+    }
+
+    private async Task RegistrarMovimientoAsync(
+        MovimientoForm movimientoForm,
+        TipoMovimientoProveedor tipo,
+        string mensajeExito)
+    {
+        if (proveedorSeleccionado is null)
+        {
+            return;
+        }
+
+        errores.Clear();
+        mensaje = null;
+        guardandoMovimiento = true;
+
+        if (movimientoForm.Monto <= 0)
+        {
+            errores.Add("El monto debe ser mayor a cero.");
+            guardandoMovimiento = false;
+            return;
+        }
+
+        try
+        {
+            await using var db = await DbContextFactory.CreateDbContextAsync();
+            var proveedor = await db.Proveedores.SingleOrDefaultAsync(x => x.Id == proveedorSeleccionado.Id);
+            if (proveedor is null)
+            {
+                errores.Add("El proveedor ya no existe.");
+                return;
+            }
+
+            var fecha = movimientoForm.Fecha.Date;
+            db.MovimientosProveedor.Add(new MovimientoProveedor
+            {
+                ProveedorId = proveedor.Id,
+                Tipo = tipo,
+                Fecha = fecha,
+                Monto = movimientoForm.Monto,
+                Observaciones = NormalizarTexto(movimientoForm.Observaciones)
+            });
+
+            await db.SaveChangesAsync();
+            mensaje = mensajeExito;
+            ReiniciarFormulariosMovimiento();
+            await CargarProveedoresAsync();
+        }
+        catch (Exception ex)
+        {
+            errores.Add($"No se pudo registrar el movimiento: {ex.Message}");
+        }
+        finally
+        {
+            guardandoMovimiento = false;
+        }
+    }
+
+    private static string? NormalizarTexto(string? valor)
+    {
+        var normalizado = valor?.Trim();
+        return string.IsNullOrWhiteSpace(normalizado) ? null : normalizado;
+    }
+
+    private sealed class ProveedorForm
+    {
+        public int? Id { get; set; }
+        public string NombreRazonSocial { get; set; } = string.Empty;
+        public string Telefono { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string Domicilio { get; set; } = string.Empty;
+        public string Observaciones { get; set; } = string.Empty;
+        public decimal DeudaInicial { get; set; }
+        public bool Activo { get; set; } = true;
+    }
+
+    private sealed class MovimientoForm
+    {
+        public DateTime Fecha { get; set; } = DateTime.Today;
+        public decimal Monto { get; set; }
+        public string Observaciones { get; set; } = string.Empty;
+    }
+}

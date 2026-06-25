@@ -8,6 +8,7 @@ public enum ModuloSistema
     Clientes,
     Stock,
     Ventas,
+    Proveedores,
     Reportes,
     Usuarios
 }

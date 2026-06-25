@@ -61,6 +61,12 @@ public enum TipoMovimientoStock
     AnulacionVenta = 4
 }
 
+public enum TipoMovimientoProveedor
+{
+    Deuda = 1,
+    Pago = 2
+}
+
 public enum RolUsuario
 {
     Administrador = 1,

@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using StockSantiCaza.Web.Models;
 
 namespace StockSantiCaza.Web.Services.Ventas;
 

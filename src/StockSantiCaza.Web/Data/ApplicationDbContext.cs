@@ -14,6 +14,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<DetalleVenta> DetallesVenta => Set<DetalleVenta>();
     public DbSet<MovimientoStock> MovimientosStock => Set<MovimientoStock>();
     public DbSet<Usuario> Usuarios => Set<Usuario>();
+    public DbSet<Proveedor> Proveedores => Set<Proveedor>();
+    public DbSet<MovimientoProveedor> MovimientosProveedor => Set<MovimientoProveedor>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -138,6 +140,21 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
                 .WithMany()
                 .HasForeignKey(x => x.MunicionLoteId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<Proveedor>(entity =>
+        {
+            entity.Property(x => x.NombreRazonSocial).HasMaxLength(160);
+            entity.Property(x => x.Activo).HasDefaultValue(true);
+        });
+
+        modelBuilder.Entity<MovimientoProveedor>(entity =>
+        {
+            entity.Property(x => x.Monto).HasPrecision(18, 2);
+            entity.HasOne(x => x.Proveedor)
+                .WithMany(x => x.Movimientos)
+                .HasForeignKey(x => x.ProveedorId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }
