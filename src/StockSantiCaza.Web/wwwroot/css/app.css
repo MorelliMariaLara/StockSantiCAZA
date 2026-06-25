@@ -105,6 +105,18 @@ body {
     align-items: end;
 }
 
+.client-entry,
+.stock-filters {
+    grid-template-columns: 2fr 1fr 1fr;
+    align-items: end;
+}
+
+.stock-form {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: end;
+    margin-bottom: 1rem;
+}
+
 .metric-label {
     display: block;
     color: var(--muted);
@@ -117,6 +129,11 @@ body {
 
 .warning-card {
     background: var(--warning-bg);
+}
+
+.danger-card {
+    background: var(--danger-bg);
+    color: var(--danger);
 }
 
 .input {
@@ -219,6 +236,21 @@ th {
     color: var(--danger);
 }
 
+.badge.warning {
+    background: var(--warning-bg);
+    color: #92400e;
+}
+
+.badge.ok {
+    background: var(--ok-bg);
+    color: #166534;
+}
+
+.badge.muted {
+    background: #eef2f6;
+    color: var(--muted);
+}
+
 .clu-card {
     margin-top: 1rem;
     padding: .75rem;
@@ -229,9 +261,19 @@ th {
     background: var(--ok-bg);
 }
 
+.clu-card.warning {
+    background: var(--warning-bg);
+    color: #92400e;
+}
+
 .clu-card.expired {
     background: var(--danger-bg);
     color: var(--danger);
+}
+
+.warning-row {
+    background: var(--warning-bg);
+    color: #92400e;
 }
 
 .product-alerts {
@@ -252,6 +294,38 @@ th {
     display: grid;
     gap: .3rem;
     text-align: right;
+}
+
+.section-header,
+.actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+}
+
+.section-header {
+    margin-bottom: 1rem;
+}
+
+.section-header h2,
+.section-header p {
+    margin: 0;
+}
+
+.section-header p,
+td small {
+    color: var(--muted);
+}
+
+td small {
+    display: block;
+    margin-top: .25rem;
+}
+
+.actions {
+    justify-content: flex-start;
+    margin-top: 1rem;
 }
 
 .ticket {
@@ -282,8 +356,11 @@ th {
 
     .cards,
     .two-columns,
+    .client-entry,
     .product-entry,
-    .filters {
+    .filters,
+    .stock-filters,
+    .stock-form {
         grid-template-columns: 1fr;
     }
 }

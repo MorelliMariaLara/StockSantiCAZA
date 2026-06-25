@@ -14,6 +14,7 @@ public class VentasService(
         CancellationToken cancellationToken = default)
     {
         var errores = new List<string>();
+        var advertencias = new List<string>();
         if (request.ClienteId is null)
         {
             errores.Add("Debe seleccionar un cliente.");
@@ -63,7 +64,7 @@ public class VentasService(
             productos.TryGetValue(item.ProductoId, out var producto)
             && producto.Categoria is ProductoCategoria.Arma or ProductoCategoria.Municion);
 
-        ValidarCredencial(cliente, contieneControlado, errores);
+        RegistrarAdvertenciaCredencial(cliente, contieneControlado, advertencias);
 
         var venta = new Venta
         {
@@ -162,12 +163,11 @@ public class VentasService(
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 
-        var advertencias = venta.Detalles
+        advertencias.AddRange(venta.Detalles
             .Select(x => productos[x.ProductoId])
             .Where(x => x.StockActual <= x.StockMinimo)
             .Select(x => $"{x.Nombre} quedó en stock mínimo ({x.StockActual}/{x.StockMinimo}).")
-            .Distinct()
-            .ToArray();
+            .Distinct());
 
         return new VentaConfirmadaDto(
             venta.Id,
@@ -177,7 +177,7 @@ public class VentasService(
             advertencias);
     }
 
-    private static void ValidarCredencial(Cliente cliente, bool contieneControlado, List<string> errores)
+    private static void RegistrarAdvertenciaCredencial(Cliente cliente, bool contieneControlado, List<string> advertencias)
     {
         if (!contieneControlado)
         {
@@ -186,13 +186,13 @@ public class VentasService(
 
         if (cliente.CredencialCLU is null)
         {
-            errores.Add("El cliente no posee Credencial de Legítimo Usuario cargada.");
+            advertencias.Add("El cliente no posee Credencial de Legítimo Usuario cargada; la venta se confirmó igualmente.");
             return;
         }
 
         if (!cliente.CredencialCLU.EstaVigente)
         {
-            errores.Add($"La CLU del cliente venció el {cliente.CredencialCLU.FechaVencimiento:dd/MM/yyyy}; no se puede vender armas ni municiones.");
+            advertencias.Add($"La CLU del cliente venció el {cliente.CredencialCLU.FechaVencimiento:dd/MM/yyyy}; la venta se confirmó igualmente.");
         }
     }
 

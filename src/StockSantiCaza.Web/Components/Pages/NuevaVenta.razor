@@ -54,7 +54,7 @@ else
                         <option value="">Seleccione...</option>
                         @foreach (var cliente in clientes)
                         {
-                            <option value="@cliente.Id">@cliente.NombreRazonSocial - @cliente.DniCuit</option>
+                            <option value="@cliente.Id">@FormatearCliente(cliente)</option>
                         }
                     </InputSelect>
                 </label>
@@ -73,22 +73,46 @@ else
             @if (clienteSeleccionado is not null)
             {
                 var clu = clienteSeleccionado.CredencialCLU;
-                <div class="clu-card @(clu?.EstaVigente == true ? "ok" : "expired")">
+                <div class="clu-card @(clu?.EstaVigente == true ? "ok" : "warning")">
                     <strong>CLU:</strong>
                     @if (clu is null)
                     {
-                        <span>Sin credencial cargada. La venta de armas y municiones será bloqueada.</span>
+                        <span>Sin credencial cargada. La venta se permite y quedará informada como advertencia.</span>
                     }
                     else
                     {
                         <span>Legajo @clu.NumeroLegajo - vence @clu.FechaVencimiento.ToString("dd/MM/yyyy")</span>
                         @if (!clu.EstaVigente)
                         {
-                            <strong> VENCIDA</strong>
+                            <strong> VENCIDA - no bloquea la venta</strong>
                         }
                     }
                 </div>
             }
+        </section>
+
+        <section class="panel">
+            <h2>Cliente rápido</h2>
+            <p>Para ventas al mostrador, escriba el nombre y agregue un celular. El DNI/CUIT es opcional.</p>
+            <div class="grid client-entry">
+                <label>
+                    Nombre del cliente
+                    <InputText class="input" @bind-Value="clienteRapido.Nombre" placeholder="Nombre y apellido o razón social" />
+                </label>
+
+                <label>
+                    Celular
+                    <InputText class="input" @bind-Value="clienteRapido.Celular" placeholder="Ej: 11 5555-5555" />
+                </label>
+
+                <label>
+                    DNI/CUIT opcional
+                    <InputText class="input" @bind-Value="clienteRapido.DniCuit" placeholder="Si se conoce" />
+                </label>
+            </div>
+            <button type="button" class="button" @onclick="CrearClienteRapidoAsync" disabled="@procesandoCliente">
+                @(procesandoCliente ? "Agregando..." : "Agregar y seleccionar cliente")
+            </button>
         </section>
 
         <section class="panel">
@@ -251,6 +275,8 @@ else
     private int cantidad = 1;
     private decimal precioUnitario;
     private decimal descuentoLinea;
+    private bool procesandoCliente;
+    private ClienteRapidoForm clienteRapido = new();
 
     private IEnumerable<Producto> ProductosFiltrados => string.IsNullOrWhiteSpace(busqueda)
         ? productos.Take(30)
@@ -287,6 +313,81 @@ else
     {
         clienteSeleccionado = clientes.SingleOrDefault(x => x.Id == form.ClienteId);
         return Task.CompletedTask;
+    }
+
+    private async Task CrearClienteRapidoAsync()
+    {
+        errores.Clear();
+        resultado = null;
+
+        var nombre = clienteRapido.Nombre.Trim();
+        var celular = clienteRapido.Celular.Trim();
+        var dniCuit = clienteRapido.DniCuit.Trim();
+
+        if (string.IsNullOrWhiteSpace(nombre))
+        {
+            errores.Add("Debe escribir el nombre del cliente.");
+            return;
+        }
+
+        try
+        {
+            procesandoCliente = true;
+            await using var db = await DbContextFactory.CreateDbContextAsync();
+
+            Cliente cliente;
+            if (!string.IsNullOrWhiteSpace(dniCuit))
+            {
+                var clienteExistente = await db.Clientes
+                    .Include(x => x.CredencialCLU)
+                    .SingleOrDefaultAsync(x => x.DniCuit == dniCuit);
+
+                if (clienteExistente is not null)
+                {
+                    clienteExistente.Telefono = string.IsNullOrWhiteSpace(celular)
+                        ? clienteExistente.Telefono
+                        : celular;
+                    await db.SaveChangesAsync();
+                    cliente = clienteExistente;
+                }
+                else
+                {
+                    cliente = CrearCliente(nombre, celular, dniCuit);
+                    db.Clientes.Add(cliente);
+                    await db.SaveChangesAsync();
+                }
+            }
+            else
+            {
+                cliente = CrearCliente(nombre, celular, GenerarDniInterno());
+                db.Clientes.Add(cliente);
+                await db.SaveChangesAsync();
+            }
+
+            await RecargarClientesAsync(cliente.Id);
+            clienteRapido = new();
+        }
+        catch (Exception ex)
+        {
+            errores.Add($"No se pudo agregar el cliente: {ex.Message}");
+        }
+        finally
+        {
+            procesandoCliente = false;
+        }
+    }
+
+    private async Task RecargarClientesAsync(int clienteSeleccionadoId)
+    {
+        await using var db = await DbContextFactory.CreateDbContextAsync();
+        clientes = await db.Clientes
+            .AsNoTracking()
+            .Include(x => x.CredencialCLU)
+            .OrderBy(x => x.NombreRazonSocial)
+            .ToListAsync();
+
+        form.ClienteId = clienteSeleccionadoId;
+        clienteSeleccionado = clientes.SingleOrDefault(x => x.Id == clienteSeleccionadoId);
     }
 
     private async Task ActualizarProductoSeleccionado()
@@ -408,6 +509,46 @@ else
             PrecioUnitario = x.PrecioUnitario,
             Descuento = x.Descuento
         }).ToList();
+    }
+
+    private static Cliente CrearCliente(string nombre, string celular, string dniCuit) => new()
+    {
+        NombreRazonSocial = nombre,
+        DniCuit = dniCuit,
+        Telefono = string.IsNullOrWhiteSpace(celular) ? null : celular
+    };
+
+    private static string GenerarDniInterno() =>
+        $"S{DateTime.UtcNow:yyMMddHHmmss}{Random.Shared.Next(1000, 9999)}";
+
+    private static string FormatearCliente(Cliente cliente)
+    {
+        var datos = new List<string>();
+        if (!EsDniInterno(cliente.DniCuit))
+        {
+            datos.Add(cliente.DniCuit);
+        }
+
+        if (!string.IsNullOrWhiteSpace(cliente.Telefono))
+        {
+            datos.Add($"Cel. {cliente.Telefono}");
+        }
+
+        return datos.Count == 0
+            ? cliente.NombreRazonSocial
+            : $"{cliente.NombreRazonSocial} - {string.Join(" - ", datos)}";
+    }
+
+    private static bool EsDniInterno(string dniCuit) =>
+        dniCuit.Length == 17
+        && dniCuit.StartsWith('S')
+        && dniCuit.Skip(1).All(char.IsDigit);
+
+    private sealed class ClienteRapidoForm
+    {
+        public string Nombre { get; set; } = string.Empty;
+        public string Celular { get; set; } = string.Empty;
+        public string DniCuit { get; set; } = string.Empty;
     }
 
     private sealed record LineaVentaVm(

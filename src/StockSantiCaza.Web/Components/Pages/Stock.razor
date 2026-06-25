@@ -1,0 +1,520 @@
+@page "/stock"
+@inject IDbContextFactory<ApplicationDbContext> DbContextFactory
+
+<PageTitle>Stock - StockSantiCAZA</PageTitle>
+
+<h1>Stock</h1>
+
+@if (cargando)
+{
+    <p>Cargando productos...</p>
+}
+else
+{
+    @if (errores.Count > 0)
+    {
+        <div class="alert alert-danger">
+            <strong>No se pudo guardar el producto</strong>
+            <ul>
+                @foreach (var error in errores)
+                {
+                    <li>@error</li>
+                }
+            </ul>
+        </div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(mensaje))
+    {
+        <div class="alert alert-success">@mensaje</div>
+    }
+
+    <section class="grid cards">
+        <div class="card">
+            <span class="metric-label">Productos activos</span>
+            <strong>@productos.Count(x => x.Activo)</strong>
+        </div>
+        <div class="card warning-card">
+            <span class="metric-label">En stock mínimo</span>
+            <strong>@productos.Count(x => x.Activo && x.StockActual > 0 && x.StockActual <= x.StockMinimo)</strong>
+        </div>
+        <div class="card danger-card">
+            <span class="metric-label">Sin stock</span>
+            <strong>@productos.Count(x => x.Activo && x.StockActual <= 0)</strong>
+        </div>
+        <div class="card">
+            <span class="metric-label">Unidades totales</span>
+            <strong>@productos.Where(x => x.Activo).Sum(x => x.StockActual)</strong>
+        </div>
+    </section>
+
+    <section class="panel">
+        <div class="section-header">
+            <div>
+                <h2>@(form.Id is null ? "Agregar producto" : "Editar producto")</h2>
+                <p>Complete la clasificación, características y cantidad disponible.</p>
+            </div>
+            @if (form.Id is not null)
+            {
+                <button type="button" class="button ghost" @onclick="NuevoProducto">Nuevo producto</button>
+            }
+        </div>
+
+        <EditForm Model="form" OnValidSubmit="GuardarProductoAsync">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            <div class="grid stock-form">
+                <label>
+                    SKU
+                    <InputText class="input" @bind-Value="form.Sku" />
+                </label>
+
+                <label>
+                    Nombre
+                    <InputText class="input" @bind-Value="form.Nombre" />
+                </label>
+
+                <label>
+                    Clasificación
+                    <InputSelect class="input" @bind-Value="form.Categoria">
+                        @foreach (var categoria in Enum.GetValues<ProductoCategoria>())
+                        {
+                            <option value="@categoria">@categoria</option>
+                        }
+                    </InputSelect>
+                </label>
+
+                <label>
+                    Marca
+                    <InputText class="input" @bind-Value="form.Marca" />
+                </label>
+
+                <label>
+                    Modelo
+                    <InputText class="input" @bind-Value="form.Modelo" />
+                </label>
+
+                <label>
+                    Calibre / medida
+                    <InputText class="input" @bind-Value="form.Calibre" />
+                </label>
+
+                <label>
+                    Precio unitario
+                    <InputNumber class="input" @bind-Value="form.PrecioUnitario" />
+                </label>
+
+                <label>
+                    IVA %
+                    <InputNumber class="input" @bind-Value="form.AlicuotaIva" />
+                </label>
+
+                <label>
+                    Stock actual
+                    <InputNumber class="input" @bind-Value="form.StockActual" />
+                </label>
+
+                <label>
+                    Stock mínimo
+                    <InputNumber class="input" @bind-Value="form.StockMinimo" />
+                </label>
+
+                <label>
+                    Estado
+                    <InputSelect class="input" @bind-Value="form.Activo">
+                        <option value="true">Activo</option>
+                        <option value="false">Inactivo</option>
+                    </InputSelect>
+                </label>
+            </div>
+
+            <label>
+                Características / descripción
+                <InputTextArea class="input" @bind-Value="form.Descripcion" />
+            </label>
+
+            <div class="actions">
+                <button type="submit" class="button primary" disabled="@guardando">
+                    @(guardando ? "Guardando..." : "Guardar producto")
+                </button>
+                <button type="button" class="button ghost" @onclick="NuevoProducto">Limpiar</button>
+            </div>
+        </EditForm>
+    </section>
+
+    <section class="panel">
+        <div class="section-header">
+            <div>
+                <h2>Existencias</h2>
+                <p>Consulte cuánto hay disponible y qué productos faltan reponer.</p>
+            </div>
+        </div>
+
+        <div class="grid stock-filters">
+            <label>
+                Buscar
+                <InputText class="input" @bind-Value="busqueda" placeholder="SKU, nombre, marca, modelo, calibre..." />
+            </label>
+
+            <label>
+                Clasificación
+                <InputSelect class="input" @bind-Value="categoriaFiltro">
+                    <option value="">Todas</option>
+                    @foreach (var categoria in Enum.GetValues<ProductoCategoria>())
+                    {
+                        <option value="@categoria">@categoria</option>
+                    }
+                </InputSelect>
+            </label>
+
+            <label>
+                Estado de stock
+                <InputSelect class="input" @bind-Value="estadoStockFiltro">
+                    <option value="">Todos</option>
+                    <option value="sin-stock">Sin stock</option>
+                    <option value="minimo">Stock mínimo</option>
+                    <option value="disponible">Disponible</option>
+                </InputSelect>
+            </label>
+        </div>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>SKU</th>
+                        <th>Producto</th>
+                        <th>Clasificación</th>
+                        <th>Características</th>
+                        <th>Stock</th>
+                        <th>Precio</th>
+                        <th>Estado</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var producto in ProductosFiltrados)
+                    {
+                        <tr class="@ObtenerClaseFila(producto)">
+                            <td>@producto.Sku</td>
+                            <td>
+                                <strong>@producto.Nombre</strong>
+                                @if (!string.IsNullOrWhiteSpace(producto.Descripcion))
+                                {
+                                    <small>@producto.Descripcion</small>
+                                }
+                            </td>
+                            <td>@producto.Categoria</td>
+                            <td>@FormatearCaracteristicas(producto)</td>
+                            <td>
+                                <strong>@producto.StockActual</strong>
+                                <small>Mínimo @producto.StockMinimo</small>
+                            </td>
+                            <td>@producto.PrecioUnitario.ToString("C")</td>
+                            <td>
+                                <span class="@ObtenerClaseBadge(producto)">@ObtenerEstadoStock(producto)</span>
+                                @if (!producto.Activo)
+                                {
+                                    <span class="badge muted">Inactivo</span>
+                                }
+                            </td>
+                            <td>
+                                <button type="button" class="link-button" @onclick="() => EditarProducto(producto)">Editar</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </section>
+}
+
+@code {
+    private readonly List<string> errores = [];
+    private List<Producto> productos = [];
+    private ProductoForm form = new();
+    private bool cargando = true;
+    private bool guardando;
+    private string? mensaje;
+    private string busqueda = string.Empty;
+    private string categoriaFiltro = string.Empty;
+    private string estadoStockFiltro = string.Empty;
+
+    private IEnumerable<Producto> ProductosFiltrados
+    {
+        get
+        {
+            var query = productos.AsEnumerable();
+
+            if (!string.IsNullOrWhiteSpace(busqueda))
+            {
+                query = query.Where(x =>
+                    x.Sku.Contains(busqueda, StringComparison.OrdinalIgnoreCase)
+                    || x.Nombre.Contains(busqueda, StringComparison.OrdinalIgnoreCase)
+                    || (x.Marca?.Contains(busqueda, StringComparison.OrdinalIgnoreCase) ?? false)
+                    || (x.Modelo?.Contains(busqueda, StringComparison.OrdinalIgnoreCase) ?? false)
+                    || (x.Calibre?.Contains(busqueda, StringComparison.OrdinalIgnoreCase) ?? false)
+                    || (x.Descripcion?.Contains(busqueda, StringComparison.OrdinalIgnoreCase) ?? false));
+            }
+
+            if (Enum.TryParse<ProductoCategoria>(categoriaFiltro, out var categoria))
+            {
+                query = query.Where(x => x.Categoria == categoria);
+            }
+
+            query = estadoStockFiltro switch
+            {
+                "sin-stock" => query.Where(x => x.StockActual <= 0),
+                "minimo" => query.Where(x => x.StockActual > 0 && x.StockActual <= x.StockMinimo),
+                "disponible" => query.Where(x => x.StockActual > x.StockMinimo),
+                _ => query
+            };
+
+            return query
+                .OrderBy(x => x.Nombre)
+                .ThenBy(x => x.Sku);
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RecargarProductosAsync();
+        cargando = false;
+    }
+
+    private async Task GuardarProductoAsync()
+    {
+        errores.Clear();
+        mensaje = null;
+
+        var sku = form.Sku.Trim().ToUpperInvariant();
+        var nombre = form.Nombre.Trim();
+
+        if (string.IsNullOrWhiteSpace(sku))
+        {
+            errores.Add("Debe indicar el SKU del producto.");
+        }
+
+        if (string.IsNullOrWhiteSpace(nombre))
+        {
+            errores.Add("Debe indicar el nombre del producto.");
+        }
+
+        if (form.StockActual < 0)
+        {
+            errores.Add("El stock actual no puede ser negativo.");
+        }
+
+        if (form.StockMinimo < 0)
+        {
+            errores.Add("El stock mínimo no puede ser negativo.");
+        }
+
+        if (errores.Count > 0)
+        {
+            return;
+        }
+
+        try
+        {
+            guardando = true;
+            await using var db = await DbContextFactory.CreateDbContextAsync();
+
+            var skuDuplicado = await db.Productos.AnyAsync(x => x.Sku == sku && x.Id != form.Id);
+            if (skuDuplicado)
+            {
+                errores.Add($"Ya existe un producto con SKU {sku}.");
+                return;
+            }
+
+            Producto producto;
+            var stockAnterior = 0;
+            var esNuevo = form.Id is null;
+
+            if (esNuevo)
+            {
+                producto = new Producto
+                {
+                    CreadoEn = DateTime.UtcNow
+                };
+                db.Productos.Add(producto);
+            }
+            else
+            {
+                producto = await db.Productos.SingleOrDefaultAsync(x => x.Id == form.Id);
+                if (producto is null)
+                {
+                    errores.Add("El producto seleccionado ya no existe.");
+                    return;
+                }
+
+                stockAnterior = producto.StockActual;
+            }
+
+            producto.Sku = sku;
+            producto.Nombre = nombre;
+            producto.Descripcion = NormalizarTextoOpcional(form.Descripcion);
+            producto.Categoria = form.Categoria;
+            producto.Marca = NormalizarTextoOpcional(form.Marca);
+            producto.Modelo = NormalizarTextoOpcional(form.Modelo);
+            producto.Calibre = NormalizarTextoOpcional(form.Calibre);
+            producto.PrecioUnitario = form.PrecioUnitario;
+            producto.AlicuotaIva = form.AlicuotaIva;
+            producto.StockActual = form.StockActual;
+            producto.StockMinimo = form.StockMinimo;
+            producto.Activo = form.Activo;
+
+            var diferenciaStock = producto.StockActual - stockAnterior;
+            if (diferenciaStock != 0)
+            {
+                db.MovimientosStock.Add(new MovimientoStock
+                {
+                    Producto = producto,
+                    Tipo = esNuevo && diferenciaStock > 0 ? TipoMovimientoStock.Ingreso : TipoMovimientoStock.Ajuste,
+                    Cantidad = diferenciaStock,
+                    StockResultante = producto.StockActual,
+                    Observacion = esNuevo
+                        ? "Ingreso inicial desde módulo Stock"
+                        : "Ajuste manual desde módulo Stock"
+                });
+            }
+
+            await db.SaveChangesAsync();
+            mensaje = esNuevo ? "Producto agregado correctamente." : "Producto actualizado correctamente.";
+            await RecargarProductosAsync();
+            EditarProducto(producto);
+        }
+        catch (Exception ex)
+        {
+            errores.Add($"Error inesperado al guardar producto: {ex.Message}");
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+
+    private async Task RecargarProductosAsync()
+    {
+        await using var db = await DbContextFactory.CreateDbContextAsync();
+        productos = await db.Productos
+            .AsNoTracking()
+            .OrderBy(x => x.Nombre)
+            .ToListAsync();
+    }
+
+    private void NuevoProducto()
+    {
+        form = new ProductoForm();
+        errores.Clear();
+        mensaje = null;
+    }
+
+    private void EditarProducto(Producto producto)
+    {
+        form = new ProductoForm
+        {
+            Id = producto.Id,
+            Sku = producto.Sku,
+            Nombre = producto.Nombre,
+            Descripcion = producto.Descripcion ?? string.Empty,
+            Categoria = producto.Categoria,
+            Marca = producto.Marca ?? string.Empty,
+            Modelo = producto.Modelo ?? string.Empty,
+            Calibre = producto.Calibre ?? string.Empty,
+            PrecioUnitario = producto.PrecioUnitario,
+            AlicuotaIva = producto.AlicuotaIva,
+            StockActual = producto.StockActual,
+            StockMinimo = producto.StockMinimo,
+            Activo = producto.Activo
+        };
+    }
+
+    private static string? NormalizarTextoOpcional(string? valor)
+    {
+        var normalizado = valor?.Trim();
+        return string.IsNullOrWhiteSpace(normalizado) ? null : normalizado;
+    }
+
+    private static string FormatearCaracteristicas(Producto producto)
+    {
+        var partes = new[]
+        {
+            producto.Marca,
+            producto.Modelo,
+            producto.Calibre
+        }.Where(x => !string.IsNullOrWhiteSpace(x));
+
+        return partes.Any() ? string.Join(" / ", partes) : "Sin características";
+    }
+
+    private static string ObtenerEstadoStock(Producto producto)
+    {
+        if (producto.StockActual <= 0)
+        {
+            return "Sin stock";
+        }
+
+        return producto.StockActual <= producto.StockMinimo ? "Stock mínimo" : "Disponible";
+    }
+
+    private static string ObtenerClaseBadge(Producto producto)
+    {
+        if (producto.StockActual <= 0)
+        {
+            return "badge danger";
+        }
+
+        return producto.StockActual <= producto.StockMinimo ? "badge warning" : "badge ok";
+    }
+
+    private static string? ObtenerClaseFila(Producto producto)
+    {
+        if (producto.StockActual <= 0)
+        {
+            return "danger-row";
+        }
+
+        return producto.StockActual <= producto.StockMinimo ? "warning-row" : null;
+    }
+
+    private sealed class ProductoForm
+    {
+        public int? Id { get; set; }
+
+        [Required, MaxLength(40)]
+        public string Sku { get; set; } = string.Empty;
+
+        [Required, MaxLength(180)]
+        public string Nombre { get; set; } = string.Empty;
+
+        [MaxLength(800)]
+        public string Descripcion { get; set; } = string.Empty;
+
+        public ProductoCategoria Categoria { get; set; } = ProductoCategoria.General;
+
+        [MaxLength(80)]
+        public string Marca { get; set; } = string.Empty;
+
+        [MaxLength(80)]
+        public string Modelo { get; set; } = string.Empty;
+
+        [MaxLength(40)]
+        public string Calibre { get; set; } = string.Empty;
+
+        [Range(0, 999999999)]
+        public decimal PrecioUnitario { get; set; }
+
+        [Range(0, 100)]
+        public decimal AlicuotaIva { get; set; } = 21m;
+
+        [Range(0, int.MaxValue)]
+        public int StockActual { get; set; }
+
+        [Range(0, int.MaxValue)]
+        public int StockMinimo { get; set; } = 1;
+
+        public bool Activo { get; set; } = true;
+    }
+}
