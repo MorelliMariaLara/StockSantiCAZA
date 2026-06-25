@@ -17,8 +17,8 @@ else
             <strong>@resumen.CantidadVentas</strong>
         </div>
         <div class="card">
-            <span class="metric-label">Facturación neta</span>
-            <strong>@resumen.TotalVentas.ToString("C")</strong>
+            <span class="metric-label">Facturación USD sin IVA</span>
+            <strong>@Formatos.MonedaUsd(resumen.TotalVentas)</strong>
         </div>
         <div class="card warning-card">
             <span class="metric-label">Productos con stock mínimo</span>

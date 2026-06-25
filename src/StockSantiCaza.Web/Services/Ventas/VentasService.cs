@@ -127,8 +127,6 @@ public class VentasService(
             var lineaBruta = item.PrecioUnitario * item.Cantidad;
             var descuento = Math.Min(item.Descuento, lineaBruta);
             var baseImponible = lineaBruta - descuento;
-            var iva = Math.Round(baseImponible * producto.AlicuotaIva / 100m, 2, MidpointRounding.AwayFromZero);
-
             venta.Detalles.Add(new DetalleVenta
             {
                 ProductoId = producto.Id,
@@ -137,10 +135,10 @@ public class VentasService(
                 Cantidad = item.Cantidad,
                 PrecioUnitario = item.PrecioUnitario,
                 Descuento = descuento,
-                AlicuotaIva = producto.AlicuotaIva,
+                AlicuotaIva = 0m,
                 Subtotal = baseImponible,
-                Iva = iva,
-                Total = baseImponible + iva
+                Iva = 0m,
+                Total = baseImponible
             });
 
             if (descuentaStock && errores.Count == 0)
@@ -155,8 +153,8 @@ public class VentasService(
         }
 
         venta.Subtotal = venta.Detalles.Sum(x => x.Subtotal);
-        venta.IvaTotal = venta.Detalles.Sum(x => x.Iva);
-        venta.Total = venta.Subtotal + venta.IvaTotal - request.DescuentoGeneral;
+        venta.IvaTotal = 0m;
+        venta.Total = venta.Subtotal - request.DescuentoGeneral;
         if (venta.Total < 0)
         {
             errores.Add("El total de la venta no puede ser negativo.");

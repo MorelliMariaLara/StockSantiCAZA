@@ -70,6 +70,7 @@ public class ReportesService(IDbContextFactory<ApplicationDbContext> dbContextFa
                 x.Marca,
                 x.Modelo,
                 x.Calibre,
+                x.PrecioUnitario,
                 x.StockActual,
                 x.StockMinimo,
                 x.StockActual <= x.StockMinimo ? "ALERTA" : "OK"))
@@ -90,7 +91,7 @@ public class ReportesService(IDbContextFactory<ApplicationDbContext> dbContextFa
         var ws = workbook.Worksheets.Add("Ventas");
         var headers = new[]
         {
-            "Fecha", "Comprobante", "Tipo", "Cliente", "DNI/CUIT", "Vendedor", "Subtotal", "IVA", "Descuento", "Total", "CAE"
+            "Fecha", "Comprobante", "Tipo", "Cliente", "DNI/CUIT", "Vendedor", "Subtotal USD", "Descuento USD", "Total USD", "CAE"
         };
 
         for (var i = 0; i < headers.Length; i++)
@@ -109,10 +110,9 @@ public class ReportesService(IDbContextFactory<ApplicationDbContext> dbContextFa
             ws.Cell(excelRow, 5).Value = venta.Cliente.DniCuit;
             ws.Cell(excelRow, 6).Value = FormatearVendedor(venta);
             ws.Cell(excelRow, 7).Value = venta.Subtotal;
-            ws.Cell(excelRow, 8).Value = venta.IvaTotal;
-            ws.Cell(excelRow, 9).Value = venta.DescuentoTotal;
-            ws.Cell(excelRow, 10).Value = venta.Total;
-            ws.Cell(excelRow, 11).Value = venta.Cae;
+            ws.Cell(excelRow, 8).Value = venta.DescuentoTotal;
+            ws.Cell(excelRow, 9).Value = venta.Total;
+            ws.Cell(excelRow, 10).Value = venta.Cae;
         }
 
         FormatearTabla(ws, headers.Length);
@@ -123,7 +123,7 @@ public class ReportesService(IDbContextFactory<ApplicationDbContext> dbContextFa
         var ws = workbook.Worksheets.Add("Detalle");
         var headers = new[]
         {
-            "Comprobante", "Vendedor", "SKU", "Producto", "Categoría", "Serie arma", "Lote munición", "Calibre", "Cantidad", "Precio", "IVA", "Total"
+            "Comprobante", "Vendedor", "SKU", "Producto", "Categoría", "Serie arma", "Lote munición", "Calibre", "Cantidad", "Precio USD", "Descuento USD", "Total USD"
         };
 
         for (var i = 0; i < headers.Length; i++)
@@ -144,7 +144,7 @@ public class ReportesService(IDbContextFactory<ApplicationDbContext> dbContextFa
             ws.Cell(row, 8).Value = detalle.detalle.Arma?.Calibre ?? detalle.detalle.MunicionLote?.Calibre ?? detalle.detalle.Producto.Calibre;
             ws.Cell(row, 9).Value = detalle.detalle.Cantidad;
             ws.Cell(row, 10).Value = detalle.detalle.PrecioUnitario;
-            ws.Cell(row, 11).Value = detalle.detalle.Iva;
+            ws.Cell(row, 11).Value = detalle.detalle.Descuento;
             ws.Cell(row, 12).Value = detalle.detalle.Total;
             row++;
         }
@@ -155,7 +155,7 @@ public class ReportesService(IDbContextFactory<ApplicationDbContext> dbContextFa
     private static void AgregarHojaStock(XLWorkbook workbook, IEnumerable<StockExportRow> stock)
     {
         var ws = workbook.Worksheets.Add("Stock");
-        var headers = new[] { "SKU", "Producto", "Categoría", "Marca", "Modelo", "Calibre", "Stock", "Mínimo", "Estado" };
+        var headers = new[] { "SKU", "Producto", "Categoría", "Marca", "Modelo", "Calibre", "Precio USD", "Stock", "Mínimo", "Estado" };
 
         for (var i = 0; i < headers.Length; i++)
         {
@@ -171,9 +171,10 @@ public class ReportesService(IDbContextFactory<ApplicationDbContext> dbContextFa
             ws.Cell(row, 4).Value = item.Marca;
             ws.Cell(row, 5).Value = item.Modelo;
             ws.Cell(row, 6).Value = item.Calibre;
-            ws.Cell(row, 7).Value = item.StockActual;
-            ws.Cell(row, 8).Value = item.StockMinimo;
-            ws.Cell(row, 9).Value = item.Estado;
+            ws.Cell(row, 7).Value = item.PrecioUnitario;
+            ws.Cell(row, 8).Value = item.StockActual;
+            ws.Cell(row, 9).Value = item.StockMinimo;
+            ws.Cell(row, 10).Value = item.Estado;
             if (item.Estado == "ALERTA")
             {
                 ws.Row(row).Style.Fill.BackgroundColor = XLColor.LightPink;
@@ -205,6 +206,7 @@ public class ReportesService(IDbContextFactory<ApplicationDbContext> dbContextFa
         string? Marca,
         string? Modelo,
         string? Calibre,
+        decimal PrecioUnitario,
         int StockActual,
         int StockMinimo,
         string Estado);
