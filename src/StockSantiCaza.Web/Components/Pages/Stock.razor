@@ -321,7 +321,10 @@ else
             guardando = true;
             await using var db = await DbContextFactory.CreateDbContextAsync();
 
-            var skuDuplicado = await db.Productos.AnyAsync(x => x.Sku == sku && x.Id != form.Id);
+            var skuDuplicado = form.Id is int productoActualId
+                ? await db.Productos.AnyAsync(x => x.Sku == sku && x.Id != productoActualId)
+                : await db.Productos.AnyAsync(x => x.Sku == sku);
+
             if (skuDuplicado)
             {
                 errores.Add($"Ya existe un producto con SKU {sku}.");
@@ -342,13 +345,15 @@ else
             }
             else
             {
-                producto = await db.Productos.SingleOrDefaultAsync(x => x.Id == form.Id);
-                if (producto is null)
+                var productoId = form.Id.GetValueOrDefault();
+                var productoExistente = await db.Productos.SingleOrDefaultAsync(x => x.Id == productoId);
+                if (productoExistente is null)
                 {
                     errores.Add("El producto seleccionado ya no existe.");
                     return;
                 }
 
+                producto = productoExistente;
                 stockAnterior = producto.StockActual;
             }
 
