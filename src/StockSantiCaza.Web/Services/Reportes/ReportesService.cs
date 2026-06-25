@@ -107,7 +107,7 @@ public class ReportesService(IDbContextFactory<ApplicationDbContext> dbContextFa
             ws.Cell(excelRow, 3).Value = venta.TipoComprobante.ToString();
             ws.Cell(excelRow, 4).Value = venta.Cliente.NombreRazonSocial;
             ws.Cell(excelRow, 5).Value = venta.Cliente.DniCuit;
-            ws.Cell(excelRow, 6).Value = venta.Vendedor;
+            ws.Cell(excelRow, 6).Value = FormatearVendedor(venta);
             ws.Cell(excelRow, 7).Value = venta.Subtotal;
             ws.Cell(excelRow, 8).Value = venta.IvaTotal;
             ws.Cell(excelRow, 9).Value = venta.DescuentoTotal;
@@ -135,7 +135,7 @@ public class ReportesService(IDbContextFactory<ApplicationDbContext> dbContextFa
         foreach (var detalle in ventas.SelectMany(x => x.Detalles, (venta, detalle) => new { venta, detalle }))
         {
             ws.Cell(row, 1).Value = detalle.venta.NumeroComprobante;
-            ws.Cell(row, 2).Value = detalle.venta.Vendedor;
+            ws.Cell(row, 2).Value = FormatearVendedor(detalle.venta);
             ws.Cell(row, 3).Value = detalle.detalle.Producto.Sku;
             ws.Cell(row, 4).Value = detalle.detalle.Producto.Nombre;
             ws.Cell(row, 5).Value = detalle.detalle.Producto.Categoria.ToString();
@@ -183,6 +183,9 @@ public class ReportesService(IDbContextFactory<ApplicationDbContext> dbContextFa
 
         FormatearTabla(ws, headers.Length);
     }
+
+    private static string FormatearVendedor(Venta venta) =>
+        string.IsNullOrWhiteSpace(venta.Vendedor) ? "Sin vendedor asignado" : venta.Vendedor;
 
     private static void FormatearTabla(IXLWorksheet ws, int columnas)
     {

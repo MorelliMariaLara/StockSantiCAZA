@@ -305,9 +305,10 @@ else
             guardando = true;
             await using var db = await DbContextFactory.CreateDbContextAsync();
 
-            var dniDuplicado = form.Id is int clienteActualId
-                ? await db.Clientes.AnyAsync(x => x.DniCuit == dniCuit && x.Id != clienteActualId)
-                : await db.Clientes.AnyAsync(x => x.DniCuit == dniCuit);
+            var clienteActualId = form.Id;
+            var dniDuplicado = await db.Clientes.AnyAsync(x =>
+                x.DniCuit == dniCuit
+                && (!clienteActualId.HasValue || x.Id != clienteActualId.Value));
 
             if (dniDuplicado)
             {
@@ -317,9 +318,9 @@ else
 
             if (form.TieneClu)
             {
-                var cluDuplicada = form.Id is int clienteActualId
-                    ? await db.CredencialesCLU.AnyAsync(x => x.NumeroLegajo == numeroLegajo && x.ClienteId != clienteActualId)
-                    : await db.CredencialesCLU.AnyAsync(x => x.NumeroLegajo == numeroLegajo);
+                var cluDuplicada = await db.CredencialesCLU.AnyAsync(x =>
+                    x.NumeroLegajo == numeroLegajo
+                    && (!clienteActualId.HasValue || x.ClienteId != clienteActualId.Value));
 
                 if (cluDuplicada)
                 {

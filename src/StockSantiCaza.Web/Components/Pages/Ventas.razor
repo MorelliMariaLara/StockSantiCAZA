@@ -115,7 +115,7 @@ else
                                     @venta.Cliente.NombreRazonSocial
                                     <small>@venta.Cliente.DniCuit</small>
                                 </td>
-                                <td>@venta.Vendedor</td>
+                                <td>@FormatearVendedor(venta)</td>
                                 <td><span class="@ObtenerClaseEstado(venta.Estado)">@venta.Estado</span></td>
                                 <td>@venta.Total.ToString("C")</td>
                                 <td>
@@ -250,7 +250,7 @@ else
         return (venta.NumeroComprobante?.Contains(busqueda, StringComparison.OrdinalIgnoreCase) ?? false)
             || venta.Cliente.NombreRazonSocial.Contains(busqueda, StringComparison.OrdinalIgnoreCase)
             || venta.Cliente.DniCuit.Contains(busqueda, StringComparison.OrdinalIgnoreCase)
-            || venta.Vendedor.Contains(busqueda, StringComparison.OrdinalIgnoreCase)
+            || FormatearVendedor(venta).Contains(busqueda, StringComparison.OrdinalIgnoreCase)
             || venta.Detalles.Any(detalle =>
                 detalle.Producto.Sku.Contains(busqueda, StringComparison.OrdinalIgnoreCase)
                 || detalle.Producto.Nombre.Contains(busqueda, StringComparison.OrdinalIgnoreCase)
@@ -272,6 +272,9 @@ else
 
         return "No aplica";
     }
+
+    private static string FormatearVendedor(Venta venta) =>
+        string.IsNullOrWhiteSpace(venta.Vendedor) ? "Sin vendedor asignado" : venta.Vendedor;
 
     private static string ObtenerClaseEstado(EstadoVenta estado) => estado switch
     {

@@ -20,7 +20,7 @@ public class VentasService(
             errores.Add("Debe seleccionar un cliente.");
         }
 
-        var vendedor = request.Vendedor.Trim();
+        var vendedor = (request.Vendedor ?? string.Empty).Trim();
         if (string.IsNullOrWhiteSpace(vendedor))
         {
             errores.Add("Debe indicar quién realizó la venta.");
