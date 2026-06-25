@@ -15,7 +15,7 @@
     }
     else
     {
-        <EditForm Model="form" OnValidSubmit="ConfirmarVentaAsync">
+        <EditForm Model="form" OnSubmit="ConfirmarVentaAsync">
             @if (errores.Count > 0)
             {
                 <div class="alert alert-danger">
@@ -88,7 +88,7 @@
                     </div>
                 }
 
-                <button type="button" class="button" @onclick="AgregarItem" disabled="@(productoSeleccionado is null)">Agregar producto</button>
+                <button type="button" class="button" @onclick="AgregarItem" disabled="@(productoSeleccionadoId <= 0)">Agregar producto</button>
             </section>
 
             <section class="panel">
@@ -268,7 +268,25 @@
                     Observaciones (opcional)
                     <InputTextArea class="input" @bind-Value="form.Observaciones" placeholder="Opcional" />
                 </label>
-                <button type="submit" class="button primary" disabled="@procesando || items.Count == 0">
+
+                <ul class="sale-checklist">
+                    <li class="@(items.Count > 0 ? "ok" : "pending")">
+                        @(items.Count > 0 ? "✓" : "○") Al menos un producto en el detalle (@items.Count)
+                    </li>
+                    <li class="@(ClienteListo ? "ok" : "pending")">
+                        @(ClienteListo ? "✓" : "○") Cliente seleccionado
+                    </li>
+                    <li class="@(vendedorIdSeleccionado > 0 ? "ok" : "pending")">
+                        @(vendedorIdSeleccionado > 0 ? "✓" : "○") Vendedor seleccionado
+                    </li>
+                </ul>
+
+                @if (!PuedeConfirmarVenta && !procesando)
+                {
+                    <p class="sale-hint">Complete los puntos pendientes para habilitar la confirmación.</p>
+                }
+
+                <button type="submit" class="button primary" disabled="@(!PuedeConfirmarVenta)">
                     @(procesando ? "Confirmando..." : "Confirmar venta")
                 </button>
             </section>
@@ -300,14 +318,32 @@
     private decimal descuentoLinea;
     private ClienteNuevoForm clienteNuevo = new();
 
-    private IEnumerable<Producto> ProductosFiltrados => string.IsNullOrWhiteSpace(busquedaProducto)
-        ? productos.Take(30)
-        : productos.Where(x =>
-                x.Sku.Contains(busquedaProducto, StringComparison.OrdinalIgnoreCase)
-                || x.Nombre.Contains(busquedaProducto, StringComparison.OrdinalIgnoreCase)
-                || (x.Marca?.Contains(busquedaProducto, StringComparison.OrdinalIgnoreCase) ?? false)
-                || (x.Calibre?.Contains(busquedaProducto, StringComparison.OrdinalIgnoreCase) ?? false))
-            .Take(30);
+    private IEnumerable<Producto> ProductosFiltrados
+    {
+        get
+        {
+            var filtrados = (string.IsNullOrWhiteSpace(busquedaProducto)
+                    ? productos
+                    : productos.Where(x =>
+                        x.Sku.Contains(busquedaProducto, StringComparison.OrdinalIgnoreCase)
+                        || x.Nombre.Contains(busquedaProducto, StringComparison.OrdinalIgnoreCase)
+                        || (x.Marca?.Contains(busquedaProducto, StringComparison.OrdinalIgnoreCase) ?? false)
+                        || (x.Calibre?.Contains(busquedaProducto, StringComparison.OrdinalIgnoreCase) ?? false)))
+                .Take(30)
+                .ToList();
+
+            if (productoSeleccionadoId > 0 && filtrados.All(x => x.Id != productoSeleccionadoId))
+            {
+                var seleccionado = productos.FirstOrDefault(x => x.Id == productoSeleccionadoId);
+                if (seleccionado is not null)
+                {
+                    filtrados.Insert(0, seleccionado);
+                }
+            }
+
+            return filtrados;
+        }
+    }
 
     private IEnumerable<Cliente> ClientesFiltrados
     {
@@ -324,14 +360,34 @@
                     || (x.Email?.Contains(busquedaCliente, StringComparison.OrdinalIgnoreCase) ?? false));
             }
 
-            return query
+            var filtrados = query
                 .OrderBy(x => x.NombreRazonSocial)
-                .Take(50);
+                .Take(50)
+                .ToList();
+
+            if (clienteIdSeleccionado > 0 && filtrados.All(x => x.Id != clienteIdSeleccionado))
+            {
+                var seleccionado = clientes.FirstOrDefault(x => x.Id == clienteIdSeleccionado);
+                if (seleccionado is not null)
+                {
+                    filtrados.Insert(0, seleccionado);
+                }
+            }
+
+            return filtrados;
         }
     }
 
     private decimal Subtotal => items.Sum(x => x.Subtotal);
     private decimal Total => Math.Max(0, Subtotal - form.DescuentoGeneral);
+    private bool ClienteListo =>
+        clienteIdSeleccionado > 0
+        || (mostrarFormularioCliente && !string.IsNullOrWhiteSpace(clienteNuevo.Nombre));
+    private bool PuedeConfirmarVenta =>
+        !procesando
+        && items.Count > 0
+        && ClienteListo
+        && vendedorIdSeleccionado > 0;
 
     protected override async Task OnInitializedAsync()
     {
@@ -497,12 +553,32 @@
         errores.Clear();
         resultado = null;
 
-        if (productoSeleccionado is null)
+        if (productoSeleccionadoId <= 0)
         {
+            errores.Add("Seleccione un producto para agregar.");
             return;
         }
 
-        items.Add(new LineaVentaVm(productoSeleccionado, cantidad, precioUnitario, descuentoLinea));
+        var producto = productos.FirstOrDefault(x => x.Id == productoSeleccionadoId);
+        if (producto is null)
+        {
+            errores.Add("El producto seleccionado no está disponible.");
+            return;
+        }
+
+        if (cantidad < 1)
+        {
+            errores.Add("La cantidad debe ser al menos 1.");
+            return;
+        }
+
+        if (precioUnitario <= 0)
+        {
+            errores.Add("El precio debe ser mayor a cero.");
+            return;
+        }
+
+        items.Add(new LineaVentaVm(producto, cantidad, precioUnitario, descuentoLinea));
         SincronizarRequest();
 
         productoSeleccionadoId = 0;
@@ -519,8 +595,13 @@
         SincronizarRequest();
     }
 
-    private async Task ConfirmarVentaAsync()
+    private async Task ConfirmarVentaAsync(EditContext? editContext = null)
     {
+        if (editContext is not null)
+        {
+            editContext.NotifyValidationStateChanged();
+        }
+
         errores.Clear();
         resultado = null;
 

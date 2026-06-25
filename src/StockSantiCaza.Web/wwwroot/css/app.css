@@ -474,6 +474,27 @@ td small {
     margin-top: 1rem;
 }
 
+.sale-checklist {
+    list-style: none;
+    padding: 0;
+    margin: 1rem 0;
+    display: grid;
+    gap: .35rem;
+}
+
+.sale-checklist .ok {
+    color: #166534;
+}
+
+.sale-checklist .pending {
+    color: var(--muted);
+}
+
+.sale-hint {
+    color: var(--muted);
+    margin: 0 0 1rem;
+}
+
 @media (max-width: 980px) {
     .shell {
         display: block;
