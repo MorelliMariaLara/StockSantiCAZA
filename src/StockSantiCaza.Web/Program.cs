@@ -23,6 +23,14 @@ builder.Services.AddScoped<IFacturacionElectronicaService, FacturacionElectronic
 
 var app = builder.Build();
 
+if (app.Environment.IsDevelopment())
+{
+    await using var scope = app.Services.CreateAsyncScope();
+    var dbFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<ApplicationDbContext>>();
+    await using var db = await dbFactory.CreateDbContextAsync();
+    await DbInitializer.InitializeAsync(db);
+}
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
