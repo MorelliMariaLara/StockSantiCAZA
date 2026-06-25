@@ -65,11 +65,20 @@ body {
 
 .top-row {
     display: flex;
-    justify-content: flex-end;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
     padding: 1rem 2rem;
     border-bottom: 1px solid var(--border);
     background: var(--surface);
     color: var(--muted);
+}
+
+.operation-mode {
+    color: #166534;
+    background: var(--ok-bg);
+    border-radius: 999px;
+    padding: .35rem .75rem;
 }
 
 .page-body {
