@@ -51,10 +51,21 @@
             </div>
         </section>
 
-        <section class="panel">
+        <section class="panel @(form.Id is not null ? "panel-editing" : null)" id="edit-form">
             <div class="section-header">
                 <div>
-                    <h2>@(form.Id is null ? "Agregar producto" : "Editar producto")</h2>
+                    <h2>
+                        @if (form.Id is null)
+                        {
+                            <span class="step-badge">+</span>
+                            <span>Agregar producto</span>
+                        }
+                        else
+                        {
+                            <span class="step-badge edit">✎</span>
+                            <span>Editar producto #@form.Id</span>
+                        }
+                    </h2>
                     <p>Complete la clasificación, características y cantidad disponible.</p>
                 </div>
                 @if (form.Id is not null)
@@ -63,9 +74,7 @@
                 }
             </div>
 
-            <EditForm Model="form" OnValidSubmit="GuardarProductoAsync">
-                <DataAnnotationsValidator />
-                <ValidationSummary />
+            <EditForm Model="form" OnSubmit="GuardarProductoAsync" @key="EditFormKey">
 
                 <div class="grid stock-form">
                     <label>
@@ -274,7 +283,7 @@
                                     }
                                 </td>
                                 <td>
-                                    <button type="button" class="link-button" @onclick="() => EditarProducto(producto)">Editar</button>
+                                    <button type="button" class="button btn-edit" @onclick="() => EditarProductoAsync(producto)">Editar</button>
                                 </td>
                             </tr>
                         }
@@ -302,6 +311,7 @@
     private string estadoStockFiltro = string.Empty;
     private IBrowserFile? archivoImportacion;
     private StockImportResult? resultadoImportacion;
+    private int EditFormKey => form.Id ?? 0;
 
     private IEnumerable<Producto> ProductosFiltrados
     {
@@ -458,7 +468,7 @@
             else
             {
                 mensaje = "Producto actualizado correctamente.";
-                EditarProducto(producto);
+                EditarProducto(productos.Single(x => x.Id == producto.Id));
             }
         }
         catch (Exception ex)
@@ -485,6 +495,14 @@
         form = new ProductoForm();
         errores.Clear();
         mensaje = null;
+    }
+
+    private async Task EditarProductoAsync(Producto producto)
+    {
+        errores.Clear();
+        mensaje = null;
+        EditarProducto(producto);
+        await Js.InvokeVoidAsync("stockSanti.scrollToElement", "edit-form");
     }
 
     private void EditarProducto(Producto producto)

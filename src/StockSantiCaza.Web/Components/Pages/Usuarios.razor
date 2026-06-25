@@ -1,5 +1,6 @@
 @page "/usuarios"
 @inject IUsuariosService UsuariosService
+@inject IJSRuntime Js
 
 <AuthorizeAccess RequiereAdministrador="true">
     <PageTitle>Usuarios - StockSantiCAZA</PageTitle>
@@ -23,9 +24,20 @@
         </div>
     }
 
-    <section class="panel">
-        <h2>@(form.Id is null ? "Nuevo usuario" : "Editar usuario")</h2>
-        <EditForm Model="form" OnValidSubmit="GuardarAsync">
+    <section class="panel @(form.Id is not null ? "panel-editing" : null)" id="edit-form">
+        <h2>
+            @if (form.Id is null)
+            {
+                <span class="step-badge">+</span>
+                <span>Nuevo usuario</span>
+            }
+            else
+            {
+                <span class="step-badge edit">✎</span>
+                <span>Editar usuario #@form.Id</span>
+            }
+        </h2>
+        <EditForm Model="form" OnSubmit="GuardarAsync" @key="EditFormKey">
             <div class="grid client-form">
                 <label>
                     Nombre
@@ -89,7 +101,7 @@
                                 </span>
                             </td>
                             <td>
-                                <button type="button" class="link-button" @onclick="() => Editar(usuario)">Editar</button>
+                                <button type="button" class="button btn-edit" @onclick="() => EditarAsync(usuario)">Editar</button>
                                 <button type="button" class="link-button" @onclick="() => CambiarEstadoAsync(usuario.Id)">
                                     @(usuario.Activo ? "Desactivar" : "Activar")
                                 </button>
@@ -108,6 +120,7 @@
     private UsuarioForm form = new();
     private bool guardando;
     private string? mensaje;
+    private int EditFormKey => form.Id ?? 0;
 
     protected override async Task OnInitializedAsync()
     {
@@ -122,6 +135,9 @@
 
         try
         {
+            var esNuevo = form.Id is null;
+            var idGuardado = form.Id;
+
             await UsuariosService.GuardarAsync(new UsuarioFormRequest
             {
                 Id = form.Id,
@@ -132,9 +148,21 @@
                 Activo = form.Activo
             });
 
-            mensaje = form.Id is null ? "Usuario creado correctamente." : "Usuario actualizado correctamente.";
-            NuevoUsuario();
+            mensaje = esNuevo ? "Usuario creado correctamente." : "Usuario actualizado correctamente.";
             await RecargarAsync();
+
+            if (esNuevo)
+            {
+                NuevoUsuario();
+            }
+            else if (idGuardado is int id)
+            {
+                var editado = usuarios.SingleOrDefault(x => x.Id == id);
+                if (editado is not null)
+                {
+                    Editar(editado);
+                }
+            }
         }
         catch (Exception ex)
         {
@@ -171,6 +199,16 @@
     private void NuevoUsuario()
     {
         form = new UsuarioForm();
+        errores.Clear();
+        mensaje = null;
+    }
+
+    private async Task EditarAsync(Usuario usuario)
+    {
+        errores.Clear();
+        mensaje = null;
+        Editar(usuario);
+        await Js.InvokeVoidAsync("stockSanti.scrollToElement", "edit-form");
     }
 
     private void Editar(Usuario usuario)
@@ -181,7 +219,8 @@
             Nombre = usuario.Nombre,
             Login = usuario.Login,
             Rol = usuario.Rol,
-            Activo = usuario.Activo
+            Activo = usuario.Activo,
+            Password = string.Empty
         };
     }
 

@@ -46,8 +46,8 @@
                 </div>
             }
 
-            <section class="panel">
-                <h2>1. Seleccionar productos</h2>
+            <section class="panel step-panel">
+                <h2><span class="step-badge">1</span> Seleccionar productos</h2>
                 <div class="grid product-entry">
                     <label>
                         Buscar producto
@@ -91,8 +91,8 @@
                 <button type="button" class="button" @onclick="AgregarItem" disabled="@(productoSeleccionadoId <= 0)">Agregar producto</button>
             </section>
 
-            <section class="panel">
-                <h2>2. Detalle de la venta</h2>
+            <section class="panel step-panel">
+                <h2><span class="step-badge">2</span> Detalle de la venta</h2>
                 @if (items.Count == 0)
                 {
                     <p>Agregue al menos un producto para continuar.</p>
@@ -140,10 +140,10 @@
                 }
             </section>
 
-            <section class="panel">
+            <section class="panel step-panel">
                 <div class="section-header">
                     <div>
-                        <h2>3. Cliente y vendedor</h2>
+                        <h2><span class="step-badge">3</span> Cliente y vendedor</h2>
                         <p>Busque un cliente existente o cree uno nuevo antes de confirmar.</p>
                     </div>
                     <button type="button" class="button ghost" @onclick="AbrirNuevoCliente">
@@ -263,7 +263,8 @@
                 }
             </section>
 
-            <section class="panel">
+            <section class="panel step-panel">
+                <h2><span class="step-badge">4</span> Confirmar</h2>
                 <label>
                     Observaciones (opcional)
                     <InputTextArea class="input" @bind-Value="form.Observaciones" placeholder="Opcional" />

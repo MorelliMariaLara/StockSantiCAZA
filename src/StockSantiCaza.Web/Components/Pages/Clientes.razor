@@ -1,5 +1,6 @@
 @page "/clientes"
 @inject IDbContextFactory<ApplicationDbContext> DbContextFactory
+@inject IJSRuntime Js
 
 <AuthorizeAccess>
 <PageTitle>Clientes - StockSantiCAZA</PageTitle>
@@ -49,10 +50,21 @@ else
         </div>
     </section>
 
-    <section class="panel">
+    <section class="panel @(form.Id is not null ? "panel-editing" : null)" id="edit-form">
         <div class="section-header">
             <div>
-                <h2>@(form.Id is null ? "Agregar cliente" : "Editar cliente")</h2>
+                <h2>
+                    @if (form.Id is null)
+                    {
+                        <span class="step-badge">+</span>
+                        <span>Agregar cliente</span>
+                    }
+                    else
+                    {
+                        <span class="step-badge edit">✎</span>
+                        <span>Editar cliente #@form.Id</span>
+                    }
+                </h2>
                 <p>Administre datos de contacto, estado y credencial CLU para luego vincularlos a ventas.</p>
             </div>
             @if (form.Id is not null)
@@ -61,9 +73,7 @@ else
             }
         </div>
 
-        <EditForm Model="form" OnValidSubmit="GuardarClienteAsync">
-            <DataAnnotationsValidator />
-            <ValidationSummary />
+        <EditForm Model="form" OnSubmit="GuardarClienteAsync" @key="EditFormKey">
 
             <div class="grid client-form">
                 <label>
@@ -193,7 +203,7 @@ else
                             </td>
                             <td>
                                 <div class="row-actions">
-                                    <button type="button" class="link-button" @onclick="() => EditarCliente(cliente)">Editar</button>
+                                    <button type="button" class="button btn-edit" @onclick="() => EditarClienteAsync(cliente)">Editar</button>
                                     <button type="button" class="link-button" @onclick="() => CambiarEstadoClienteAsync(cliente)">
                                         @(cliente.Activo ? "Dar de baja" : "Reactivar")
                                     </button>
@@ -218,6 +228,7 @@ else
     private string? mensaje;
     private string busqueda = string.Empty;
     private string estadoFiltro = string.Empty;
+    private int EditFormKey => form.Id ?? 0;
 
     private IEnumerable<Cliente> ClientesFiltrados
     {
@@ -292,7 +303,7 @@ else
 
             if (form.FechaEmisionClu is not null
                 && form.FechaVencimientoClu is not null
-                && form.FechaVencimientoClu.Value.Date < form.FechaEmisionClu.Value.Date)
+                && form.FechaVencimientoClu.Value < form.FechaEmisionClu.Value)
             {
                 errores.Add("La fecha de vencimiento de la CLU no puede ser anterior a la emisión.");
             }
@@ -367,8 +378,8 @@ else
             {
                 cliente.CredencialCLU ??= new CredencialCLU();
                 cliente.CredencialCLU.NumeroLegajo = numeroLegajo;
-                cliente.CredencialCLU.FechaEmision = DateOnly.FromDateTime(form.FechaEmisionClu!.Value);
-                cliente.CredencialCLU.FechaVencimiento = DateOnly.FromDateTime(form.FechaVencimientoClu!.Value);
+                cliente.CredencialCLU.FechaEmision = form.FechaEmisionClu!.Value;
+                cliente.CredencialCLU.FechaVencimiento = form.FechaVencimientoClu!.Value;
             }
             else if (cliente.CredencialCLU is not null)
             {
@@ -436,6 +447,14 @@ else
         mensaje = null;
     }
 
+    private async Task EditarClienteAsync(Cliente cliente)
+    {
+        errores.Clear();
+        mensaje = null;
+        EditarCliente(cliente);
+        await Js.InvokeVoidAsync("stockSanti.scrollToElement", "edit-form");
+    }
+
     private void EditarCliente(Cliente cliente)
     {
         form = new ClienteForm
@@ -449,8 +468,8 @@ else
             Activo = cliente.Activo,
             TieneClu = cliente.CredencialCLU is not null,
             NumeroLegajoClu = cliente.CredencialCLU?.NumeroLegajo ?? string.Empty,
-            FechaEmisionClu = cliente.CredencialCLU?.FechaEmision.ToDateTime(TimeOnly.MinValue),
-            FechaVencimientoClu = cliente.CredencialCLU?.FechaVencimiento.ToDateTime(TimeOnly.MinValue)
+            FechaEmisionClu = cliente.CredencialCLU?.FechaEmision,
+            FechaVencimientoClu = cliente.CredencialCLU?.FechaVencimiento
         };
     }
 
@@ -489,7 +508,7 @@ else
         [Required, MaxLength(20)]
         public string DniCuit { get; set; } = string.Empty;
 
-        [MaxLength(180), EmailAddress]
+        [MaxLength(180)]
         public string Email { get; set; } = string.Empty;
 
         [MaxLength(40)]
@@ -505,8 +524,8 @@ else
         [MaxLength(80)]
         public string NumeroLegajoClu { get; set; } = string.Empty;
 
-        public DateTime? FechaEmisionClu { get; set; }
+        public DateOnly? FechaEmisionClu { get; set; }
 
-        public DateTime? FechaVencimientoClu { get; set; }
+        public DateOnly? FechaVencimientoClu { get; set; }
     }
 }
