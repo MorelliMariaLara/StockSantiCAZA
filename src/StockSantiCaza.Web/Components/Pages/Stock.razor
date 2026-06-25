@@ -1,4 +1,6 @@
 @page "/stock"
+@using ClosedXML.Excel
+@using System.Globalization
 @inject IDbContextFactory<ApplicationDbContext> DbContextFactory
 
 <PageTitle>Stock - StockSantiCAZA</PageTitle>
@@ -14,7 +16,7 @@ else
     @if (errores.Count > 0)
     {
         <div class="alert alert-danger">
-            <strong>No se pudo guardar el producto</strong>
+            <strong>No se pudo completar la operación</strong>
             <ul>
                 @foreach (var error in errores)
                 {
@@ -52,13 +54,24 @@ else
         <div class="section-header">
             <div>
                 <h2>@(form.Id is null ? "Agregar producto" : "Editar producto")</h2>
-                <p>Complete la clasificación, características y cantidad disponible.</p>
+                <p>Complete la clasificación, características, precio en USD y cantidad disponible.</p>
             </div>
-            @if (form.Id is not null)
-            {
-                <button type="button" class="button ghost" @onclick="NuevoProducto">Nuevo producto</button>
-            }
+            <div class="section-actions">
+                @if (form.Id is not null)
+                {
+                    <button type="button" class="button ghost" @onclick="NuevoProducto">Nuevo producto</button>
+                }
+                <InputFile id="stock-import-file" class="visually-hidden" OnChange="ImportarStockAsync" accept=".xlsx,.xls" />
+                <label class="@ObtenerClaseBotonImportar()" for="stock-import-file">
+                    @(importandoStock ? "Importando..." : "Importar Excel")
+                </label>
+            </div>
         </div>
+
+        <p class="hint">
+            El Excel debe incluir encabezados como SKU, Nombre, Precio y Stock. También se aceptan Categoría,
+            Marca, Modelo, Calibre, Descripción, Mínimo y Activo.
+        </p>
 
         <EditForm Model="form" OnValidSubmit="GuardarProductoAsync">
             <DataAnnotationsValidator />
@@ -101,13 +114,8 @@ else
                 </label>
 
                 <label>
-                    Precio unitario
+                    Precio unitario USD
                     <InputNumber class="input" @bind-Value="form.PrecioUnitario" />
-                </label>
-
-                <label>
-                    IVA %
-                    <InputNumber class="input" @bind-Value="form.AlicuotaIva" />
                 </label>
 
                 <label>
@@ -188,7 +196,7 @@ else
                         <th>Clasificación</th>
                         <th>Características</th>
                         <th>Stock</th>
-                        <th>Precio</th>
+                        <th>Precio USD</th>
                         <th>Estado</th>
                         <th></th>
                     </tr>
@@ -211,7 +219,7 @@ else
                                 <strong>@producto.StockActual</strong>
                                 <small>Mínimo @producto.StockMinimo</small>
                             </td>
-                            <td>@producto.PrecioUnitario.ToString("C")</td>
+                            <td>@Formatos.MonedaUsd(producto.PrecioUnitario)</td>
                             <td>
                                 <span class="@ObtenerClaseBadge(producto)">@ObtenerEstadoStock(producto)</span>
                                 @if (!producto.Activo)
@@ -236,6 +244,7 @@ else
     private ProductoForm form = new();
     private bool cargando = true;
     private bool guardando;
+    private bool importandoStock;
     private string? mensaje;
     private string busqueda = string.Empty;
     private string categoriaFiltro = string.Empty;
@@ -306,6 +315,11 @@ else
             errores.Add("El stock actual no puede ser negativo.");
         }
 
+        if (form.PrecioUnitario < 0)
+        {
+            errores.Add("El precio unitario no puede ser negativo.");
+        }
+
         if (form.StockMinimo < 0)
         {
             errores.Add("El stock mínimo no puede ser negativo.");
@@ -365,7 +379,7 @@ else
             producto.Modelo = NormalizarTextoOpcional(form.Modelo);
             producto.Calibre = NormalizarTextoOpcional(form.Calibre);
             producto.PrecioUnitario = form.PrecioUnitario;
-            producto.AlicuotaIva = form.AlicuotaIva;
+            producto.AlicuotaIva = 0m;
             producto.StockActual = form.StockActual;
             producto.StockMinimo = form.StockMinimo;
             producto.Activo = form.Activo;
@@ -386,9 +400,18 @@ else
             }
 
             await db.SaveChangesAsync();
-            mensaje = esNuevo ? "Producto agregado correctamente." : "Producto actualizado correctamente.";
+            mensaje = esNuevo
+                ? "Producto agregado correctamente. Alta completada, ya puede cargar otro producto."
+                : "Producto actualizado correctamente.";
             await RecargarProductosAsync();
-            EditarProducto(producto);
+            if (esNuevo)
+            {
+                form = new ProductoForm();
+            }
+            else
+            {
+                EditarProducto(productos.Single(x => x.Id == producto.Id));
+            }
         }
         catch (Exception ex)
         {
@@ -398,6 +421,242 @@ else
         {
             guardando = false;
         }
+    }
+
+    private async Task ImportarStockAsync(InputFileChangeEventArgs e)
+    {
+        errores.Clear();
+        mensaje = null;
+
+        if (importandoStock)
+        {
+            return;
+        }
+
+        var archivo = e.File;
+        if (archivo is null)
+        {
+            return;
+        }
+
+        try
+        {
+            importandoStock = true;
+            var filas = await LeerFilasImportacionAsync(archivo);
+            if (errores.Count > 0)
+            {
+                return;
+            }
+
+            await GuardarImportacionAsync(filas);
+            await RecargarProductosAsync();
+            form = new ProductoForm();
+        }
+        catch (Exception ex)
+        {
+            errores.Add($"No se pudo importar el Excel: {ex.Message}");
+        }
+        finally
+        {
+            importandoStock = false;
+        }
+    }
+
+    private async Task<List<StockImportRow>> LeerFilasImportacionAsync(IBrowserFile archivo)
+    {
+        await using var stream = new MemoryStream();
+        await archivo.OpenReadStream(10 * 1024 * 1024).CopyToAsync(stream);
+        stream.Position = 0;
+
+        using var workbook = new XLWorkbook(stream);
+        var worksheet = workbook.Worksheets.FirstOrDefault();
+        if (worksheet is null)
+        {
+            errores.Add("El Excel no contiene hojas para importar.");
+            return [];
+        }
+
+        var columnas = ObtenerColumnas(worksheet);
+        var columnaSku = BuscarColumna(columnas, "sku", "codigo", "código");
+        var columnaNombre = BuscarColumna(columnas, "nombre", "producto", "articulo", "artículo");
+        var columnaPrecio = BuscarColumna(columnas, "precio", "precio unitario", "precio usd", "precio dolar", "precio dólar");
+        var columnaStock = BuscarColumna(columnas, "stock", "stock actual", "cantidad", "existencia", "existencias");
+
+        if (columnaSku == 0)
+        {
+            errores.Add("El Excel debe incluir una columna SKU.");
+        }
+
+        if (columnaNombre == 0)
+        {
+            errores.Add("El Excel debe incluir una columna Nombre o Producto.");
+        }
+
+        if (columnaPrecio == 0)
+        {
+            errores.Add("El Excel debe incluir una columna Precio.");
+        }
+
+        if (columnaStock == 0)
+        {
+            errores.Add("El Excel debe incluir una columna Stock o Cantidad.");
+        }
+
+        if (errores.Count > 0)
+        {
+            return [];
+        }
+
+        var columnaCategoria = BuscarColumna(columnas, "categoria", "categoría", "clasificacion", "clasificación");
+        var columnaDescripcion = BuscarColumna(columnas, "descripcion", "descripción", "caracteristicas", "características");
+        var columnaMarca = BuscarColumna(columnas, "marca");
+        var columnaModelo = BuscarColumna(columnas, "modelo");
+        var columnaCalibre = BuscarColumna(columnas, "calibre", "medida");
+        var columnaStockMinimo = BuscarColumna(columnas, "minimo", "mínimo", "stock minimo", "stock mínimo");
+        var columnaActivo = BuscarColumna(columnas, "activo", "estado");
+        var ultimaFila = worksheet.LastRowUsed()?.RowNumber() ?? 1;
+        var ultimaColumna = Math.Max(columnas.Values.DefaultIfEmpty(0).Max(), 1);
+        var filas = new List<StockImportRow>();
+        var skusArchivo = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        for (var fila = 2; fila <= ultimaFila; fila++)
+        {
+            if (FilaVacia(worksheet, fila, ultimaColumna))
+            {
+                continue;
+            }
+
+            var sku = LeerTexto(worksheet, fila, columnaSku)?.ToUpperInvariant();
+            var nombre = LeerTexto(worksheet, fila, columnaNombre);
+            if (string.IsNullOrWhiteSpace(sku))
+            {
+                errores.Add($"Fila {fila}: el SKU es obligatorio.");
+                continue;
+            }
+
+            if (!skusArchivo.Add(sku))
+            {
+                errores.Add($"Fila {fila}: el SKU {sku} está duplicado en el Excel.");
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(nombre))
+            {
+                errores.Add($"Fila {fila}: el nombre del producto es obligatorio.");
+                continue;
+            }
+
+            if (!TryLeerDecimal(worksheet, fila, columnaPrecio, out var precio) || precio < 0)
+            {
+                errores.Add($"Fila {fila}: el precio debe ser un número mayor o igual a cero.");
+                continue;
+            }
+
+            if (!TryLeerEntero(worksheet, fila, columnaStock, out var stockActual) || stockActual < 0)
+            {
+                errores.Add($"Fila {fila}: el stock debe ser un número entero mayor o igual a cero.");
+                continue;
+            }
+
+            var stockMinimo = 1;
+            if (columnaStockMinimo > 0
+                && (!TryLeerEntero(worksheet, fila, columnaStockMinimo, out stockMinimo) || stockMinimo < 0))
+            {
+                errores.Add($"Fila {fila}: el stock mínimo debe ser un número entero mayor o igual a cero.");
+                continue;
+            }
+
+            if (!TryLeerCategoria(LeerTexto(worksheet, fila, columnaCategoria), out var categoria))
+            {
+                errores.Add($"Fila {fila}: la categoría debe ser General, Arma o Municion.");
+                continue;
+            }
+
+            filas.Add(new StockImportRow(
+                fila,
+                sku,
+                nombre,
+                NormalizarTextoOpcional(LeerTexto(worksheet, fila, columnaDescripcion)),
+                categoria,
+                NormalizarTextoOpcional(LeerTexto(worksheet, fila, columnaMarca)),
+                NormalizarTextoOpcional(LeerTexto(worksheet, fila, columnaModelo)),
+                NormalizarTextoOpcional(LeerTexto(worksheet, fila, columnaCalibre)),
+                precio,
+                stockActual,
+                stockMinimo,
+                LeerActivo(LeerTexto(worksheet, fila, columnaActivo))));
+        }
+
+        if (filas.Count == 0 && errores.Count == 0)
+        {
+            errores.Add("El Excel no contiene filas de productos para importar.");
+        }
+
+        return filas;
+    }
+
+    private async Task GuardarImportacionAsync(IReadOnlyCollection<StockImportRow> filas)
+    {
+        await using var db = await DbContextFactory.CreateDbContextAsync();
+        await using var transaction = await db.Database.BeginTransactionAsync();
+        var skus = filas.Select(x => x.Sku).ToArray();
+        var productosExistentes = await db.Productos
+            .Where(x => skus.Contains(x.Sku))
+            .ToListAsync();
+        var existentes = productosExistentes.ToDictionary(x => x.Sku, StringComparer.OrdinalIgnoreCase);
+
+        var creados = 0;
+        var actualizados = 0;
+
+        foreach (var fila in filas)
+        {
+            var esNuevo = !existentes.TryGetValue(fila.Sku, out var producto);
+            producto ??= new Producto
+            {
+                Sku = fila.Sku,
+                CreadoEn = DateTime.UtcNow
+            };
+
+            if (esNuevo)
+            {
+                db.Productos.Add(producto);
+                creados++;
+            }
+            else
+            {
+                actualizados++;
+            }
+
+            var stockAnterior = esNuevo ? 0 : producto.StockActual;
+            producto.Nombre = fila.Nombre;
+            producto.Descripcion = fila.Descripcion;
+            producto.Categoria = fila.Categoria;
+            producto.Marca = fila.Marca;
+            producto.Modelo = fila.Modelo;
+            producto.Calibre = fila.Calibre;
+            producto.PrecioUnitario = fila.PrecioUnitario;
+            producto.AlicuotaIva = 0m;
+            producto.StockActual = fila.StockActual;
+            producto.StockMinimo = fila.StockMinimo;
+            producto.Activo = fila.Activo;
+
+            var diferenciaStock = producto.StockActual - stockAnterior;
+            if (diferenciaStock != 0)
+            {
+                db.MovimientosStock.Add(new MovimientoStock
+                {
+                    Producto = producto,
+                    Tipo = esNuevo && diferenciaStock > 0 ? TipoMovimientoStock.Ingreso : TipoMovimientoStock.Ajuste,
+                    Cantidad = diferenciaStock,
+                    StockResultante = producto.StockActual,
+                    Observacion = $"Importación Excel fila {fila.NumeroFila}"
+                });
+            }
+        }
+
+        await db.SaveChangesAsync();
+        await transaction.CommitAsync();
+        mensaje = $"Importación completada: {creados} producto(s) nuevo(s) y {actualizados} actualizado(s).";
     }
 
     private async Task RecargarProductosAsync()
@@ -429,7 +688,6 @@ else
             Modelo = producto.Modelo ?? string.Empty,
             Calibre = producto.Calibre ?? string.Empty,
             PrecioUnitario = producto.PrecioUnitario,
-            AlicuotaIva = producto.AlicuotaIva,
             StockActual = producto.StockActual,
             StockMinimo = producto.StockMinimo,
             Activo = producto.Activo
@@ -440,6 +698,153 @@ else
     {
         var normalizado = valor?.Trim();
         return string.IsNullOrWhiteSpace(normalizado) ? null : normalizado;
+    }
+
+    private static Dictionary<string, int> ObtenerColumnas(IXLWorksheet worksheet)
+    {
+        var columnas = new Dictionary<string, int>();
+        var ultimaColumna = worksheet.Row(1).LastCellUsed()?.Address.ColumnNumber ?? 0;
+
+        for (var columna = 1; columna <= ultimaColumna; columna++)
+        {
+            var encabezado = worksheet.Cell(1, columna).GetFormattedString();
+            var clave = NormalizarClave(encabezado);
+            if (!string.IsNullOrWhiteSpace(clave) && !columnas.ContainsKey(clave))
+            {
+                columnas.Add(clave, columna);
+            }
+        }
+
+        return columnas;
+    }
+
+    private static int BuscarColumna(IReadOnlyDictionary<string, int> columnas, params string[] nombres)
+    {
+        foreach (var nombre in nombres)
+        {
+            if (columnas.TryGetValue(NormalizarClave(nombre), out var columna))
+            {
+                return columna;
+            }
+        }
+
+        return 0;
+    }
+
+    private static bool FilaVacia(IXLWorksheet worksheet, int fila, int ultimaColumna) =>
+        worksheet.Row(fila)
+            .Cells(1, ultimaColumna)
+            .All(x => string.IsNullOrWhiteSpace(x.GetFormattedString()));
+
+    private static string? LeerTexto(IXLWorksheet worksheet, int fila, int columna)
+    {
+        if (columna <= 0)
+        {
+            return null;
+        }
+
+        var texto = worksheet.Cell(fila, columna).GetFormattedString()?.Trim();
+        return string.IsNullOrWhiteSpace(texto) ? null : texto;
+    }
+
+    private static bool TryLeerEntero(IXLWorksheet worksheet, int fila, int columna, out int valor)
+    {
+        valor = 0;
+        if (!TryLeerDecimal(worksheet, fila, columna, out var decimalValor)
+            || decimalValor != decimal.Truncate(decimalValor)
+            || decimalValor < int.MinValue
+            || decimalValor > int.MaxValue)
+        {
+            return false;
+        }
+
+        valor = (int)decimalValor;
+        return true;
+    }
+
+    private static bool TryLeerDecimal(IXLWorksheet worksheet, int fila, int columna, out decimal valor)
+    {
+        valor = 0m;
+        if (columna <= 0)
+        {
+            return false;
+        }
+
+        var celda = worksheet.Cell(fila, columna);
+        if (celda.TryGetValue<decimal>(out var valorNumerico))
+        {
+            valor = valorNumerico;
+            return true;
+        }
+
+        var texto = celda.GetFormattedString()
+            .Replace("USD", string.Empty, StringComparison.OrdinalIgnoreCase)
+            .Replace("$", string.Empty, StringComparison.Ordinal)
+            .Trim();
+
+        return decimal.TryParse(texto, NumberStyles.Number, CultureInfo.GetCultureInfo("en-US"), out valor)
+            || decimal.TryParse(texto, NumberStyles.Number, CultureInfo.GetCultureInfo("es-AR"), out valor)
+            || decimal.TryParse(texto, NumberStyles.Number, CultureInfo.InvariantCulture, out valor);
+    }
+
+    private static bool TryLeerCategoria(string? texto, out ProductoCategoria categoria)
+    {
+        categoria = ProductoCategoria.General;
+        if (string.IsNullOrWhiteSpace(texto))
+        {
+            return true;
+        }
+
+        if (Enum.TryParse<ProductoCategoria>(texto, ignoreCase: true, out categoria))
+        {
+            return true;
+        }
+
+        if (int.TryParse(texto, out var numero)
+            && Enum.IsDefined(typeof(ProductoCategoria), numero))
+        {
+            categoria = (ProductoCategoria)numero;
+            return true;
+        }
+
+        categoria = NormalizarClave(texto) switch
+        {
+            "arma" or "armas" => ProductoCategoria.Arma,
+            "municion" or "municiones" => ProductoCategoria.Municion,
+            "general" => ProductoCategoria.General,
+            _ => ProductoCategoria.General
+        };
+
+        return NormalizarClave(texto) is "arma" or "armas" or "municion" or "municiones" or "general";
+    }
+
+    private static bool LeerActivo(string? texto)
+    {
+        if (string.IsNullOrWhiteSpace(texto))
+        {
+            return true;
+        }
+
+        return NormalizarClave(texto) is not ("inactivo" or "baja" or "no" or "false" or "0");
+    }
+
+    private static string NormalizarClave(string valor)
+    {
+        var builder = new System.Text.StringBuilder();
+        foreach (var caracter in valor.Trim().ToLowerInvariant().Normalize(System.Text.NormalizationForm.FormD))
+        {
+            if (CharUnicodeInfo.GetUnicodeCategory(caracter) == UnicodeCategory.NonSpacingMark)
+            {
+                continue;
+            }
+
+            if (char.IsLetterOrDigit(caracter))
+            {
+                builder.Append(caracter);
+            }
+        }
+
+        return builder.ToString();
     }
 
     private static string FormatearCaracteristicas(Producto producto)
@@ -484,6 +889,23 @@ else
         return producto.StockActual <= producto.StockMinimo ? "warning-row" : null;
     }
 
+    private string ObtenerClaseBotonImportar() =>
+        importandoStock ? "button primary disabled" : "button primary";
+
+    private sealed record StockImportRow(
+        int NumeroFila,
+        string Sku,
+        string Nombre,
+        string? Descripcion,
+        ProductoCategoria Categoria,
+        string? Marca,
+        string? Modelo,
+        string? Calibre,
+        decimal PrecioUnitario,
+        int StockActual,
+        int StockMinimo,
+        bool Activo);
+
     private sealed class ProductoForm
     {
         public int? Id { get; set; }
@@ -510,9 +932,6 @@ else
 
         [Range(0, 999999999)]
         public decimal PrecioUnitario { get; set; }
-
-        [Range(0, 100)]
-        public decimal AlicuotaIva { get; set; } = 21m;
 
         [Range(0, int.MaxValue)]
         public int StockActual { get; set; }

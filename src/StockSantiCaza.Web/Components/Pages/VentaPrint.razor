@@ -29,7 +29,7 @@ else
                 <tr>
                     <th>Producto</th>
                     <th>Cant.</th>
-                    <th>Total</th>
+                    <th>Total USD</th>
                 </tr>
             </thead>
             <tbody>
@@ -48,17 +48,16 @@ else
                             }
                         </td>
                         <td>@detalle.Cantidad</td>
-                        <td>@detalle.Total.ToString("C")</td>
+                        <td>@Formatos.MonedaUsd(detalle.Total)</td>
                     </tr>
                 }
             </tbody>
         </table>
 
         <footer>
-            <p>Subtotal: @venta.Subtotal.ToString("C")</p>
-            <p>IVA: @venta.IvaTotal.ToString("C")</p>
-            <p>Descuento: @venta.DescuentoTotal.ToString("C")</p>
-            <strong>Total: @venta.Total.ToString("C")</strong>
+            <p>Subtotal sin IVA: @Formatos.MonedaUsd(venta.Subtotal)</p>
+            <p>Descuento: @Formatos.MonedaUsd(venta.DescuentoTotal)</p>
+            <strong>Total USD: @Formatos.MonedaUsd(venta.Total)</strong>
             @if (!string.IsNullOrWhiteSpace(venta.Cae))
             {
                 <p>CAE @venta.Cae - vto. @(venta.CaeVencimiento?.ToString("dd/MM/yyyy"))</p>

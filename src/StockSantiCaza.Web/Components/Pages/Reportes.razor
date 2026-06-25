@@ -45,8 +45,8 @@ else
                 <strong>@resumen.CantidadVentas</strong>
             </div>
             <div class="card">
-                <span class="metric-label">Total vendido</span>
-                <strong>@resumen.TotalVentas.ToString("C")</strong>
+                <span class="metric-label">Total vendido USD sin IVA</span>
+                <strong>@Formatos.MonedaUsd(resumen.TotalVentas)</strong>
             </div>
             <div class="card">
                 <span class="metric-label">Movimientos de stock</span>

@@ -32,7 +32,7 @@ else
         @if (resultado is not null)
         {
             <div class="alert alert-success">
-                Venta confirmada: <strong>@resultado.NumeroComprobante</strong> por @resultado.Total.ToString("C").
+                Venta confirmada: <strong>@resultado.NumeroComprobante</strong> por @Formatos.MonedaUsd(resultado.Total).
                 <a class="button ghost" href="@($"ventas/{resultado.VentaId}/imprimir")" target="_blank">Abrir impresión</a>
                 @if (resultado.Advertencias.Count > 0)
                 {
@@ -97,8 +97,8 @@ else
         </section>
 
         <section class="panel">
-            <h2>Cliente rápido</h2>
-            <p>Para ventas al mostrador, escriba el nombre y agregue un celular. El DNI/CUIT es opcional.</p>
+                <h2>Alta rápida de cliente</h2>
+                <p>Agregue un cliente sin salir de la venta y quedará seleccionado automáticamente.</p>
             <div class="grid client-entry">
                 <label>
                     Nombre del cliente
@@ -121,7 +121,7 @@ else
         </section>
 
         <section class="panel">
-            <h2>Agregar producto</h2>
+            <h2>Seleccionar y agregar producto</h2>
             <div class="grid product-entry">
                 <label>
                     Buscar
@@ -145,7 +145,7 @@ else
                 </label>
 
                 <label>
-                    Precio unitario
+                    Precio unitario USD
                     <InputNumber class="input" @bind-Value="precioUnitario" />
                 </label>
 
@@ -211,9 +211,9 @@ else
                                 <th>Producto</th>
                                 <th>Trazabilidad</th>
                                 <th>Cant.</th>
-                                <th>Precio</th>
-                                <th>Desc.</th>
-                                <th>Total estimado</th>
+                                <th>Precio USD</th>
+                                <th>Desc. USD</th>
+                                <th>Total USD</th>
                                 <th></th>
                             </tr>
                         </thead>
@@ -224,9 +224,9 @@ else
                                     <td>@item.Producto.Nombre</td>
                                     <td>@item.Trazabilidad</td>
                                     <td>@item.Cantidad</td>
-                                    <td>@item.PrecioUnitario.ToString("C")</td>
-                                    <td>@item.Descuento.ToString("C")</td>
-                                    <td>@item.TotalEstimado.ToString("C")</td>
+                                    <td>@Formatos.MonedaUsd(item.PrecioUnitario)</td>
+                                    <td>@Formatos.MonedaUsd(item.Descuento)</td>
+                                    <td>@Formatos.MonedaUsd(item.TotalEstimado)</td>
                                     <td><button type="button" class="link-button" @onclick="() => QuitarItem(item)">Quitar</button></td>
                                 </tr>
                             }
@@ -237,13 +237,12 @@ else
 
             <div class="totals">
                 <label>
-                    Descuento general
+                    Descuento general USD
                     <InputNumber class="input" @bind-Value="form.DescuentoGeneral" />
                 </label>
                 <div>
-                    <span>Subtotal: @Subtotal.ToString("C")</span>
-                    <span>IVA: @Iva.ToString("C")</span>
-                    <strong>Total: @Total.ToString("C")</strong>
+                    <span>Subtotal sin IVA: @Formatos.MonedaUsd(Subtotal)</span>
+                    <strong>Total USD: @Formatos.MonedaUsd(Total)</strong>
                 </div>
             </div>
         </section>
@@ -293,8 +292,7 @@ else
             .Take(30);
 
     private decimal Subtotal => items.Sum(x => x.Subtotal);
-    private decimal Iva => items.Sum(x => x.Iva);
-    private decimal Total => Math.Max(0, Subtotal + Iva - form.DescuentoGeneral);
+    private decimal Total => Math.Max(0, Subtotal - form.DescuentoGeneral);
 
     protected override async Task OnInitializedAsync()
     {
@@ -306,11 +304,7 @@ else
             .OrderBy(x => x.NombreRazonSocial)
             .ToListAsync();
 
-        productos = await db.Productos
-            .AsNoTracking()
-            .Where(x => x.Activo)
-            .OrderBy(x => x.Nombre)
-            .ToListAsync();
+        await RecargarProductosAsync();
 
         cargando = false;
     }
@@ -491,6 +485,7 @@ else
             items.Clear();
             form.Items.Clear();
             form.DescuentoGeneral = 0;
+            await RecargarProductosAsync();
         }
         catch (VentaValidationException ex)
         {
@@ -517,6 +512,16 @@ else
             PrecioUnitario = x.PrecioUnitario,
             Descuento = x.Descuento
         }).ToList();
+    }
+
+    private async Task RecargarProductosAsync()
+    {
+        await using var db = await DbContextFactory.CreateDbContextAsync();
+        productos = await db.Productos
+            .AsNoTracking()
+            .Where(x => x.Activo)
+            .OrderBy(x => x.Nombre)
+            .ToListAsync();
     }
 
     private static Cliente CrearCliente(string nombre, string celular, string dniCuit) => new()
@@ -576,7 +581,6 @@ else
         };
 
         public decimal Subtotal => Math.Max(0, (PrecioUnitario * Cantidad) - Descuento);
-        public decimal Iva => Math.Round(Subtotal * Producto.AlicuotaIva / 100m, 2, MidpointRounding.AwayFromZero);
-        public decimal TotalEstimado => Subtotal + Iva;
+        public decimal TotalEstimado => Subtotal;
     }
 }
