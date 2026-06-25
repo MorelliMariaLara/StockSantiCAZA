@@ -9,7 +9,7 @@ public class NuevaVentaRequest
 
     public int? VendedorId { get; set; }
 
-    public TipoComprobante TipoComprobante { get; set; } = TipoComprobante.FacturaB;
+    public TipoComprobante TipoComprobante { get; set; } = TipoComprobante.FacturaC;
 
     [Range(0, 999999999)]
     public decimal DescuentoGeneral { get; set; }

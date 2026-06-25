@@ -220,9 +220,9 @@
                     <label>
                         Tipo de factura
                         <InputSelect class="input" @bind-Value="tipoFacturaSeleccionado">
-                            <option value="@TipoComprobante.FacturaB">Factura B — Consumidor final</option>
+                            <option value="@TipoComprobante.FacturaC">Factura C — Consumidor final</option>
+                            <option value="@TipoComprobante.FacturaB">Factura B</option>
                             <option value="@TipoComprobante.FacturaA">Factura A — Responsable inscripto</option>
-                            <option value="@TipoComprobante.FacturaC">Factura C</option>
                         </InputSelect>
                     </label>
                     <label>
@@ -282,7 +282,7 @@
     private decimal precioUnitario;
     private decimal descuentoLinea;
     private ClienteNuevoForm clienteNuevo = new();
-    private TipoComprobante tipoFacturaSeleccionado = TipoComprobante.FacturaB;
+    private TipoComprobante tipoFacturaSeleccionado = TipoComprobante.FacturaC;
     private bool requiereDocumentoFactura;
 
     private IEnumerable<Producto> ProductosFiltrados
@@ -622,8 +622,8 @@
         form.Items.Clear();
         form.DescuentoGeneral = 0;
         form.Observaciones = null;
-        form.TipoComprobante = TipoComprobante.FacturaB;
-        tipoFacturaSeleccionado = TipoComprobante.FacturaB;
+        form.TipoComprobante = TipoComprobante.FacturaC;
+        tipoFacturaSeleccionado = TipoComprobante.FacturaC;
         clienteIdSeleccionado = 0;
         clienteSeleccionado = null;
         busquedaCliente = string.Empty;
