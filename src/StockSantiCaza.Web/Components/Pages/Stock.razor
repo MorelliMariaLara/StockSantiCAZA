@@ -62,7 +62,7 @@ else
                     <button type="button" class="button ghost" @onclick="NuevoProducto">Nuevo producto</button>
                 }
                 <InputFile id="stock-import-file" class="visually-hidden" OnChange="ImportarStockAsync" accept=".xlsx,.xls" />
-                <label class="button primary @(importandoStock ? "disabled" : null)" for="stock-import-file">
+                <label class="@ObtenerClaseBotonImportar()" for="stock-import-file">
                     @(importandoStock ? "Importando..." : "Importar Excel")
                 </label>
             </div>
@@ -600,9 +600,10 @@ else
         await using var db = await DbContextFactory.CreateDbContextAsync();
         await using var transaction = await db.Database.BeginTransactionAsync();
         var skus = filas.Select(x => x.Sku).ToArray();
-        var existentes = await db.Productos
+        var productosExistentes = await db.Productos
             .Where(x => skus.Contains(x.Sku))
-            .ToDictionaryAsync(x => x.Sku, StringComparer.OrdinalIgnoreCase);
+            .ToListAsync();
+        var existentes = productosExistentes.ToDictionary(x => x.Sku, StringComparer.OrdinalIgnoreCase);
 
         var creados = 0;
         var actualizados = 0;
@@ -887,6 +888,9 @@ else
 
         return producto.StockActual <= producto.StockMinimo ? "warning-row" : null;
     }
+
+    private string ObtenerClaseBotonImportar() =>
+        importandoStock ? "button primary disabled" : "button primary";
 
     private sealed record StockImportRow(
         int NumeroFila,
