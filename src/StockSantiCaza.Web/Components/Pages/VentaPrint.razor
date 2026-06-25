@@ -3,6 +3,7 @@
 @inject IDbContextFactory<ApplicationDbContext> DbContextFactory
 @inject IJSRuntime Js
 
+<AuthorizeAccess Modulo="ModuloSistema.Ventas">
 <PageTitle>Impresión de comprobante</PageTitle>
 
 @if (venta is null)
@@ -68,6 +69,8 @@ else
 
     <button class="button primary no-print" @onclick="ImprimirAsync">Imprimir</button>
 }
+
+</AuthorizeAccess>
 
 @code {
     [Parameter]

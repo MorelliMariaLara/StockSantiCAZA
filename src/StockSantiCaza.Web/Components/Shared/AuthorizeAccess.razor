@@ -8,7 +8,7 @@
 }
 else if (Redirigiendo)
 {
-    <p>Redirigiendo al inicio de sesión...</p>
+    <p>Redirigiendo...</p>
 }
 else if (!string.IsNullOrWhiteSpace(Mensaje))
 {
@@ -23,6 +23,9 @@ else if (!string.IsNullOrWhiteSpace(Mensaje))
 
     [Parameter]
     public bool RequiereAdministrador { get; set; }
+
+    [Parameter]
+    public ModuloSistema? Modulo { get; set; }
 
     private bool Autorizado { get; set; }
 
@@ -40,7 +43,13 @@ else if (!string.IsNullOrWhiteSpace(Mensaje))
 
         if (RequiereAdministrador && !AuthService.UsuarioActual.EsAdministrador)
         {
-            Mensaje = "No tiene permisos para acceder a esta sección.";
+            Mensaje = "No tiene permisos para acceder a esta sección. Solo administradores.";
+            return;
+        }
+
+        if (Modulo.HasValue && !AuthService.UsuarioActual.PuedeAcceder(Modulo.Value))
+        {
+            Mensaje = "No tiene permisos para acceder a este módulo.";
             return;
         }
 
@@ -49,9 +58,20 @@ else if (!string.IsNullOrWhiteSpace(Mensaje))
 
     protected override void OnAfterRender(bool firstRender)
     {
-        if (firstRender && Redirigiendo)
+        if (!firstRender)
+        {
+            return;
+        }
+
+        if (Redirigiendo)
         {
             Navigation.NavigateTo("/login");
+            return;
+        }
+
+        if (!Autorizado && AuthService.UsuarioActual is not null && Modulo.HasValue)
+        {
+            Navigation.NavigateTo(AuthService.UsuarioActual.EsAdministrador ? "/" : "/ventas/nueva");
         }
     }
 }

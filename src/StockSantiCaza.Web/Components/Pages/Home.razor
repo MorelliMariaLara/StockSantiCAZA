@@ -2,7 +2,7 @@
 @inject IReportesService ReportesService
 @inject IAuthService AuthService
 
-<AuthorizeAccess>
+<AuthorizeAccess Modulo="ModuloSistema.Dashboard" RequiereAdministrador="true">
     <PageTitle>Dashboard - StockSantiCAZA</PageTitle>
 
     <h1>Dashboard</h1>

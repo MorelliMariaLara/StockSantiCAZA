@@ -697,6 +697,53 @@ td small {
     font-weight: 600;
 }
 
+.sale-hint {
+    color: var(--muted);
+    margin: 0 0 1rem;
+    font-weight: 600;
+}
+
+.page-intro {
+    color: #e8edd8;
+    margin: -.5rem 0 1.25rem;
+    font-size: 1.05rem;
+}
+
+.venta-flash {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.venta-rapida {
+    border-left-width: 6px;
+}
+
+.venta-guardar {
+    text-align: center;
+}
+
+.venta-guardar .button-xl {
+    width: 100%;
+    max-width: 420px;
+    margin-top: 1rem;
+    font-size: 1.15rem;
+    padding: 1rem 1.5rem;
+}
+
+.venta-detalle-mini {
+    margin-top: 1rem;
+}
+
+.venta-total-inline {
+    justify-content: flex-end;
+    margin-top: .75rem;
+    padding-top: 0;
+    border-top: 0;
+}
+
 .page-body > p {
     color: #e8edd8;
 }

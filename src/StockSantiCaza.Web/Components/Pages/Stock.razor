@@ -2,11 +2,19 @@
 @inject IDbContextFactory<ApplicationDbContext> DbContextFactory
 @inject IStockImportService ImportService
 @inject IJSRuntime Js
+@inject IAuthService AuthService
 
-<AuthorizeAccess>
+<AuthorizeAccess Modulo="ModuloSistema.Stock">
     <PageTitle>Stock - StockSantiCAZA</PageTitle>
 
     <h1>Stock</h1>
+
+    @if (!PuedeEditarStock)
+    {
+        <div class="alert alert-success">
+            <strong>Consulta de stock</strong> — Puede ver existencias y precios. La carga y edición de productos es solo para administradores.
+        </div>
+    }
 
     @if (cargando)
     {
@@ -51,6 +59,8 @@
             </div>
         </section>
 
+        @if (PuedeEditarStock)
+        {
         <section class="panel @(form.Id is not null ? "panel-editing" : null)" id="edit-form">
             <div class="section-header">
                 <div>
@@ -205,6 +215,7 @@
                 </button>
             </div>
         </section>
+        }
 
         <section class="panel">
             <div class="section-header">
@@ -283,7 +294,10 @@
                                     }
                                 </td>
                                 <td>
-                                    <button type="button" class="button btn-edit" @onclick="() => EditarProductoAsync(producto)">Editar</button>
+                                    @if (PuedeEditarStock)
+                                    {
+                                        <button type="button" class="button btn-edit" @onclick="() => EditarProductoAsync(producto)">Editar</button>
+                                    }
                                 </td>
                             </tr>
                         }
@@ -312,6 +326,7 @@
     private IBrowserFile? archivoImportacion;
     private StockImportResult? resultadoImportacion;
     private int EditFormKey => form.Id ?? 0;
+    private bool PuedeEditarStock => AuthService.UsuarioActual?.PuedeEditarStock == true;
 
     private IEnumerable<Producto> ProductosFiltrados
     {

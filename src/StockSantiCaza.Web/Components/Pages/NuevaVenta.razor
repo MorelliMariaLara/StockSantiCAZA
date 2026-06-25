@@ -3,11 +3,13 @@
 @inject IVentasService VentasService
 @inject IUsuariosService UsuariosService
 @inject IAuthService AuthService
+@inject IJSRuntime Js
 
-<AuthorizeAccess>
+<AuthorizeAccess Modulo="ModuloSistema.Ventas">
     <PageTitle>Nueva venta - StockSantiCAZA</PageTitle>
 
     <h1>Nueva venta</h1>
+    <p class="page-intro">Seleccione producto y cliente, pulse <strong>Guardar venta</strong> y el formulario se limpia solo para la siguiente.</p>
 
     @if (cargando)
     {
@@ -16,10 +18,21 @@
     else
     {
         <EditForm Model="form" OnSubmit="ConfirmarVentaAsync">
+            @if (!string.IsNullOrWhiteSpace(mensajeExito))
+            {
+                <div class="alert alert-success venta-flash">
+                    <strong>@mensajeExito</strong>
+                    @if (ultimaVentaId.HasValue)
+                    {
+                        <a class="button ghost" href="@($"ventas/{ultimaVentaId}/imprimir")" target="_blank">Imprimir comprobante</a>
+                    }
+                </div>
+            }
+
             @if (errores.Count > 0)
             {
                 <div class="alert alert-danger">
-                    <strong>No se pudo confirmar la venta</strong>
+                    <strong>No se pudo guardar la venta</strong>
                     <ul>
                         @foreach (var error in errores)
                         {
@@ -29,25 +42,8 @@
                 </div>
             }
 
-            @if (resultado is not null)
-            {
-                <div class="alert alert-success">
-                    Venta confirmada: <strong>@resultado.NumeroComprobante</strong> por @MonedaHelper.FormatearUsd(resultado.Total).
-                    <a class="button ghost" href="@($"ventas/{resultado.VentaId}/imprimir")" target="_blank">Abrir impresión</a>
-                    @if (resultado.Advertencias.Count > 0)
-                    {
-                        <ul>
-                            @foreach (var advertencia in resultado.Advertencias)
-                            {
-                                <li>@advertencia</li>
-                            }
-                        </ul>
-                    }
-                </div>
-            }
-
-            <section class="panel step-panel">
-                <h2><span class="step-badge">1</span> Seleccionar productos</h2>
+            <section class="panel venta-rapida step-panel" id="venta-rapida">
+                <h2><span class="step-badge">1</span> Producto</h2>
                 <div class="grid product-entry">
                     <label>
                         Buscar producto
@@ -74,11 +70,6 @@
                         Precio USD
                         <InputNumber class="input" @bind-Value="precioUnitario" />
                     </label>
-
-                    <label>
-                        Descuento USD
-                        <InputNumber class="input" @bind-Value="descuentoLinea" />
-                    </label>
                 </div>
 
                 @if (productoSeleccionado is not null && productoSeleccionado.StockActual <= productoSeleccionado.StockMinimo)
@@ -88,25 +79,19 @@
                     </div>
                 }
 
-                <button type="button" class="button" @onclick="AgregarItem" disabled="@(productoSeleccionadoId <= 0)">Agregar producto</button>
-            </section>
+                <div class="actions">
+                    <button type="button" class="button" @onclick="AgregarItem" disabled="@(productoSeleccionadoId <= 0)">Agregar al detalle</button>
+                    <small class="hint">Si olvida agregar, el producto seleccionado se incluye al guardar.</small>
+                </div>
 
-            <section class="panel step-panel">
-                <h2><span class="step-badge">2</span> Detalle de la venta</h2>
-                @if (items.Count == 0)
+                @if (items.Count > 0)
                 {
-                    <p>Agregue al menos un producto para continuar.</p>
-                }
-                else
-                {
-                    <div class="table-wrap">
+                    <div class="table-wrap venta-detalle-mini">
                         <table>
                             <thead>
                                 <tr>
                                     <th>Producto</th>
                                     <th>Cant.</th>
-                                    <th>Precio USD</th>
-                                    <th>Desc. USD</th>
                                     <th>Total USD</th>
                                     <th></th>
                                 </tr>
@@ -114,11 +99,9 @@
                             <tbody>
                                 @foreach (var item in items)
                                 {
-                                    <tr class="@(item.Producto.StockActual <= item.Producto.StockMinimo ? "danger-row" : null)">
+                                    <tr>
                                         <td>@item.Producto.Nombre</td>
                                         <td>@item.Cantidad</td>
-                                        <td>@MonedaHelper.FormatearUsd(item.PrecioUnitario)</td>
-                                        <td>@MonedaHelper.FormatearUsd(item.Descuento)</td>
                                         <td>@MonedaHelper.FormatearUsd(item.TotalEstimado)</td>
                                         <td><button type="button" class="link-button" @onclick="() => QuitarItem(item)">Quitar</button></td>
                                     </tr>
@@ -127,15 +110,8 @@
                         </table>
                     </div>
 
-                    <div class="totals">
-                        <label>
-                            Descuento general USD
-                            <InputNumber class="input" @bind-Value="form.DescuentoGeneral" />
-                        </label>
-                        <div>
-                            <span>Subtotal: @MonedaHelper.FormatearUsd(Subtotal)</span>
-                            <strong>Total: @MonedaHelper.FormatearUsd(Total)</strong>
-                        </div>
+                    <div class="totals venta-total-inline">
+                        <strong>Total: @MonedaHelper.FormatearUsd(Total)</strong>
                     </div>
                 }
             </section>
@@ -143,12 +119,10 @@
             <section class="panel step-panel">
                 <div class="section-header">
                     <div>
-                        <h2><span class="step-badge">3</span> Cliente y vendedor</h2>
-                        <p>Busque un cliente existente o cree uno nuevo antes de confirmar.</p>
+                        <h2><span class="step-badge">2</span> Cliente</h2>
+                        <p>Busque o cree el cliente de la venta.</p>
                     </div>
-                    <button type="button" class="button ghost" @onclick="AbrirNuevoCliente">
-                        Nuevo cliente
-                    </button>
+                    <button type="button" class="button ghost" @onclick="AbrirNuevoCliente">Nuevo cliente</button>
                 </div>
 
                 <div class="grid sale-header">
@@ -168,16 +142,26 @@
                         </InputSelect>
                     </label>
 
-                    <label>
-                        Vendedor
-                        <InputSelect class="input" @bind-Value="vendedorIdSeleccionado">
-                            <option value="0">Seleccione...</option>
-                            @foreach (var vendedor in vendedores)
-                            {
-                                <option value="@vendedor.Id">@vendedor.Nombre (@vendedor.Rol)</option>
-                            }
-                        </InputSelect>
-                    </label>
+                    @if (AuthService.UsuarioActual?.EsAdministrador == true)
+                    {
+                        <label>
+                            Vendedor
+                            <InputSelect class="input" @bind-Value="vendedorIdSeleccionado">
+                                <option value="0">Seleccione...</option>
+                                @foreach (var vendedor in vendedores)
+                                {
+                                    <option value="@vendedor.Id">@vendedor.Nombre (@vendedor.Rol)</option>
+                                }
+                            </InputSelect>
+                        </label>
+                    }
+                    else
+                    {
+                        <label>
+                            Vendedor
+                            <input class="input" value="@AuthService.UsuarioActual?.Nombre" disabled />
+                        </label>
+                    }
 
                     <label>
                         Comprobante
@@ -193,31 +177,10 @@
                 @if (clienteSeleccionado is not null)
                 {
                     <div class="alert alert-success client-selected">
-                        <strong>Cliente seleccionado:</strong> @clienteSeleccionado.NombreRazonSocial
+                        <strong>@clienteSeleccionado.NombreRazonSocial</strong>
                         @if (!EsDniInterno(clienteSeleccionado.DniCuit))
                         {
-                            <span> - @clienteSeleccionado.DniCuit</span>
-                        }
-                        @if (!string.IsNullOrWhiteSpace(clienteSeleccionado.Telefono))
-                        {
-                            <span> - @clienteSeleccionado.Telefono</span>
-                        }
-                    </div>
-
-                    var clu = clienteSeleccionado.CredencialCLU;
-                    <div class="clu-card @(clu?.EstaVigente == true ? "ok" : "warning")">
-                        <strong>CLU:</strong>
-                        @if (clu is null)
-                        {
-                            <span>Sin credencial cargada. La venta se permite y quedará informada como advertencia.</span>
-                        }
-                        else
-                        {
-                            <span>Legajo @clu.NumeroLegajo - vence @clu.FechaVencimiento.ToString("dd/MM/yyyy")</span>
-                            @if (!clu.EstaVigente)
-                            {
-                                <strong> VENCIDA - no bloquea la venta</strong>
-                            }
+                            <span> — @clienteSeleccionado.DniCuit</span>
                         }
                     </div>
                 }
@@ -229,8 +192,6 @@
                             <h3>Nuevo cliente</h3>
                             <button type="button" class="link-button" @onclick="CerrarNuevoCliente">Cancelar</button>
                         </div>
-                        <p>Complete los datos que tenga disponibles. Solo el nombre es obligatorio.</p>
-
                         <div class="grid client-form">
                             <label>
                                 Nombre / razón social
@@ -241,19 +202,10 @@
                                 <InputText class="input" @bind-Value="clienteNuevo.DniCuit" placeholder="Opcional" />
                             </label>
                             <label>
-                                Teléfono / celular
+                                Teléfono
                                 <InputText class="input" @bind-Value="clienteNuevo.Telefono" placeholder="Opcional" />
                             </label>
-                            <label>
-                                Email
-                                <InputText class="input" @bind-Value="clienteNuevo.Email" placeholder="Opcional" />
-                            </label>
-                            <label>
-                                Domicilio
-                                <InputText class="input" @bind-Value="clienteNuevo.Domicilio" placeholder="Opcional" />
-                            </label>
                         </div>
-
                         <div class="actions">
                             <button type="button" class="button" @onclick="GuardarNuevoClienteAsync" disabled="@procesandoCliente">
                                 @(procesandoCliente ? "Guardando..." : "Guardar y seleccionar")
@@ -263,32 +215,23 @@
                 }
             </section>
 
-            <section class="panel step-panel">
-                <h2><span class="step-badge">4</span> Confirmar</h2>
+            <section class="panel venta-guardar step-panel">
                 <label>
                     Observaciones (opcional)
-                    <InputTextArea class="input" @bind-Value="form.Observaciones" placeholder="Opcional" />
+                    <InputText class="input" @bind-Value="form.Observaciones" placeholder="Opcional" />
                 </label>
 
                 <ul class="sale-checklist">
-                    <li class="@(items.Count > 0 ? "ok" : "pending")">
-                        @(items.Count > 0 ? "✓" : "○") Al menos un producto en el detalle (@items.Count)
+                    <li class="@(TieneProductos ? "ok" : "pending")">
+                        @(TieneProductos ? "✓" : "○") Producto en la venta
                     </li>
                     <li class="@(ClienteListo ? "ok" : "pending")">
                         @(ClienteListo ? "✓" : "○") Cliente seleccionado
                     </li>
-                    <li class="@(vendedorIdSeleccionado > 0 ? "ok" : "pending")">
-                        @(vendedorIdSeleccionado > 0 ? "✓" : "○") Vendedor seleccionado
-                    </li>
                 </ul>
 
-                @if (!PuedeConfirmarVenta && !procesando)
-                {
-                    <p class="sale-hint">Complete los puntos pendientes para habilitar la confirmación.</p>
-                }
-
-                <button type="submit" class="button primary" disabled="@(!PuedeConfirmarVenta)">
-                    @(procesando ? "Confirmando..." : "Confirmar venta")
+                <button type="submit" class="button primary button-xl" disabled="@(!PuedeConfirmarVenta)">
+                    @(procesando ? "Guardando..." : "Guardar venta")
                 </button>
             </section>
         </EditForm>
@@ -304,7 +247,8 @@
     private List<Usuario> vendedores = [];
     private Cliente? clienteSeleccionado;
     private Producto? productoSeleccionado;
-    private VentaConfirmadaDto? resultado;
+    private string? mensajeExito;
+    private int? ultimaVentaId;
     private bool cargando = true;
     private bool procesando;
     private bool procesandoCliente;
@@ -384,9 +328,10 @@
     private bool ClienteListo =>
         clienteIdSeleccionado > 0
         || (mostrarFormularioCliente && !string.IsNullOrWhiteSpace(clienteNuevo.Nombre));
+    private bool TieneProductos => items.Count > 0 || productoSeleccionadoId > 0;
     private bool PuedeConfirmarVenta =>
         !procesando
-        && items.Count > 0
+        && TieneProductos
         && ClienteListo
         && vendedorIdSeleccionado > 0;
 
@@ -445,7 +390,7 @@
     private async Task GuardarNuevoClienteAsync()
     {
         errores.Clear();
-        resultado = null;
+        mensajeExito = null;
 
         if (!await CrearClienteDesdeFormularioAsync())
         {
@@ -552,7 +497,7 @@
     private void AgregarItem()
     {
         errores.Clear();
-        resultado = null;
+        mensajeExito = null;
 
         if (productoSeleccionadoId <= 0)
         {
@@ -590,6 +535,85 @@
         busquedaProducto = string.Empty;
     }
 
+    private bool AgregarProductoPendienteSiCorresponde()
+    {
+        if (productoSeleccionadoId <= 0)
+        {
+            return items.Count > 0;
+        }
+
+        var producto = productos.FirstOrDefault(x => x.Id == productoSeleccionadoId);
+        if (producto is null)
+        {
+            errores.Add("El producto seleccionado no está disponible.");
+            return false;
+        }
+
+        if (cantidad < 1)
+        {
+            errores.Add("La cantidad debe ser al menos 1.");
+            return false;
+        }
+
+        if (precioUnitario <= 0)
+        {
+            errores.Add("El precio debe ser mayor a cero.");
+            return false;
+        }
+
+        var yaEstaEnDetalle = items.Any(x =>
+            x.Producto.Id == producto.Id
+            && x.Cantidad == cantidad
+            && x.PrecioUnitario == precioUnitario
+            && x.Descuento == descuentoLinea);
+
+        if (!yaEstaEnDetalle)
+        {
+            items.Add(new LineaVentaVm(producto, cantidad, precioUnitario, descuentoLinea));
+        }
+
+        productoSeleccionadoId = 0;
+        productoSeleccionado = null;
+        cantidad = 1;
+        precioUnitario = 0;
+        descuentoLinea = 0;
+        busquedaProducto = string.Empty;
+        return true;
+    }
+
+    private async Task RecargarProductosAsync()
+    {
+        await using var db = await DbContextFactory.CreateDbContextAsync();
+        productos = await db.Productos
+            .AsNoTracking()
+            .Where(x => x.Activo)
+            .OrderBy(x => x.Nombre)
+            .ToListAsync();
+    }
+
+    private async Task ReiniciarParaNuevaVentaAsync()
+    {
+        items.Clear();
+        form.Items.Clear();
+        form.DescuentoGeneral = 0;
+        form.Observaciones = null;
+        form.TipoComprobante = TipoComprobante.FacturaB;
+        clienteIdSeleccionado = 0;
+        clienteSeleccionado = null;
+        busquedaCliente = string.Empty;
+        busquedaProducto = string.Empty;
+        productoSeleccionadoId = 0;
+        productoSeleccionado = null;
+        cantidad = 1;
+        precioUnitario = 0;
+        descuentoLinea = 0;
+        mostrarFormularioCliente = false;
+        clienteNuevo = new();
+        vendedorIdSeleccionado = AuthService.UsuarioActual?.Id ?? 0;
+        await RecargarProductosAsync();
+        await Js.InvokeVoidAsync("stockSanti.scrollToElement", "venta-rapida");
+    }
+
     private void QuitarItem(LineaVentaVm item)
     {
         items.Remove(item);
@@ -604,7 +628,7 @@
         }
 
         errores.Clear();
-        resultado = null;
+        mensajeExito = null;
 
         if (clienteIdSeleccionado <= 0 && mostrarFormularioCliente)
         {
@@ -612,6 +636,11 @@
             {
                 return;
             }
+        }
+
+        if (!AgregarProductoPendienteSiCorresponde())
+        {
+            return;
         }
 
         SincronizarRequest();
@@ -637,15 +666,10 @@
         try
         {
             procesando = true;
-            resultado = await VentasService.ConfirmarVentaAsync(form);
-            items.Clear();
-            form.Items.Clear();
-            form.DescuentoGeneral = 0;
-            form.Observaciones = null;
-            clienteIdSeleccionado = 0;
-            clienteSeleccionado = null;
-            mostrarFormularioCliente = false;
-            clienteNuevo = new();
+            var ventaGuardada = await VentasService.ConfirmarVentaAsync(form);
+            mensajeExito = $"Venta guardada: {ventaGuardada.NumeroComprobante} — {MonedaHelper.FormatearUsd(ventaGuardada.Total)}. Listo para una nueva venta.";
+            ultimaVentaId = ventaGuardada.VentaId;
+            await ReiniciarParaNuevaVentaAsync();
         }
         catch (VentaValidationException ex)
         {

@@ -44,7 +44,7 @@
     {
         if (AuthService.UsuarioActual is not null)
         {
-            Navigation.NavigateTo("/");
+            RedirigirSegunRol();
         }
     }
 
@@ -62,12 +62,17 @@
                 return;
             }
 
-            Navigation.NavigateTo("/");
+            RedirigirSegunRol();
         }
         finally
         {
             procesando = false;
         }
+    }
+
+    private void RedirigirSegunRol()
+    {
+        Navigation.NavigateTo(AuthService.UsuarioActual?.EsAdministrador == true ? "/" : "/ventas/nueva");
     }
 
     private sealed class LoginForm
