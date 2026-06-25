@@ -97,14 +97,6 @@ public class VentasService(
         };
 
         var descuentaStock = request.TipoComprobante != TipoComprobante.Presupuesto;
-        var calibresHabilitados = cliente.ArmasRegistradas
-            .Select(x => NormalizarCalibre(x.Calibre))
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var arma in armas.Values)
-        {
-            calibresHabilitados.Add(NormalizarCalibre(arma.Calibre));
-        }
 
         foreach (var item in request.Items)
         {
@@ -119,17 +111,13 @@ public class VentasService(
             Arma? arma = null;
             MunicionLote? lote = null;
 
-            if (producto.Categoria == ProductoCategoria.Arma)
+            if (producto.Categoria == ProductoCategoria.Arma && item.ArmaId.HasValue)
             {
                 arma = ValidarArma(item, producto, armas, errores);
-                if (arma is not null)
-                {
-                    calibresHabilitados.Add(NormalizarCalibre(arma.Calibre));
-                }
             }
-            else if (producto.Categoria == ProductoCategoria.Municion)
+            else if (producto.Categoria == ProductoCategoria.Municion && item.MunicionLoteId.HasValue)
             {
-                lote = ValidarMunicion(item, producto, lotes, calibresHabilitados, errores);
+                lote = ValidarMunicion(item, producto, lotes, errores);
             }
 
             var lineaBruta = item.PrecioUnitario * item.Cantidad;
@@ -249,14 +237,14 @@ public class VentasService(
         IReadOnlyDictionary<int, Arma> armas,
         List<string> errores)
     {
-        if (item.Cantidad != 1)
+        if (item.ArmaId is null)
         {
-            errores.Add($"Las armas deben venderse individualmente por número de serie ({producto.Nombre}).");
+            return null;
         }
 
-        if (item.ArmaId is null || !armas.TryGetValue(item.ArmaId.Value, out var arma))
+        if (!armas.TryGetValue(item.ArmaId.Value, out var arma))
         {
-            errores.Add($"Debe seleccionar el número de serie del arma {producto.Nombre}.");
+            errores.Add($"El arma seleccionada para {producto.Nombre} no existe.");
             return null;
         }
 
@@ -282,12 +270,16 @@ public class VentasService(
         ItemVentaRequest item,
         Producto producto,
         IReadOnlyDictionary<int, MunicionLote> lotes,
-        IReadOnlySet<string> calibresHabilitados,
         List<string> errores)
     {
-        if (item.MunicionLoteId is null || !lotes.TryGetValue(item.MunicionLoteId.Value, out var lote))
+        if (item.MunicionLoteId is null)
         {
-            errores.Add($"Debe seleccionar el lote de munición para {producto.Nombre}.");
+            return null;
+        }
+
+        if (!lotes.TryGetValue(item.MunicionLoteId.Value, out var lote))
+        {
+            errores.Add($"El lote seleccionado para {producto.Nombre} no existe.");
             return null;
         }
 
@@ -299,11 +291,6 @@ public class VentasService(
         if (lote.CantidadDisponible < item.Cantidad)
         {
             errores.Add($"Stock insuficiente en lote {lote.NumeroLote}. Disponible: {lote.CantidadDisponible}.");
-        }
-
-        if (!calibresHabilitados.Contains(NormalizarCalibre(lote.Calibre)))
-        {
-            errores.Add($"El cliente no registra armas habilitantes para munición calibre {lote.Calibre}.");
         }
 
         return lote;
@@ -344,7 +331,4 @@ public class VentasService(
             Observacion = "Venta confirmada"
         });
     }
-
-    private static string NormalizarCalibre(string calibre) =>
-        calibre.Trim().Replace(" ", string.Empty, StringComparison.Ordinal).ToUpperInvariant();
 }

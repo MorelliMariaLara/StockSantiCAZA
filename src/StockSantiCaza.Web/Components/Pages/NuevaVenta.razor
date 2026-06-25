@@ -84,41 +84,10 @@
                     </label>
                 </div>
 
-                @if (productoSeleccionado is not null)
+                @if (productoSeleccionado is not null && productoSeleccionado.StockActual <= productoSeleccionado.StockMinimo)
                 {
                     <div class="product-alerts">
-                        @if (productoSeleccionado.StockActual <= productoSeleccionado.StockMinimo)
-                        {
-                            <span class="badge danger">Stock mínimo: @productoSeleccionado.StockActual/@productoSeleccionado.StockMinimo</span>
-                        }
-
-                        @if (productoSeleccionado.Categoria == ProductoCategoria.Arma)
-                        {
-                            <label>
-                                Número de serie obligatorio
-                                <InputSelect class="input" @bind-Value="armaSeleccionadaId">
-                                    <option value="">Seleccione serie...</option>
-                                    @foreach (var arma in armasDisponibles)
-                                    {
-                                        <option value="@arma.Id">@arma.NumeroSerie - @arma.Marca @arma.Modelo - @arma.Calibre</option>
-                                    }
-                                </InputSelect>
-                            </label>
-                        }
-
-                        @if (productoSeleccionado.Categoria == ProductoCategoria.Municion)
-                        {
-                            <label>
-                                Lote obligatorio
-                                <InputSelect class="input" @bind-Value="loteSeleccionadoId">
-                                    <option value="">Seleccione lote...</option>
-                                    @foreach (var lote in lotesDisponibles)
-                                    {
-                                        <option value="@lote.Id">@lote.NumeroLote - @lote.Calibre - disp. @lote.CantidadDisponible</option>
-                                    }
-                                </InputSelect>
-                            </label>
-                        }
+                        <span class="badge danger">Stock mínimo: @productoSeleccionado.StockActual/@productoSeleccionado.StockMinimo</span>
                     </div>
                 }
 
@@ -138,7 +107,6 @@
                             <thead>
                                 <tr>
                                     <th>Producto</th>
-                                    <th>Trazabilidad</th>
                                     <th>Cant.</th>
                                     <th>Precio USD</th>
                                     <th>Desc. USD</th>
@@ -151,7 +119,6 @@
                                 {
                                     <tr class="@(item.Producto.StockActual <= item.Producto.StockMinimo ? "danger-row" : null)">
                                         <td>@item.Producto.Nombre</td>
-                                        <td>@item.Trazabilidad</td>
                                         <td>@item.Cantidad</td>
                                         <td>@MonedaHelper.FormatearUsd(item.PrecioUnitario)</td>
                                         <td>@MonedaHelper.FormatearUsd(item.Descuento)</td>
@@ -275,8 +242,6 @@
     private List<Cliente> clientes = [];
     private List<Producto> productos = [];
     private List<Usuario> vendedores = [];
-    private List<Arma> armasDisponibles = [];
-    private List<MunicionLote> lotesDisponibles = [];
     private Cliente? clienteSeleccionado;
     private Producto? productoSeleccionado;
     private VentaConfirmadaDto? resultado;
@@ -284,8 +249,6 @@
     private bool procesando;
     private string busqueda = string.Empty;
     private int productoSeleccionadoId;
-    private int? armaSeleccionadaId;
-    private int? loteSeleccionadoId;
     private int cantidad = 1;
     private decimal precioUnitario;
     private decimal descuentoLinea;
@@ -409,40 +372,19 @@
         clienteSeleccionado = clientes.SingleOrDefault(x => x.Id == clienteSeleccionadoId);
     }
 
-    private async Task ActualizarProductoSeleccionado()
+    private Task ActualizarProductoSeleccionado()
     {
         productoSeleccionado = productos.SingleOrDefault(x => x.Id == productoSeleccionadoId);
-        armasDisponibles = [];
-        lotesDisponibles = [];
-        armaSeleccionadaId = null;
-        loteSeleccionadoId = null;
 
         if (productoSeleccionado is null)
         {
             precioUnitario = 0;
-            return;
+            return Task.CompletedTask;
         }
 
         precioUnitario = productoSeleccionado.PrecioUnitario;
-        cantidad = productoSeleccionado.Categoria == ProductoCategoria.Arma ? 1 : Math.Max(1, cantidad);
-
-        await using var db = await DbContextFactory.CreateDbContextAsync();
-        if (productoSeleccionado.Categoria == ProductoCategoria.Arma)
-        {
-            armasDisponibles = await db.Armas.AsNoTracking()
-                .Where(x => x.ProductoId == productoSeleccionado.Id
-                    && x.ClienteActualId == null
-                    && x.EstadoTramiteAnmac == EstadoTramiteAnmac.Autorizado)
-                .OrderBy(x => x.NumeroSerie)
-                .ToListAsync();
-        }
-        else if (productoSeleccionado.Categoria == ProductoCategoria.Municion)
-        {
-            lotesDisponibles = await db.MunicionLotes.AsNoTracking()
-                .Where(x => x.ProductoId == productoSeleccionado.Id && x.CantidadDisponible > 0)
-                .OrderBy(x => x.FechaIngreso)
-                .ToListAsync();
-        }
+        cantidad = Math.Max(1, cantidad);
+        return Task.CompletedTask;
     }
 
     private void AgregarItem()
@@ -455,29 +397,11 @@
             return;
         }
 
-        if (productoSeleccionado.Categoria == ProductoCategoria.Arma && armaSeleccionadaId is null)
-        {
-            errores.Add("Debe seleccionar el número de serie del arma.");
-            return;
-        }
-
-        if (productoSeleccionado.Categoria == ProductoCategoria.Municion && loteSeleccionadoId is null)
-        {
-            errores.Add("Debe seleccionar el lote de munición.");
-            return;
-        }
-
-        var arma = armasDisponibles.SingleOrDefault(x => x.Id == armaSeleccionadaId);
-        var lote = lotesDisponibles.SingleOrDefault(x => x.Id == loteSeleccionadoId);
-        items.Add(new LineaVentaVm(productoSeleccionado, arma, lote, cantidad, precioUnitario, descuentoLinea));
+        items.Add(new LineaVentaVm(productoSeleccionado, cantidad, precioUnitario, descuentoLinea));
         SincronizarRequest();
 
         productoSeleccionadoId = 0;
         productoSeleccionado = null;
-        armasDisponibles = [];
-        lotesDisponibles = [];
-        armaSeleccionadaId = null;
-        loteSeleccionadoId = null;
         cantidad = 1;
         precioUnitario = 0;
         descuentoLinea = 0;
@@ -525,8 +449,6 @@
         form.Items = items.Select(x => new ItemVentaRequest
         {
             ProductoId = x.Producto.Id,
-            ArmaId = x.Arma?.Id,
-            MunicionLoteId = x.Lote?.Id,
             Cantidad = x.Cantidad,
             PrecioUnitario = x.PrecioUnitario,
             Descuento = x.Descuento
@@ -576,19 +498,10 @@
 
     private sealed record LineaVentaVm(
         Producto Producto,
-        Arma? Arma,
-        MunicionLote? Lote,
         int Cantidad,
         decimal PrecioUnitario,
         decimal Descuento)
     {
-        public string Trazabilidad => Producto.Categoria switch
-        {
-            ProductoCategoria.Arma => $"Serie: {Arma?.NumeroSerie}",
-            ProductoCategoria.Municion => $"Lote: {Lote?.NumeroLote} - Calibre {Lote?.Calibre}",
-            _ => "No aplica"
-        };
-
         public decimal Subtotal => Math.Max(0, (PrecioUnitario * Cantidad) - Descuento);
         public decimal TotalEstimado => Subtotal;
     }
