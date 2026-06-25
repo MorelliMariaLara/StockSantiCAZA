@@ -21,6 +21,9 @@ public class Venta
     [MaxLength(40)]
     public string? NumeroComprobante { get; set; }
 
+    [Required, MaxLength(120)]
+    public string Vendedor { get; set; } = string.Empty;
+
     [MaxLength(30)]
     public string? Cae { get; set; }
 

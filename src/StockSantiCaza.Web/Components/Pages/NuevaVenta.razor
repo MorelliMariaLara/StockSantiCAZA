@@ -47,7 +47,7 @@ else
         }
 
         <section class="panel">
-            <div class="grid two-columns">
+            <div class="grid sale-header">
                 <label>
                     Cliente
                     <InputSelect class="input" @bind-Value="form.ClienteId" @bind-Value:after="ActualizarClienteSeleccionado">
@@ -57,6 +57,11 @@ else
                             <option value="@cliente.Id">@FormatearCliente(cliente)</option>
                         }
                     </InputSelect>
+                </label>
+
+                <label>
+                    Vendedor
+                    <InputText class="input" @bind-Value="form.Vendedor" placeholder="Nombre de quien vendió" />
                 </label>
 
                 <label>
@@ -297,6 +302,7 @@ else
         clientes = await db.Clientes
             .AsNoTracking()
             .Include(x => x.CredencialCLU)
+            .Where(x => x.Activo)
             .OrderBy(x => x.NombreRazonSocial)
             .ToListAsync();
 
@@ -347,6 +353,7 @@ else
                     clienteExistente.Telefono = string.IsNullOrWhiteSpace(celular)
                         ? clienteExistente.Telefono
                         : celular;
+                    clienteExistente.Activo = true;
                     await db.SaveChangesAsync();
                     cliente = clienteExistente;
                 }
@@ -383,6 +390,7 @@ else
         clientes = await db.Clientes
             .AsNoTracking()
             .Include(x => x.CredencialCLU)
+            .Where(x => x.Activo)
             .OrderBy(x => x.NombreRazonSocial)
             .ToListAsync();
 
@@ -515,7 +523,8 @@ else
     {
         NombreRazonSocial = nombre,
         DniCuit = dniCuit,
-        Telefono = string.IsNullOrWhiteSpace(celular) ? null : celular
+        Telefono = string.IsNullOrWhiteSpace(celular) ? null : celular,
+        Activo = true
     };
 
     private static string GenerarDniInterno() =>

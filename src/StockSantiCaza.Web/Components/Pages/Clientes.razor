@@ -1,0 +1,508 @@
+@page "/clientes"
+@inject IDbContextFactory<ApplicationDbContext> DbContextFactory
+
+<PageTitle>Clientes - StockSantiCAZA</PageTitle>
+
+<h1>Clientes</h1>
+
+@if (cargando)
+{
+    <p>Cargando clientes...</p>
+}
+else
+{
+    @if (errores.Count > 0)
+    {
+        <div class="alert alert-danger">
+            <strong>No se pudo guardar el cliente</strong>
+            <ul>
+                @foreach (var error in errores)
+                {
+                    <li>@error</li>
+                }
+            </ul>
+        </div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(mensaje))
+    {
+        <div class="alert alert-success">@mensaje</div>
+    }
+
+    <section class="grid cards">
+        <div class="card">
+            <span class="metric-label">Clientes activos</span>
+            <strong>@clientes.Count(x => x.Activo)</strong>
+        </div>
+        <div class="card">
+            <span class="metric-label">Con CLU cargada</span>
+            <strong>@clientes.Count(x => x.CredencialCLU is not null)</strong>
+        </div>
+        <div class="card warning-card">
+            <span class="metric-label">CLU vencidas</span>
+            <strong>@clientes.Count(x => x.CredencialCLU is not null && !x.CredencialCLU.EstaVigente)</strong>
+        </div>
+        <div class="card danger-card">
+            <span class="metric-label">Dados de baja</span>
+            <strong>@clientes.Count(x => !x.Activo)</strong>
+        </div>
+    </section>
+
+    <section class="panel">
+        <div class="section-header">
+            <div>
+                <h2>@(form.Id is null ? "Agregar cliente" : "Editar cliente")</h2>
+                <p>Administre datos de contacto, estado y credencial CLU para luego vincularlos a ventas.</p>
+            </div>
+            @if (form.Id is not null)
+            {
+                <button type="button" class="button ghost" @onclick="NuevoCliente">Nuevo cliente</button>
+            }
+        </div>
+
+        <EditForm Model="form" OnValidSubmit="GuardarClienteAsync">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            <div class="grid client-form">
+                <label>
+                    Nombre / razón social
+                    <InputText class="input" @bind-Value="form.NombreRazonSocial" />
+                </label>
+
+                <label>
+                    DNI/CUIT
+                    <InputText class="input" @bind-Value="form.DniCuit" />
+                </label>
+
+                <label>
+                    Email
+                    <InputText class="input" @bind-Value="form.Email" />
+                </label>
+
+                <label>
+                    Teléfono / celular
+                    <InputText class="input" @bind-Value="form.Telefono" />
+                </label>
+
+                <label>
+                    Domicilio
+                    <InputText class="input" @bind-Value="form.Domicilio" />
+                </label>
+
+                <label>
+                    Estado
+                    <InputSelect class="input" @bind-Value="form.Activo">
+                        <option value="true">Activo</option>
+                        <option value="false">Dado de baja</option>
+                    </InputSelect>
+                </label>
+            </div>
+
+            <section class="subpanel">
+                <label class="checkbox-label">
+                    <InputCheckbox @bind-Value="form.TieneClu" />
+                    Cargar credencial CLU
+                </label>
+
+                @if (form.TieneClu)
+                {
+                    <div class="grid clu-form">
+                        <label>
+                            Número de legajo
+                            <InputText class="input" @bind-Value="form.NumeroLegajoClu" />
+                        </label>
+
+                        <label>
+                            Fecha de emisión
+                            <InputDate class="input" @bind-Value="form.FechaEmisionClu" />
+                        </label>
+
+                        <label>
+                            Fecha de vencimiento
+                            <InputDate class="input" @bind-Value="form.FechaVencimientoClu" />
+                        </label>
+                    </div>
+                }
+            </section>
+
+            <div class="actions">
+                <button type="submit" class="button primary" disabled="@guardando">
+                    @(guardando ? "Guardando..." : "Guardar cliente")
+                </button>
+                <button type="button" class="button ghost" @onclick="NuevoCliente">Limpiar</button>
+            </div>
+        </EditForm>
+    </section>
+
+    <section class="panel">
+        <div class="section-header">
+            <div>
+                <h2>Listado de clientes</h2>
+                <p>Busque clientes, consulte ventas vinculadas y active o dé de baja registros.</p>
+            </div>
+        </div>
+
+        <div class="grid client-filters">
+            <label>
+                Buscar
+                <InputText class="input" @bind-Value="busqueda" placeholder="Nombre, DNI/CUIT, email, teléfono..." />
+            </label>
+
+            <label>
+                Estado
+                <InputSelect class="input" @bind-Value="estadoFiltro">
+                    <option value="">Todos</option>
+                    <option value="activos">Activos</option>
+                    <option value="baja">Dados de baja</option>
+                </InputSelect>
+            </label>
+        </div>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Cliente</th>
+                        <th>Contacto</th>
+                        <th>CLU</th>
+                        <th>Vinculaciones</th>
+                        <th>Estado</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var cliente in ClientesFiltrados)
+                    {
+                        <tr class="@(!cliente.Activo ? "warning-row" : null)">
+                            <td>
+                                <strong>@cliente.NombreRazonSocial</strong>
+                                <small>@cliente.DniCuit</small>
+                            </td>
+                            <td>@FormatearContacto(cliente)</td>
+                            <td>@FormatearClu(cliente.CredencialCLU)</td>
+                            <td>
+                                <span>@cliente.Ventas.Count venta(s)</span>
+                                <small>@cliente.ArmasRegistradas.Count arma(s) registradas</small>
+                            </td>
+                            <td>
+                                <span class="@(cliente.Activo ? "badge ok" : "badge warning")">
+                                    @(cliente.Activo ? "Activo" : "Dado de baja")
+                                </span>
+                            </td>
+                            <td>
+                                <div class="row-actions">
+                                    <button type="button" class="link-button" @onclick="() => EditarCliente(cliente)">Editar</button>
+                                    <button type="button" class="link-button" @onclick="() => CambiarEstadoClienteAsync(cliente)">
+                                        @(cliente.Activo ? "Dar de baja" : "Reactivar")
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </section>
+}
+
+@code {
+    private readonly List<string> errores = [];
+    private List<Cliente> clientes = [];
+    private ClienteForm form = new();
+    private bool cargando = true;
+    private bool guardando;
+    private string? mensaje;
+    private string busqueda = string.Empty;
+    private string estadoFiltro = string.Empty;
+
+    private IEnumerable<Cliente> ClientesFiltrados
+    {
+        get
+        {
+            var query = clientes.AsEnumerable();
+
+            if (!string.IsNullOrWhiteSpace(busqueda))
+            {
+                query = query.Where(x =>
+                    x.NombreRazonSocial.Contains(busqueda, StringComparison.OrdinalIgnoreCase)
+                    || x.DniCuit.Contains(busqueda, StringComparison.OrdinalIgnoreCase)
+                    || (x.Email?.Contains(busqueda, StringComparison.OrdinalIgnoreCase) ?? false)
+                    || (x.Telefono?.Contains(busqueda, StringComparison.OrdinalIgnoreCase) ?? false)
+                    || (x.Domicilio?.Contains(busqueda, StringComparison.OrdinalIgnoreCase) ?? false));
+            }
+
+            query = estadoFiltro switch
+            {
+                "activos" => query.Where(x => x.Activo),
+                "baja" => query.Where(x => !x.Activo),
+                _ => query
+            };
+
+            return query
+                .OrderByDescending(x => x.Activo)
+                .ThenBy(x => x.NombreRazonSocial);
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RecargarClientesAsync();
+        cargando = false;
+    }
+
+    private async Task GuardarClienteAsync()
+    {
+        errores.Clear();
+        mensaje = null;
+
+        var nombre = form.NombreRazonSocial.Trim();
+        var dniCuit = form.DniCuit.Trim();
+        var numeroLegajo = form.NumeroLegajoClu.Trim();
+
+        if (string.IsNullOrWhiteSpace(nombre))
+        {
+            errores.Add("Debe indicar el nombre o razón social.");
+        }
+
+        if (string.IsNullOrWhiteSpace(dniCuit))
+        {
+            errores.Add("Debe indicar el DNI/CUIT.");
+        }
+
+        if (form.TieneClu)
+        {
+            if (string.IsNullOrWhiteSpace(numeroLegajo))
+            {
+                errores.Add("Debe indicar el número de legajo CLU.");
+            }
+
+            if (form.FechaEmisionClu is null)
+            {
+                errores.Add("Debe indicar la fecha de emisión de la CLU.");
+            }
+
+            if (form.FechaVencimientoClu is null)
+            {
+                errores.Add("Debe indicar la fecha de vencimiento de la CLU.");
+            }
+
+            if (form.FechaEmisionClu is not null
+                && form.FechaVencimientoClu is not null
+                && form.FechaVencimientoClu.Value.Date < form.FechaEmisionClu.Value.Date)
+            {
+                errores.Add("La fecha de vencimiento de la CLU no puede ser anterior a la emisión.");
+            }
+        }
+
+        if (errores.Count > 0)
+        {
+            return;
+        }
+
+        try
+        {
+            guardando = true;
+            await using var db = await DbContextFactory.CreateDbContextAsync();
+
+            var dniDuplicado = form.Id is int clienteActualId
+                ? await db.Clientes.AnyAsync(x => x.DniCuit == dniCuit && x.Id != clienteActualId)
+                : await db.Clientes.AnyAsync(x => x.DniCuit == dniCuit);
+
+            if (dniDuplicado)
+            {
+                errores.Add($"Ya existe un cliente con DNI/CUIT {dniCuit}.");
+                return;
+            }
+
+            if (form.TieneClu)
+            {
+                var cluDuplicada = form.Id is int clienteActualId
+                    ? await db.CredencialesCLU.AnyAsync(x => x.NumeroLegajo == numeroLegajo && x.ClienteId != clienteActualId)
+                    : await db.CredencialesCLU.AnyAsync(x => x.NumeroLegajo == numeroLegajo);
+
+                if (cluDuplicada)
+                {
+                    errores.Add($"Ya existe una CLU con legajo {numeroLegajo}.");
+                    return;
+                }
+            }
+
+            Cliente cliente;
+            var esNuevo = form.Id is null;
+
+            if (esNuevo)
+            {
+                cliente = new Cliente();
+                db.Clientes.Add(cliente);
+            }
+            else
+            {
+                var clienteId = form.Id.GetValueOrDefault();
+                var clienteExistente = await db.Clientes
+                    .Include(x => x.CredencialCLU)
+                    .SingleOrDefaultAsync(x => x.Id == clienteId);
+
+                if (clienteExistente is null)
+                {
+                    errores.Add("El cliente seleccionado ya no existe.");
+                    return;
+                }
+
+                cliente = clienteExistente;
+            }
+
+            cliente.NombreRazonSocial = nombre;
+            cliente.DniCuit = dniCuit;
+            cliente.Email = NormalizarTextoOpcional(form.Email);
+            cliente.Telefono = NormalizarTextoOpcional(form.Telefono);
+            cliente.Domicilio = NormalizarTextoOpcional(form.Domicilio);
+            cliente.Activo = form.Activo;
+
+            if (form.TieneClu)
+            {
+                cliente.CredencialCLU ??= new CredencialCLU();
+                cliente.CredencialCLU.NumeroLegajo = numeroLegajo;
+                cliente.CredencialCLU.FechaEmision = DateOnly.FromDateTime(form.FechaEmisionClu!.Value);
+                cliente.CredencialCLU.FechaVencimiento = DateOnly.FromDateTime(form.FechaVencimientoClu!.Value);
+            }
+            else if (cliente.CredencialCLU is not null)
+            {
+                db.CredencialesCLU.Remove(cliente.CredencialCLU);
+                cliente.CredencialCLU = null;
+            }
+
+            await db.SaveChangesAsync();
+            mensaje = esNuevo ? "Cliente agregado correctamente." : "Cliente actualizado correctamente.";
+            await RecargarClientesAsync();
+            EditarCliente(clientes.Single(x => x.Id == cliente.Id));
+        }
+        catch (Exception ex)
+        {
+            errores.Add($"Error inesperado al guardar cliente: {ex.Message}");
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+
+    private async Task CambiarEstadoClienteAsync(Cliente cliente)
+    {
+        errores.Clear();
+        mensaje = null;
+
+        await using var db = await DbContextFactory.CreateDbContextAsync();
+        var clienteExistente = await db.Clientes.SingleOrDefaultAsync(x => x.Id == cliente.Id);
+        if (clienteExistente is null)
+        {
+            errores.Add("El cliente seleccionado ya no existe.");
+            return;
+        }
+
+        clienteExistente.Activo = !clienteExistente.Activo;
+        await db.SaveChangesAsync();
+        mensaje = clienteExistente.Activo
+            ? "Cliente reactivado correctamente."
+            : "Cliente dado de baja correctamente.";
+
+        await RecargarClientesAsync();
+        if (form.Id == cliente.Id)
+        {
+            EditarCliente(clientes.Single(x => x.Id == cliente.Id));
+        }
+    }
+
+    private async Task RecargarClientesAsync()
+    {
+        await using var db = await DbContextFactory.CreateDbContextAsync();
+        clientes = await db.Clientes
+            .AsNoTracking()
+            .Include(x => x.CredencialCLU)
+            .Include(x => x.Ventas)
+            .Include(x => x.ArmasRegistradas)
+            .OrderBy(x => x.NombreRazonSocial)
+            .ToListAsync();
+    }
+
+    private void NuevoCliente()
+    {
+        form = new ClienteForm();
+        errores.Clear();
+        mensaje = null;
+    }
+
+    private void EditarCliente(Cliente cliente)
+    {
+        form = new ClienteForm
+        {
+            Id = cliente.Id,
+            NombreRazonSocial = cliente.NombreRazonSocial,
+            DniCuit = cliente.DniCuit,
+            Email = cliente.Email ?? string.Empty,
+            Telefono = cliente.Telefono ?? string.Empty,
+            Domicilio = cliente.Domicilio ?? string.Empty,
+            Activo = cliente.Activo,
+            TieneClu = cliente.CredencialCLU is not null,
+            NumeroLegajoClu = cliente.CredencialCLU?.NumeroLegajo ?? string.Empty,
+            FechaEmisionClu = cliente.CredencialCLU?.FechaEmision.ToDateTime(TimeOnly.MinValue),
+            FechaVencimientoClu = cliente.CredencialCLU?.FechaVencimiento.ToDateTime(TimeOnly.MinValue)
+        };
+    }
+
+    private static string? NormalizarTextoOpcional(string? valor)
+    {
+        var normalizado = valor?.Trim();
+        return string.IsNullOrWhiteSpace(normalizado) ? null : normalizado;
+    }
+
+    private static string FormatearContacto(Cliente cliente)
+    {
+        var datos = new[] { cliente.Telefono, cliente.Email, cliente.Domicilio }
+            .Where(x => !string.IsNullOrWhiteSpace(x));
+
+        return datos.Any() ? string.Join(" / ", datos) : "Sin contacto cargado";
+    }
+
+    private static string FormatearClu(CredencialCLU? clu)
+    {
+        if (clu is null)
+        {
+            return "Sin CLU";
+        }
+
+        var estado = clu.EstaVigente ? "vigente" : "vencida";
+        return $"{clu.NumeroLegajo} - {estado} hasta {clu.FechaVencimiento:dd/MM/yyyy}";
+    }
+
+    private sealed class ClienteForm
+    {
+        public int? Id { get; set; }
+
+        [Required, MaxLength(160)]
+        public string NombreRazonSocial { get; set; } = string.Empty;
+
+        [Required, MaxLength(20)]
+        public string DniCuit { get; set; } = string.Empty;
+
+        [MaxLength(180), EmailAddress]
+        public string Email { get; set; } = string.Empty;
+
+        [MaxLength(40)]
+        public string Telefono { get; set; } = string.Empty;
+
+        [MaxLength(220)]
+        public string Domicilio { get; set; } = string.Empty;
+
+        public bool Activo { get; set; } = true;
+
+        public bool TieneClu { get; set; }
+
+        [MaxLength(80)]
+        public string NumeroLegajoClu { get; set; } = string.Empty;
+
+        public DateTime? FechaEmisionClu { get; set; }
+
+        public DateTime? FechaVencimientoClu { get; set; }
+    }
+}

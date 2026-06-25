@@ -20,6 +20,12 @@ public class VentasService(
             errores.Add("Debe seleccionar un cliente.");
         }
 
+        var vendedor = request.Vendedor.Trim();
+        if (string.IsNullOrWhiteSpace(vendedor))
+        {
+            errores.Add("Debe indicar quién realizó la venta.");
+        }
+
         if (request.Items.Count == 0)
         {
             errores.Add("Debe agregar al menos un producto a la venta.");
@@ -41,6 +47,11 @@ public class VentasService(
         if (cliente is null)
         {
             throw new VentaValidationException(["El cliente seleccionado no existe."]);
+        }
+
+        if (!cliente.Activo)
+        {
+            throw new VentaValidationException(["El cliente seleccionado está dado de baja."]);
         }
 
         var productoIds = request.Items.Select(x => x.ProductoId).Distinct().ToArray();
@@ -69,6 +80,7 @@ public class VentasService(
         var venta = new Venta
         {
             ClienteId = cliente.Id,
+            Vendedor = vendedor,
             TipoComprobante = request.TipoComprobante,
             Estado = request.TipoComprobante == TipoComprobante.Presupuesto ? EstadoVenta.Confirmada : EstadoVenta.Facturada,
             DescuentoTotal = request.DescuentoGeneral,

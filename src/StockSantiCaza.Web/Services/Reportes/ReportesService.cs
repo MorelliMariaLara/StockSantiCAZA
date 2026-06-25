@@ -90,7 +90,7 @@ public class ReportesService(IDbContextFactory<ApplicationDbContext> dbContextFa
         var ws = workbook.Worksheets.Add("Ventas");
         var headers = new[]
         {
-            "Fecha", "Comprobante", "Tipo", "Cliente", "DNI/CUIT", "Subtotal", "IVA", "Descuento", "Total", "CAE"
+            "Fecha", "Comprobante", "Tipo", "Cliente", "DNI/CUIT", "Vendedor", "Subtotal", "IVA", "Descuento", "Total", "CAE"
         };
 
         for (var i = 0; i < headers.Length; i++)
@@ -107,11 +107,12 @@ public class ReportesService(IDbContextFactory<ApplicationDbContext> dbContextFa
             ws.Cell(excelRow, 3).Value = venta.TipoComprobante.ToString();
             ws.Cell(excelRow, 4).Value = venta.Cliente.NombreRazonSocial;
             ws.Cell(excelRow, 5).Value = venta.Cliente.DniCuit;
-            ws.Cell(excelRow, 6).Value = venta.Subtotal;
-            ws.Cell(excelRow, 7).Value = venta.IvaTotal;
-            ws.Cell(excelRow, 8).Value = venta.DescuentoTotal;
-            ws.Cell(excelRow, 9).Value = venta.Total;
-            ws.Cell(excelRow, 10).Value = venta.Cae;
+            ws.Cell(excelRow, 6).Value = venta.Vendedor;
+            ws.Cell(excelRow, 7).Value = venta.Subtotal;
+            ws.Cell(excelRow, 8).Value = venta.IvaTotal;
+            ws.Cell(excelRow, 9).Value = venta.DescuentoTotal;
+            ws.Cell(excelRow, 10).Value = venta.Total;
+            ws.Cell(excelRow, 11).Value = venta.Cae;
         }
 
         FormatearTabla(ws, headers.Length);
@@ -122,7 +123,7 @@ public class ReportesService(IDbContextFactory<ApplicationDbContext> dbContextFa
         var ws = workbook.Worksheets.Add("Detalle");
         var headers = new[]
         {
-            "Comprobante", "SKU", "Producto", "Categoría", "Serie arma", "Lote munición", "Calibre", "Cantidad", "Precio", "IVA", "Total"
+            "Comprobante", "Vendedor", "SKU", "Producto", "Categoría", "Serie arma", "Lote munición", "Calibre", "Cantidad", "Precio", "IVA", "Total"
         };
 
         for (var i = 0; i < headers.Length; i++)
@@ -134,16 +135,17 @@ public class ReportesService(IDbContextFactory<ApplicationDbContext> dbContextFa
         foreach (var detalle in ventas.SelectMany(x => x.Detalles, (venta, detalle) => new { venta, detalle }))
         {
             ws.Cell(row, 1).Value = detalle.venta.NumeroComprobante;
-            ws.Cell(row, 2).Value = detalle.detalle.Producto.Sku;
-            ws.Cell(row, 3).Value = detalle.detalle.Producto.Nombre;
-            ws.Cell(row, 4).Value = detalle.detalle.Producto.Categoria.ToString();
-            ws.Cell(row, 5).Value = detalle.detalle.Arma?.NumeroSerie;
-            ws.Cell(row, 6).Value = detalle.detalle.MunicionLote?.NumeroLote;
-            ws.Cell(row, 7).Value = detalle.detalle.Arma?.Calibre ?? detalle.detalle.MunicionLote?.Calibre ?? detalle.detalle.Producto.Calibre;
-            ws.Cell(row, 8).Value = detalle.detalle.Cantidad;
-            ws.Cell(row, 9).Value = detalle.detalle.PrecioUnitario;
-            ws.Cell(row, 10).Value = detalle.detalle.Iva;
-            ws.Cell(row, 11).Value = detalle.detalle.Total;
+            ws.Cell(row, 2).Value = detalle.venta.Vendedor;
+            ws.Cell(row, 3).Value = detalle.detalle.Producto.Sku;
+            ws.Cell(row, 4).Value = detalle.detalle.Producto.Nombre;
+            ws.Cell(row, 5).Value = detalle.detalle.Producto.Categoria.ToString();
+            ws.Cell(row, 6).Value = detalle.detalle.Arma?.NumeroSerie;
+            ws.Cell(row, 7).Value = detalle.detalle.MunicionLote?.NumeroLote;
+            ws.Cell(row, 8).Value = detalle.detalle.Arma?.Calibre ?? detalle.detalle.MunicionLote?.Calibre ?? detalle.detalle.Producto.Calibre;
+            ws.Cell(row, 9).Value = detalle.detalle.Cantidad;
+            ws.Cell(row, 10).Value = detalle.detalle.PrecioUnitario;
+            ws.Cell(row, 11).Value = detalle.detalle.Iva;
+            ws.Cell(row, 12).Value = detalle.detalle.Total;
             row++;
         }
 

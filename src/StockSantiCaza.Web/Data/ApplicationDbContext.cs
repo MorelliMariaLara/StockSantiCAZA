@@ -58,6 +58,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.HasIndex(x => x.DniCuit).IsUnique();
             entity.Property(x => x.NombreRazonSocial).HasMaxLength(160);
             entity.Property(x => x.DniCuit).HasMaxLength(20);
+            entity.Property(x => x.Activo).HasDefaultValue(true);
         });
 
         modelBuilder.Entity<CredencialCLU>(entity =>
@@ -76,6 +77,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.Property(x => x.DescuentoTotal).HasPrecision(18, 2);
             entity.Property(x => x.IvaTotal).HasPrecision(18, 2);
             entity.Property(x => x.Total).HasPrecision(18, 2);
+            entity.Property(x => x.Vendedor).HasMaxLength(120);
             entity.HasOne(x => x.Cliente)
                 .WithMany(x => x.Ventas)
                 .HasForeignKey(x => x.ClienteId)

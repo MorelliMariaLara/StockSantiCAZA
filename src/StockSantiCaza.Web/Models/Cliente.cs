@@ -21,6 +21,8 @@ public class Cliente
     [MaxLength(220)]
     public string? Domicilio { get; set; }
 
+    public bool Activo { get; set; } = true;
+
     public CredencialCLU? CredencialCLU { get; set; }
 
     public ICollection<Arma> ArmasRegistradas { get; set; } = new List<Arma>();

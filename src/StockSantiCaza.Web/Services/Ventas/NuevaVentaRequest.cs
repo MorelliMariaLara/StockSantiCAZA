@@ -8,6 +8,9 @@ public class NuevaVentaRequest
     [Required]
     public int? ClienteId { get; set; }
 
+    [Required, MaxLength(120)]
+    public string Vendedor { get; set; } = string.Empty;
+
     public TipoComprobante TipoComprobante { get; set; } = TipoComprobante.FacturaB;
 
     [Range(0, 999999999)]

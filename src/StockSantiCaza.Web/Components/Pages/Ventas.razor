@@ -1,0 +1,284 @@
+@page "/ventas"
+@inject IDbContextFactory<ApplicationDbContext> DbContextFactory
+
+<PageTitle>Ventas - StockSantiCAZA</PageTitle>
+
+<div class="section-header">
+    <div>
+        <h1>Ventas</h1>
+        <p>Consulte ventas, clientes, vendedores y trazabilidad de armas o municiones.</p>
+    </div>
+    <a class="button primary" href="ventas/nueva">Nueva venta</a>
+</div>
+
+<section class="panel">
+    <div class="grid sales-filters">
+        <label>
+            Desde
+            <InputDate class="input" @bind-Value="fechaDesde" />
+        </label>
+
+        <label>
+            Hasta
+            <InputDate class="input" @bind-Value="fechaHasta" />
+        </label>
+
+        <label>
+            Buscar
+            <InputText class="input" @bind-Value="busqueda" placeholder="Cliente, vendedor, comprobante, producto, serie o lote..." />
+        </label>
+
+        <label>
+            Estado
+            <InputSelect class="input" @bind-Value="estadoFiltro">
+                <option value="">Todos</option>
+                @foreach (var estado in Enum.GetValues<EstadoVenta>())
+                {
+                    <option value="@estado">@estado</option>
+                }
+            </InputSelect>
+        </label>
+
+        <button class="button" @onclick="CargarVentasAsync" disabled="@cargando">
+            @(cargando ? "Cargando..." : "Actualizar")
+        </button>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(error))
+    {
+        <div class="alert alert-danger">@error</div>
+    }
+</section>
+
+@if (cargando && ventas.Count == 0)
+{
+    <p>Cargando ventas...</p>
+}
+else
+{
+    <section class="grid cards">
+        <div class="card">
+            <span class="metric-label">Ventas filtradas</span>
+            <strong>@VentasFiltradas.Count()</strong>
+        </div>
+        <div class="card">
+            <span class="metric-label">Total vendido</span>
+            <strong>@VentasFiltradas.Where(x => x.Estado != EstadoVenta.Anulada).Sum(x => x.Total).ToString("C")</strong>
+        </div>
+        <div class="card">
+            <span class="metric-label">Productos vendidos</span>
+            <strong>@VentasFiltradas.SelectMany(x => x.Detalles).Sum(x => x.Cantidad)</strong>
+        </div>
+        <div class="card warning-card">
+            <span class="metric-label">Con trazabilidad</span>
+            <strong>@VentasFiltradas.SelectMany(x => x.Detalles).Count(x => x.Arma is not null || x.MunicionLote is not null)</strong>
+        </div>
+    </section>
+
+    <section class="panel">
+        <div class="section-header">
+            <div>
+                <h2>Historial trazable</h2>
+                <p>Cada venta muestra cliente, vendedor, comprobante, totales y detalle por serie o lote.</p>
+            </div>
+        </div>
+
+        @if (!VentasFiltradas.Any())
+        {
+            <p>No hay ventas para los filtros seleccionados.</p>
+        }
+        else
+        {
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Comprobante</th>
+                            <th>Cliente</th>
+                            <th>Vendedor</th>
+                            <th>Estado</th>
+                            <th>Total</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var venta in VentasFiltradas)
+                        {
+                            <tr>
+                                <td>@venta.Fecha.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
+                                <td>
+                                    <strong>@(venta.NumeroComprobante ?? "Sin comprobante")</strong>
+                                    <small>@venta.TipoComprobante</small>
+                                </td>
+                                <td>
+                                    @venta.Cliente.NombreRazonSocial
+                                    <small>@venta.Cliente.DniCuit</small>
+                                </td>
+                                <td>@venta.Vendedor</td>
+                                <td><span class="@ObtenerClaseEstado(venta.Estado)">@venta.Estado</span></td>
+                                <td>@venta.Total.ToString("C")</td>
+                                <td>
+                                    <a class="link-button" href="@($"ventas/{venta.Id}/imprimir")" target="_blank">Imprimir</a>
+                                </td>
+                            </tr>
+                            <tr class="sale-detail-row">
+                                <td colspan="7">
+                                    <div class="sale-detail">
+                                        @if (!string.IsNullOrWhiteSpace(venta.Observaciones))
+                                        {
+                                            <p><strong>Observaciones:</strong> @venta.Observaciones</p>
+                                        }
+
+                                        <table>
+                                            <thead>
+                                                <tr>
+                                                    <th>Producto</th>
+                                                    <th>Categoría</th>
+                                                    <th>Trazabilidad</th>
+                                                    <th>Cant.</th>
+                                                    <th>Precio</th>
+                                                    <th>IVA</th>
+                                                    <th>Total</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach (var detalle in venta.Detalles.OrderBy(x => x.Producto.Nombre))
+                                                {
+                                                    <tr>
+                                                        <td>
+                                                            <strong>@detalle.Producto.Nombre</strong>
+                                                            <small>@detalle.Producto.Sku</small>
+                                                        </td>
+                                                        <td>@detalle.Producto.Categoria</td>
+                                                        <td>@ObtenerTrazabilidad(detalle)</td>
+                                                        <td>@detalle.Cantidad</td>
+                                                        <td>@detalle.PrecioUnitario.ToString("C")</td>
+                                                        <td>@detalle.Iva.ToString("C")</td>
+                                                        <td>@detalle.Total.ToString("C")</td>
+                                                    </tr>
+                                                }
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+}
+
+@code {
+    private List<Venta> ventas = [];
+    private DateTime fechaDesde = DateTime.Today.AddDays(-30);
+    private DateTime fechaHasta = DateTime.Today;
+    private string busqueda = string.Empty;
+    private string estadoFiltro = string.Empty;
+    private string? error;
+    private bool cargando = true;
+
+    private IEnumerable<Venta> VentasFiltradas
+    {
+        get
+        {
+            var query = ventas.AsEnumerable();
+
+            if (Enum.TryParse<EstadoVenta>(estadoFiltro, out var estado))
+            {
+                query = query.Where(x => x.Estado == estado);
+            }
+
+            if (!string.IsNullOrWhiteSpace(busqueda))
+            {
+                query = query.Where(CoincideBusqueda);
+            }
+
+            return query.OrderByDescending(x => x.Fecha);
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarVentasAsync();
+    }
+
+    private async Task CargarVentasAsync()
+    {
+        error = null;
+        if (fechaDesde.Date > fechaHasta.Date)
+        {
+            error = "La fecha desde no puede ser posterior a la fecha hasta.";
+            return;
+        }
+
+        try
+        {
+            cargando = true;
+            await using var db = await DbContextFactory.CreateDbContextAsync();
+            var desde = fechaDesde.Date;
+            var hasta = fechaHasta.Date.AddDays(1).AddTicks(-1);
+
+            ventas = await db.Ventas
+                .AsNoTracking()
+                .Include(x => x.Cliente)
+                .Include(x => x.Detalles)
+                    .ThenInclude(x => x.Producto)
+                .Include(x => x.Detalles)
+                    .ThenInclude(x => x.Arma)
+                .Include(x => x.Detalles)
+                    .ThenInclude(x => x.MunicionLote)
+                .Where(x => x.Fecha >= desde && x.Fecha <= hasta)
+                .OrderByDescending(x => x.Fecha)
+                .Take(500)
+                .ToListAsync();
+        }
+        catch (Exception ex)
+        {
+            error = $"No se pudieron cargar las ventas: {ex.Message}";
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private bool CoincideBusqueda(Venta venta)
+    {
+        return (venta.NumeroComprobante?.Contains(busqueda, StringComparison.OrdinalIgnoreCase) ?? false)
+            || venta.Cliente.NombreRazonSocial.Contains(busqueda, StringComparison.OrdinalIgnoreCase)
+            || venta.Cliente.DniCuit.Contains(busqueda, StringComparison.OrdinalIgnoreCase)
+            || venta.Vendedor.Contains(busqueda, StringComparison.OrdinalIgnoreCase)
+            || venta.Detalles.Any(detalle =>
+                detalle.Producto.Sku.Contains(busqueda, StringComparison.OrdinalIgnoreCase)
+                || detalle.Producto.Nombre.Contains(busqueda, StringComparison.OrdinalIgnoreCase)
+                || (detalle.Arma?.NumeroSerie.Contains(busqueda, StringComparison.OrdinalIgnoreCase) ?? false)
+                || (detalle.MunicionLote?.NumeroLote.Contains(busqueda, StringComparison.OrdinalIgnoreCase) ?? false));
+    }
+
+    private static string ObtenerTrazabilidad(DetalleVenta detalle)
+    {
+        if (detalle.Arma is not null)
+        {
+            return $"Serie {detalle.Arma.NumeroSerie} - {detalle.Arma.Marca} {detalle.Arma.Modelo} - Calibre {detalle.Arma.Calibre}";
+        }
+
+        if (detalle.MunicionLote is not null)
+        {
+            return $"Lote {detalle.MunicionLote.NumeroLote} - Calibre {detalle.MunicionLote.Calibre}";
+        }
+
+        return "No aplica";
+    }
+
+    private static string ObtenerClaseEstado(EstadoVenta estado) => estado switch
+    {
+        EstadoVenta.Anulada => "badge danger",
+        EstadoVenta.Borrador => "badge muted",
+        EstadoVenta.Confirmada => "badge warning",
+        EstadoVenta.Facturada => "badge ok",
+        _ => "badge muted"
+    };
+}
