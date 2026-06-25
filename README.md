@@ -9,12 +9,25 @@ Aplicación web Blazor WebApp (.NET 8) para control de stock y ventas de armerí
 - `src/StockSantiCaza.Web/Data`: `ApplicationDbContext` para SQL Server con Entity Framework Core.
 - `src/StockSantiCaza.Web/Services`: servicios de ventas, reportes y facturación electrónica simulada.
 
+## Base de datos
+
+Este proyecto usa **Microsoft SQL Server** con **Entity Framework Core** (`Microsoft.EntityFrameworkCore.SqlServer`).
+
+**No utiliza MySQL, MariaDB, PostgreSQL ni SQLite.**
+
+Servidor configurado:
+
+```text
+LARA-NB\SQLEXPRESS02
+Base de datos: StockSantiCAZA
+```
+
 ## Ejecución local (pruebas)
 
 Requisitos:
 
 - [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
-- SQL Server LocalDB, SQL Server Express o SQL Server Developer
+- **Microsoft SQL Server Express** (`SQLEXPRESS02`) o SQL Server Developer
 - Certificado HTTPS de desarrollo de ASP.NET Core
 
 ### 1. Base de datos
