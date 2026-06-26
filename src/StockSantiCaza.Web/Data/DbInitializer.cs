@@ -75,7 +75,7 @@ public static class DbInitializer
 
     private static async Task EnsureCategoriasStockSchemaAsync(ApplicationDbContext db)
     {
-        const string sql = """
+        await db.Database.ExecuteSqlRawAsync("""
             IF OBJECT_ID(N'[dbo].[CategoriasStock]', N'U') IS NULL
             BEGIN
                 CREATE TABLE [dbo].[CategoriasStock] (
@@ -88,25 +88,52 @@ public static class DbInitializer
                 );
                 CREATE UNIQUE INDEX [IX_CategoriasStock_Nombre] ON [dbo].[CategoriasStock] ([Nombre]);
             END;
+            """);
 
+        await db.Database.ExecuteSqlRawAsync("""
             IF COL_LENGTH('dbo.Productos', 'Categoria') = 4
+               AND COL_LENGTH('dbo.Productos', 'CategoriaNombre') IS NULL
             BEGIN
                 ALTER TABLE [dbo].[Productos] ADD [CategoriaNombre] nvarchar(80) NULL;
+            END;
+            """);
+
+        await db.Database.ExecuteSqlRawAsync("""
+            IF COL_LENGTH('dbo.Productos', 'CategoriaNombre') IS NOT NULL
+               AND COL_LENGTH('dbo.Productos', 'Categoria') = 4
+            BEGIN
                 UPDATE [dbo].[Productos]
                 SET [CategoriaNombre] = CASE [Categoria]
                     WHEN 2 THEN N'Arma'
                     WHEN 3 THEN N'Munición'
                     ELSE N'General'
                 END;
+            END;
+            """);
+
+        await db.Database.ExecuteSqlRawAsync("""
+            IF COL_LENGTH('dbo.Productos', 'Categoria') = 4
+            BEGIN
                 ALTER TABLE [dbo].[Productos] DROP COLUMN [Categoria];
+            END;
+            """);
+
+        await db.Database.ExecuteSqlRawAsync("""
+            IF COL_LENGTH('dbo.Productos', 'CategoriaNombre') IS NOT NULL
+               AND COL_LENGTH('dbo.Productos', 'Categoria') IS NULL
+            BEGIN
                 EXEC sp_rename 'dbo.Productos.CategoriaNombre', 'Categoria', 'COLUMN';
             END;
+            """);
 
+        await db.Database.ExecuteSqlRawAsync("""
             IF COL_LENGTH('dbo.Productos', 'Categoria') IS NULL
             BEGIN
                 ALTER TABLE [dbo].[Productos] ADD [Categoria] nvarchar(80) NULL;
             END;
+            """);
 
+        await db.Database.ExecuteSqlRawAsync("""
             IF NOT EXISTS (SELECT 1 FROM [dbo].[CategoriasStock])
             BEGIN
                 INSERT INTO [dbo].[CategoriasStock] ([Nombre], [RequiereSerie], [RequiereLote], [Activo])
@@ -117,8 +144,6 @@ public static class DbInitializer
                     (N'Miras', 0, 0, 1),
                     (N'Accesorios', 0, 0, 1);
             END;
-            """;
-
-        await db.Database.ExecuteSqlRawAsync(sql);
+            """);
     }
 }

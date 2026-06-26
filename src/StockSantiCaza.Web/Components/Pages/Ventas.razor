@@ -216,8 +216,8 @@ else
                                                 {
                                                     <tr>
                                                         <td>
-                                                            <strong>@detalle.Producto.Nombre</strong>
-                                                            <small>@detalle.Producto.Sku</small>
+                                                            <strong>@DisplayHelper.Mostrar(detalle.Producto.Nombre)</strong>
+                                                            <small>@DisplayHelper.Mostrar(detalle.Producto.Sku)</small>
                                                         </td>
                                                         <td>@DisplayHelper.Mostrar(detalle.Producto.Categoria)</td>
                                                         <td>@ObtenerTrazabilidad(detalle)</td>
