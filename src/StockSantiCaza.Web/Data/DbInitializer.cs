@@ -196,6 +196,16 @@ public static class DbInitializer
             """);
 
         await db.Database.ExecuteSqlRawAsync("""
+            IF EXISTS (
+                SELECT 1 FROM sys.indexes
+                WHERE name = 'IX_Productos_Sku' AND object_id = OBJECT_ID(N'dbo.Productos')
+            )
+            BEGIN
+                EXEC(N'DROP INDEX [IX_Productos_Sku] ON [dbo].[Productos];');
+            END;
+            """);
+
+        await db.Database.ExecuteSqlRawAsync("""
             IF COL_LENGTH('dbo.Productos', 'Sku') IS NOT NULL
             BEGIN
                 EXEC(N'ALTER TABLE [dbo].[Productos] ALTER COLUMN [Sku] nvarchar(40) NULL;');
@@ -206,16 +216,6 @@ public static class DbInitializer
             IF COL_LENGTH('dbo.Productos', 'Nombre') IS NOT NULL
             BEGIN
                 EXEC(N'ALTER TABLE [dbo].[Productos] ALTER COLUMN [Nombre] nvarchar(180) NULL;');
-            END;
-            """);
-
-        await db.Database.ExecuteSqlRawAsync("""
-            IF EXISTS (
-                SELECT 1 FROM sys.indexes
-                WHERE name = 'IX_Productos_Sku' AND object_id = OBJECT_ID(N'dbo.Productos')
-            )
-            BEGIN
-                EXEC(N'DROP INDEX [IX_Productos_Sku] ON [dbo].[Productos];');
             END;
             """);
 

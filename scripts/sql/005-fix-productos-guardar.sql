@@ -58,7 +58,16 @@ BEGIN
 END;
 GO
 
--- 5) Permitir SKU y nombre vacíos
+-- 5) Permitir SKU y nombre vacíos (primero quitar índice)
+IF EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name = 'IX_Productos_Sku' AND object_id = OBJECT_ID(N'dbo.Productos')
+)
+BEGIN
+    EXEC(N'DROP INDEX [IX_Productos_Sku] ON [dbo].[Productos];');
+END;
+GO
+
 IF COL_LENGTH('dbo.Productos', 'Sku') IS NOT NULL
 BEGIN
     EXEC(N'ALTER TABLE [dbo].[Productos] ALTER COLUMN [Sku] nvarchar(40) NULL;');
@@ -71,16 +80,7 @@ BEGIN
 END;
 GO
 
--- 6) Índice único de SKU solo cuando tiene valor
-IF EXISTS (
-    SELECT 1 FROM sys.indexes
-    WHERE name = 'IX_Productos_Sku' AND object_id = OBJECT_ID(N'dbo.Productos')
-)
-BEGIN
-    EXEC(N'DROP INDEX [IX_Productos_Sku] ON [dbo].[Productos];');
-END;
-GO
-
+-- 6) Recrear índice único de SKU solo cuando tiene valor
 IF NOT EXISTS (
     SELECT 1 FROM sys.indexes
     WHERE name = 'IX_Productos_Sku' AND object_id = OBJECT_ID(N'dbo.Productos')
