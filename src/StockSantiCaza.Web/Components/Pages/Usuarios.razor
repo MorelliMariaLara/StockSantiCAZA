@@ -100,6 +100,11 @@
             </table>
         </div>
     </section>
+
+    <ConfirmDialog Visible="mostrarConfirmacion"
+                   Message="@mensajeConfirmacion"
+                   OnConfirm="ConfirmarBorradoAsync"
+                   OnCancel="CancelarConfirmacion" />
 </AuthorizeAccess>
 
 @code {
@@ -107,7 +112,10 @@
     private List<Usuario> usuarios = [];
     private UsuarioForm form = new();
     private bool guardando;
+    private bool mostrarConfirmacion;
     private string? mensaje;
+    private string mensajeConfirmacion = string.Empty;
+    private Usuario? usuarioPendienteBorrar;
     private int EditFormKey => form.Id ?? 0;
 
     protected override async Task OnInitializedAsync()
@@ -161,19 +169,32 @@
         }
     }
 
-    private async Task BorrarAsync(Usuario usuario)
+    private void BorrarAsync(Usuario usuario)
     {
         errores.Clear();
         mensaje = null;
+        usuarioPendienteBorrar = usuario;
+        mensajeConfirmacion = $"¿Eliminar al usuario {usuario.Nombre} ({usuario.Login})? Esta acción no se puede deshacer.";
+        mostrarConfirmacion = true;
+    }
 
-        var confirmado = await Js.InvokeAsync<bool>(
-            "stockSanti.confirmAction",
-            $"¿Eliminar al usuario {usuario.Nombre} ({usuario.Login})? Esta acción no se puede deshacer.");
+    private void CancelarConfirmacion()
+    {
+        mostrarConfirmacion = false;
+        usuarioPendienteBorrar = null;
+    }
 
-        if (!confirmado)
+    private async Task ConfirmarBorradoAsync()
+    {
+        mostrarConfirmacion = false;
+
+        if (usuarioPendienteBorrar is null)
         {
             return;
         }
+
+        var usuario = usuarioPendienteBorrar;
+        usuarioPendienteBorrar = null;
 
         try
         {

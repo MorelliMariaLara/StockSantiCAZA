@@ -188,6 +188,11 @@ else
     </section>
 }
 
+<ConfirmDialog Visible="mostrarConfirmacion"
+               Message="@mensajeConfirmacion"
+               OnConfirm="ConfirmarBorradoClienteAsync"
+               OnCancel="CancelarConfirmacion" />
+
 </AuthorizeAccess>
 
 @code {
@@ -198,6 +203,9 @@ else
     private bool guardando;
     private string? mensaje;
     private string busqueda = string.Empty;
+    private bool mostrarConfirmacion;
+    private string mensajeConfirmacion = string.Empty;
+    private Cliente? clientePendienteBorrar;
     private int EditFormKey => form.Id ?? 0;
 
     private IEnumerable<Cliente> ClientesFiltrados
@@ -363,19 +371,32 @@ else
         }
     }
 
-    private async Task BorrarClienteAsync(Cliente cliente)
+    private void BorrarClienteAsync(Cliente cliente)
     {
         errores.Clear();
         mensaje = null;
+        clientePendienteBorrar = cliente;
+        mensajeConfirmacion = $"¿Eliminar al cliente {cliente.NombreRazonSocial}? Esta acción no se puede deshacer.";
+        mostrarConfirmacion = true;
+    }
 
-        var confirmado = await Js.InvokeAsync<bool>(
-            "stockSanti.confirmAction",
-            $"¿Eliminar al cliente {cliente.NombreRazonSocial}? Esta acción no se puede deshacer.");
+    private void CancelarConfirmacion()
+    {
+        mostrarConfirmacion = false;
+        clientePendienteBorrar = null;
+    }
 
-        if (!confirmado)
+    private async Task ConfirmarBorradoClienteAsync()
+    {
+        mostrarConfirmacion = false;
+
+        if (clientePendienteBorrar is null)
         {
             return;
         }
+
+        var cliente = clientePendienteBorrar;
+        clientePendienteBorrar = null;
 
         try
         {

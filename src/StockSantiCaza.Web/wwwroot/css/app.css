@@ -391,6 +391,31 @@ label {
     border-radius: .65rem;
 }
 
+.confirm-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1200;
+    display: grid;
+    place-items: center;
+    padding: 1rem;
+    background: rgba(10, 14, 8, 0.55);
+}
+
+.confirm-panel {
+    width: min(100%, 420px);
+    margin: 0;
+}
+
+.confirm-panel h3 {
+    margin-top: 0;
+    color: var(--primary-strong);
+}
+
+.confirm-panel p {
+    margin-bottom: 1rem;
+    color: var(--text);
+}
+
 .menu-toggle,
 .nav-backdrop {
     display: none;

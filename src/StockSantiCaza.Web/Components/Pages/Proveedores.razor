@@ -281,6 +281,11 @@
             }
         </section>
     }
+
+    <ConfirmDialog Visible="mostrarConfirmacion"
+                   Message="@mensajeConfirmacion"
+                   OnConfirm="ConfirmarBorradoProveedorAsync"
+                   OnCancel="CancelarConfirmacion" />
 </AuthorizeAccess>
 
 @code {
@@ -295,6 +300,9 @@
     private bool cargando = true;
     private bool guardando;
     private bool guardandoMovimiento;
+    private bool mostrarConfirmacion;
+    private string mensajeConfirmacion = string.Empty;
+    private Proveedor? proveedorPendienteBorrar;
 
     private string EditFormKey => $"proveedor-{form.Id ?? 0}";
 
@@ -571,19 +579,32 @@
         }
     }
 
-    private async Task BorrarProveedorAsync(Proveedor proveedor)
+    private void BorrarProveedorAsync(Proveedor proveedor)
     {
         errores.Clear();
         mensaje = null;
+        proveedorPendienteBorrar = proveedor;
+        mensajeConfirmacion = $"¿Eliminar al proveedor {proveedor.NombreRazonSocial}? Se borrarán también sus deudas y pagos.";
+        mostrarConfirmacion = true;
+    }
 
-        var confirmado = await Js.InvokeAsync<bool>(
-            "stockSanti.confirmAction",
-            $"¿Eliminar al proveedor {proveedor.NombreRazonSocial}? Se borrarán también sus deudas y pagos.");
+    private void CancelarConfirmacion()
+    {
+        mostrarConfirmacion = false;
+        proveedorPendienteBorrar = null;
+    }
 
-        if (!confirmado)
+    private async Task ConfirmarBorradoProveedorAsync()
+    {
+        mostrarConfirmacion = false;
+
+        if (proveedorPendienteBorrar is null)
         {
             return;
         }
+
+        var proveedor = proveedorPendienteBorrar;
+        proveedorPendienteBorrar = null;
 
         try
         {
