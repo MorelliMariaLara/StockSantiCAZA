@@ -338,10 +338,11 @@
     }
 
     private IEnumerable<MovimientoProveedor> MovimientosProveedorSeleccionado =>
-        proveedorSeleccionado?.Movimientos
-            .OrderBy(x => x.Fecha)
-            .ThenBy(x => x.Id)
-        ?? [];
+        proveedorSeleccionado is null
+            ? Enumerable.Empty<MovimientoProveedor>()
+            : proveedorSeleccionado.Movimientos
+                .OrderBy(x => x.Fecha)
+                .ThenBy(x => x.Id);
 
     protected override async Task OnInitializedAsync()
     {
