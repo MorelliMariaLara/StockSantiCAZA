@@ -13,7 +13,7 @@ public interface IUsuariosService
 
     Task GuardarAsync(UsuarioFormRequest request, CancellationToken cancellationToken = default);
 
-    Task CambiarEstadoAsync(int usuarioId, CancellationToken cancellationToken = default);
+    Task EliminarAsync(int usuarioId, int? usuarioActualId, CancellationToken cancellationToken = default);
 }
 
 public sealed class UsuarioFormRequest
@@ -27,8 +27,6 @@ public sealed class UsuarioFormRequest
     public string? Password { get; set; }
 
     public RolUsuario Rol { get; set; } = RolUsuario.Vendedor;
-
-    public bool Activo { get; set; } = true;
 }
 
 public class UsuariosService(
@@ -90,7 +88,7 @@ public class UsuariosService(
                 throw new InvalidOperationException("Debe indicar una contraseña para el usuario nuevo.");
             }
 
-            usuario = new Usuario();
+            usuario = new Usuario { Activo = true };
             db.Usuarios.Add(usuario);
             usuario.PasswordHash = passwordHasher.HashPassword(usuario, password);
         }
@@ -106,18 +104,38 @@ public class UsuariosService(
         usuario.Nombre = nombre;
         usuario.Login = login;
         usuario.Rol = request.Rol;
-        usuario.Activo = request.Activo;
+        usuario.Activo = true;
 
         await db.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task CambiarEstadoAsync(int usuarioId, CancellationToken cancellationToken = default)
+    public async Task EliminarAsync(
+        int usuarioId,
+        int? usuarioActualId,
+        CancellationToken cancellationToken = default)
     {
+        if (usuarioActualId == usuarioId)
+        {
+            throw new InvalidOperationException("No puede eliminar el usuario con el que está conectado.");
+        }
+
         await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken);
         var usuario = await db.Usuarios.SingleOrDefaultAsync(x => x.Id == usuarioId, cancellationToken)
             ?? throw new InvalidOperationException("El usuario seleccionado ya no existe.");
 
-        usuario.Activo = !usuario.Activo;
+        if (usuario.Rol == RolUsuario.Administrador)
+        {
+            var quedanAdministradores = await db.Usuarios.AnyAsync(
+                x => x.Id != usuarioId && x.Rol == RolUsuario.Administrador,
+                cancellationToken);
+
+            if (!quedanAdministradores)
+            {
+                throw new InvalidOperationException("No puede eliminar el último administrador del sistema.");
+            }
+        }
+
+        db.Usuarios.Remove(usuario);
         await db.SaveChangesAsync(cancellationToken);
     }
 }

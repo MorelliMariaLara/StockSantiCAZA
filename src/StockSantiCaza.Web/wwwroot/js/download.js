@@ -21,5 +21,6 @@ window.stockSanti = {
   },
   openInNewTab: (url) => {
     window.open(url, '_blank');
-  }
+  },
+  confirmAction: (message) => window.confirm(message)
 };

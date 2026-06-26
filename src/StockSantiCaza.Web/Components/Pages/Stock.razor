@@ -42,20 +42,20 @@
 
         <section class="grid cards">
             <div class="card">
-                <span class="metric-label">Productos activos</span>
-                <strong>@productos.Count(x => x.Activo)</strong>
+                <span class="metric-label">Productos en catálogo</span>
+                <strong>@productos.Count</strong>
             </div>
             <div class="card warning-card">
                 <span class="metric-label">En stock mínimo</span>
-                <strong>@productos.Count(x => x.Activo && x.StockActual > 0 && x.StockActual <= x.StockMinimo)</strong>
+                <strong>@productos.Count(x => x.StockActual > 0 && x.StockActual <= x.StockMinimo)</strong>
             </div>
             <div class="card danger-card">
                 <span class="metric-label">Sin stock</span>
-                <strong>@productos.Count(x => x.Activo && x.StockActual <= 0)</strong>
+                <strong>@productos.Count(x => x.StockActual <= 0)</strong>
             </div>
             <div class="card">
                 <span class="metric-label">Unidades totales</span>
-                <strong>@productos.Where(x => x.Activo).Sum(x => x.StockActual)</strong>
+                <strong>@productos.Sum(x => x.StockActual)</strong>
             </div>
         </section>
 
@@ -140,14 +140,6 @@
                     <label>
                         Stock mínimo
                         <InputNumber class="input" @bind-Value="form.StockMinimo" />
-                    </label>
-
-                    <label>
-                        Estado
-                        <InputSelect class="input" @bind-Value="form.Activo">
-                            <option value="true">Activo</option>
-                            <option value="false">Inactivo</option>
-                        </InputSelect>
                     </label>
                 </div>
 
@@ -263,7 +255,6 @@
                             <th>Características</th>
                             <th>Stock</th>
                             <th>Precio</th>
-                            <th>Estado</th>
                             <th></th>
                         </tr>
                     </thead>
@@ -287,16 +278,12 @@
                                 </td>
                                 <td>@MonedaHelper.FormatearUsd(producto.PrecioUnitario)</td>
                                 <td>
-                                    <span class="@ObtenerClaseBadge(producto)">@ObtenerEstadoStock(producto)</span>
-                                    @if (!producto.Activo)
-                                    {
-                                        <span class="badge muted">Inactivo</span>
-                                    }
-                                </td>
-                                <td>
                                     @if (PuedeEditarStock)
                                     {
-                                        <button type="button" class="button btn-edit" @onclick="() => EditarProductoAsync(producto)">Editar</button>
+                                        <div class="row-actions">
+                                            <button type="button" class="button btn-edit" @onclick="() => EditarProductoAsync(producto)">Editar</button>
+                                            <button type="button" class="button btn-delete" @onclick="() => BorrarProductoAsync(producto)">Borrar</button>
+                                        </div>
                                     }
                                 </td>
                             </tr>
@@ -455,7 +442,7 @@
             producto.CostoUnitario = form.CostoUnitario;
             producto.StockActual = form.StockActual;
             producto.StockMinimo = form.StockMinimo;
-            producto.Activo = form.Activo;
+            producto.Activo = true;
 
             var diferenciaStock = producto.StockActual - stockAnterior;
             if (diferenciaStock != 0)
@@ -535,9 +522,92 @@
             PrecioUnitario = producto.PrecioUnitario,
             CostoUnitario = producto.CostoUnitario,
             StockActual = producto.StockActual,
-            StockMinimo = producto.StockMinimo,
-            Activo = producto.Activo
+            StockMinimo = producto.StockMinimo
         };
+    }
+
+    private async Task BorrarProductoAsync(Producto producto)
+    {
+        errores.Clear();
+        mensaje = null;
+
+        var confirmado = await Js.InvokeAsync<bool>(
+            "stockSanti.confirmAction",
+            $"¿Eliminar el producto {producto.Nombre} ({producto.Sku})? Esta acción no se puede deshacer.");
+
+        if (!confirmado)
+        {
+            return;
+        }
+
+        try
+        {
+            await using var db = await DbContextFactory.CreateDbContextAsync();
+
+            var enVentas = await db.DetallesVenta.AnyAsync(x => x.ProductoId == producto.Id);
+            if (enVentas)
+            {
+                errores.Add("No se puede eliminar el producto porque está asociado a ventas registradas.");
+                return;
+            }
+
+            var productoDb = await db.Productos.SingleOrDefaultAsync(x => x.Id == producto.Id);
+            if (productoDb is null)
+            {
+                errores.Add("El producto seleccionado ya no existe.");
+                return;
+            }
+
+            var armaIds = await db.Armas
+                .Where(x => x.ProductoId == producto.Id)
+                .Select(x => x.Id)
+                .ToListAsync();
+
+            if (armaIds.Count > 0
+                && await db.DetallesVenta.AnyAsync(x => x.ArmaId.HasValue && armaIds.Contains(x.ArmaId.Value)))
+            {
+                errores.Add("No se puede eliminar el producto porque tiene armas vinculadas a ventas.");
+                return;
+            }
+
+            var loteIds = await db.MunicionLotes
+                .Where(x => x.ProductoId == producto.Id)
+                .Select(x => x.Id)
+                .ToListAsync();
+
+            if (loteIds.Count > 0
+                && await db.DetallesVenta.AnyAsync(x => x.MunicionLoteId.HasValue && loteIds.Contains(x.MunicionLoteId.Value)))
+            {
+                errores.Add("No se puede eliminar el producto porque tiene lotes vinculados a ventas.");
+                return;
+            }
+
+            var movimientos = await db.MovimientosStock
+                .Where(x => x.ProductoId == producto.Id)
+                .ToListAsync();
+            db.MovimientosStock.RemoveRange(movimientos);
+
+            var armas = await db.Armas.Where(x => x.ProductoId == producto.Id).ToListAsync();
+            db.Armas.RemoveRange(armas);
+
+            var lotes = await db.MunicionLotes.Where(x => x.ProductoId == producto.Id).ToListAsync();
+            db.MunicionLotes.RemoveRange(lotes);
+
+            db.Productos.Remove(productoDb);
+            await db.SaveChangesAsync();
+
+            if (form.Id == producto.Id)
+            {
+                NuevoProducto();
+            }
+
+            await RecargarProductosAsync();
+            mensaje = "Producto eliminado correctamente.";
+        }
+        catch (Exception ex)
+        {
+            errores.Add($"No se pudo eliminar el producto: {ex.Message}");
+        }
     }
 
     private void OnArchivoImportacionSeleccionado(InputFileChangeEventArgs e)
@@ -680,7 +750,5 @@
 
         [Range(0, int.MaxValue)]
         public int StockMinimo { get; set; } = 1;
-
-        public bool Activo { get; set; } = true;
     }
 }

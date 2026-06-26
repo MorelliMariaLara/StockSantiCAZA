@@ -355,6 +355,18 @@ label {
     background: #d4b36a;
 }
 
+.button.btn-delete {
+    background: var(--danger-bg);
+    color: var(--danger);
+    border-color: #c47a6a;
+    padding: .45rem .85rem;
+    font-size: .85rem;
+}
+
+.button.btn-delete:hover:not(:disabled) {
+    background: #e8b8ae;
+}
+
 .button:disabled {
     cursor: not-allowed;
     opacity: .5;

@@ -38,12 +38,12 @@
                 <strong>@MonedaHelper.FormatearUsd(SaldoTotalAdeudado)</strong>
             </div>
             <div class="card">
-                <span class="metric-label">Proveedores activos</span>
-                <strong>@proveedores.Count(x => x.Activo)</strong>
+                <span class="metric-label">Total proveedores</span>
+                <strong>@proveedores.Count</strong>
             </div>
             <div class="card warning-card">
                 <span class="metric-label">Con saldo pendiente</span>
-                <strong>@proveedores.Count(x => x.Activo && ObtenerSaldo(x) > 0)</strong>
+                <strong>@proveedores.Count(x => ObtenerSaldo(x) > 0)</strong>
             </div>
         </section>
 
@@ -99,13 +99,6 @@
                             <InputNumber class="input" @bind-Value="form.DeudaInicial" />
                         </label>
                     }
-                    <label>
-                        Estado
-                        <InputSelect class="input" @bind-Value="form.Activo">
-                            <option value="true">Activo</option>
-                            <option value="false">Inactivo</option>
-                        </InputSelect>
-                    </label>
                 </div>
                 <div class="actions">
                     <button type="submit" class="button primary" disabled="@guardando">
@@ -244,7 +237,6 @@
                             <tr>
                                 <th>Proveedor</th>
                                 <th>Contacto</th>
-                                <th>Estado</th>
                                 <th>Saldo pendiente</th>
                                 <th></th>
                             </tr>
@@ -272,16 +264,14 @@
                                         }
                                     </td>
                                     <td>
-                                        <span class="@(proveedor.Activo ? "badge ok" : "badge muted")">
-                                            @(proveedor.Activo ? "Activo" : "Inactivo")
-                                        </span>
-                                    </td>
-                                    <td>
                                         <strong class="@(saldo > 0 ? "saldo-pendiente" : null)">@MonedaHelper.FormatearUsd(saldo)</strong>
                                     </td>
                                     <td>
-                                        <button type="button" class="button btn-edit" @onclick="() => EditarProveedor(proveedor)">Editar</button>
-                                        <button type="button" class="button ghost" @onclick="() => AbrirCuentaProveedor(proveedor)">Cuenta</button>
+                                        <div class="row-actions">
+                                            <button type="button" class="button btn-edit" @onclick="() => EditarProveedor(proveedor)">Editar</button>
+                                            <button type="button" class="button ghost" @onclick="() => AbrirCuentaProveedor(proveedor)">Cuenta</button>
+                                            <button type="button" class="button btn-delete" @onclick="() => BorrarProveedorAsync(proveedor)">Borrar</button>
+                                        </div>
                                     </td>
                                 </tr>
                             }
@@ -309,9 +299,7 @@
     private string EditFormKey => $"proveedor-{form.Id ?? 0}";
 
     private decimal SaldoTotalAdeudado =>
-        proveedores
-            .Where(x => x.Activo)
-            .Sum(ObtenerSaldo);
+        proveedores.Sum(ObtenerSaldo);
 
     private decimal SaldoProveedorSeleccionado =>
         proveedorSeleccionado is null ? 0 : ObtenerSaldo(proveedorSeleccionado);
@@ -397,8 +385,7 @@
             Telefono = proveedor.Telefono ?? string.Empty,
             Email = proveedor.Email ?? string.Empty,
             Domicilio = proveedor.Domicilio ?? string.Empty,
-            Observaciones = proveedor.Observaciones ?? string.Empty,
-            Activo = proveedor.Activo
+            Observaciones = proveedor.Observaciones ?? string.Empty
         };
 
         errores.Clear();
@@ -461,7 +448,7 @@
                     Email = NormalizarTexto(form.Email),
                     Domicilio = NormalizarTexto(form.Domicilio),
                     Observaciones = NormalizarTexto(form.Observaciones),
-                    Activo = form.Activo
+                    Activo = true
                 };
 
                 if (form.DeudaInicial > 0)
@@ -494,7 +481,7 @@
                 proveedor.Email = NormalizarTexto(form.Email);
                 proveedor.Domicilio = NormalizarTexto(form.Domicilio);
                 proveedor.Observaciones = NormalizarTexto(form.Observaciones);
-                proveedor.Activo = form.Activo;
+                proveedor.Activo = true;
                 await db.SaveChangesAsync();
                 mensaje = "Proveedor actualizado correctamente.";
             }
@@ -584,6 +571,52 @@
         }
     }
 
+    private async Task BorrarProveedorAsync(Proveedor proveedor)
+    {
+        errores.Clear();
+        mensaje = null;
+
+        var confirmado = await Js.InvokeAsync<bool>(
+            "stockSanti.confirmAction",
+            $"¿Eliminar al proveedor {proveedor.NombreRazonSocial}? Se borrarán también sus deudas y pagos.");
+
+        if (!confirmado)
+        {
+            return;
+        }
+
+        try
+        {
+            await using var db = await DbContextFactory.CreateDbContextAsync();
+            var proveedorDb = await db.Proveedores.SingleOrDefaultAsync(x => x.Id == proveedor.Id);
+            if (proveedorDb is null)
+            {
+                errores.Add("El proveedor ya no existe.");
+                return;
+            }
+
+            db.Proveedores.Remove(proveedorDb);
+            await db.SaveChangesAsync();
+            mensaje = "Proveedor eliminado correctamente.";
+
+            if (form.Id == proveedor.Id)
+            {
+                NuevoProveedor();
+            }
+
+            if (proveedorSeleccionado?.Id == proveedor.Id)
+            {
+                CerrarCuentaProveedor();
+            }
+
+            await CargarProveedoresAsync();
+        }
+        catch (Exception ex)
+        {
+            errores.Add($"No se pudo eliminar el proveedor: {ex.Message}");
+        }
+    }
+
     private static string? NormalizarTexto(string? valor)
     {
         var normalizado = valor?.Trim();
@@ -599,7 +632,6 @@
         public string Domicilio { get; set; } = string.Empty;
         public string Observaciones { get; set; } = string.Empty;
         public decimal DeudaInicial { get; set; }
-        public bool Activo { get; set; } = true;
     }
 
     private sealed class MovimientoForm
