@@ -102,9 +102,10 @@
                     <label>
                         Clasificación
                         <InputSelect class="input" @bind-Value="form.Categoria">
-                            @foreach (var categoria in Enum.GetValues<ProductoCategoria>())
+                            <option value="">-</option>
+                            @foreach (var categoria in categorias)
                             {
-                                <option value="@categoria">@categoria</option>
+                                <option value="@categoria.Nombre">@categoria.Nombre</option>
                             }
                         </InputSelect>
                     </label>
@@ -157,6 +158,69 @@
                     <button type="button" class="button ghost" @onclick="NuevoProducto">Limpiar</button>
                 </div>
             </EditForm>
+        </section>
+
+        <section class="panel">
+            <div class="section-header">
+                <div>
+                    <h2>Clasificaciones de stock</h2>
+                    <p>Defina categorías como Arma, Miras, Munición, etc.</p>
+                </div>
+            </div>
+
+            <div class="grid stock-form">
+                <label>
+                    Nueva clasificación
+                    <InputText class="input" @bind-Value="nuevaCategoria" placeholder="Ej: Miras, Fundas, Repuestos..." />
+                </label>
+                <label class="checkbox-label">
+                    <InputCheckbox @bind-Value="nuevaCategoriaSerie" />
+                    Requiere número de serie
+                </label>
+                <label class="checkbox-label">
+                    <InputCheckbox @bind-Value="nuevaCategoriaLote" />
+                    Requiere lote
+                </label>
+            </div>
+
+            <div class="actions">
+                <button type="button" class="button primary" @onclick="AgregarCategoriaAsync" disabled="@guardandoCategoria">
+                    @(guardandoCategoria ? "Guardando..." : "Agregar clasificación")
+                </button>
+            </div>
+
+            @if (categorias.Count == 0)
+            {
+                <p>No hay clasificaciones cargadas.</p>
+            }
+            else
+            {
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Nombre</th>
+                                <th>Serie</th>
+                                <th>Lote</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var categoria in categorias)
+                            {
+                                <tr>
+                                    <td>@categoria.Nombre</td>
+                                    <td>@(categoria.RequiereSerie ? "Sí" : "-")</td>
+                                    <td>@(categoria.RequiereLote ? "Sí" : "-")</td>
+                                    <td>
+                                        <button type="button" class="button btn-delete" @onclick="() => BorrarCategoriaAsync(categoria)">Borrar</button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
         </section>
 
         <section class="panel">
@@ -229,9 +293,9 @@
                     Clasificación
                     <InputSelect class="input" @bind-Value="categoriaFiltro">
                         <option value="">Todas</option>
-                        @foreach (var categoria in Enum.GetValues<ProductoCategoria>())
+                        @foreach (var categoria in categorias)
                         {
-                            <option value="@categoria">@categoria</option>
+                            <option value="@categoria.Nombre">@categoria.Nombre</option>
                         }
                     </InputSelect>
                 </label>
@@ -264,15 +328,15 @@
                         @foreach (var producto in ProductosFiltrados)
                         {
                             <tr class="@ObtenerClaseFila(producto)">
-                                <td>@producto.Sku</td>
+                                <td>@DisplayHelper.Mostrar(producto.Sku)</td>
                                 <td>
-                                    <strong>@producto.Nombre</strong>
+                                    <strong>@DisplayHelper.Mostrar(producto.Nombre)</strong>
                                     @if (!string.IsNullOrWhiteSpace(producto.Descripcion))
                                     {
                                         <small>@producto.Descripcion</small>
                                     }
                                 </td>
-                                <td>@producto.Categoria</td>
+                                <td>@DisplayHelper.Mostrar(producto.Categoria)</td>
                                 <td>@FormatearCaracteristicas(producto)</td>
                                 <td>
                                     <strong>@producto.StockActual</strong>
@@ -302,9 +366,11 @@
 
     private readonly List<string> errores = [];
     private List<Producto> productos = [];
+    private List<CategoriaStock> categorias = [];
     private ProductoForm form = new();
     private bool cargando = true;
     private bool guardando;
+    private bool guardandoCategoria;
     private bool importando;
     private bool descargandoPlantilla;
     private string? mensaje;
@@ -312,6 +378,9 @@
     private string busqueda = string.Empty;
     private string categoriaFiltro = string.Empty;
     private string estadoStockFiltro = string.Empty;
+    private string nuevaCategoria = string.Empty;
+    private bool nuevaCategoriaSerie;
+    private bool nuevaCategoriaLote;
     private IBrowserFile? archivoImportacion;
     private StockImportResult? resultadoImportacion;
     private int EditFormKey => form.Id ?? 0;
@@ -326,17 +395,18 @@
             if (!string.IsNullOrWhiteSpace(busqueda))
             {
                 query = query.Where(x =>
-                    x.Sku.Contains(busqueda, StringComparison.OrdinalIgnoreCase)
-                    || x.Nombre.Contains(busqueda, StringComparison.OrdinalIgnoreCase)
+                    (x.Sku?.Contains(busqueda, StringComparison.OrdinalIgnoreCase) ?? false)
+                    || (x.Nombre?.Contains(busqueda, StringComparison.OrdinalIgnoreCase) ?? false)
                     || (x.Marca?.Contains(busqueda, StringComparison.OrdinalIgnoreCase) ?? false)
                     || (x.Modelo?.Contains(busqueda, StringComparison.OrdinalIgnoreCase) ?? false)
                     || (x.Calibre?.Contains(busqueda, StringComparison.OrdinalIgnoreCase) ?? false)
                     || (x.Descripcion?.Contains(busqueda, StringComparison.OrdinalIgnoreCase) ?? false));
             }
 
-            if (Enum.TryParse<ProductoCategoria>(categoriaFiltro, out var categoria))
+            if (!string.IsNullOrWhiteSpace(categoriaFiltro))
             {
-                query = query.Where(x => x.Categoria == categoria);
+                query = query.Where(x =>
+                    string.Equals(x.Categoria, categoriaFiltro, StringComparison.OrdinalIgnoreCase));
             }
 
             query = estadoStockFiltro switch
@@ -348,15 +418,109 @@
             };
 
             return query
-                .OrderBy(x => x.Nombre)
-                .ThenBy(x => x.Sku);
+                .OrderBy(x => x.Nombre ?? string.Empty)
+                .ThenBy(x => x.Sku ?? string.Empty);
         }
     }
 
     protected override async Task OnInitializedAsync()
     {
+        await RecargarCategoriasAsync();
         await RecargarProductosAsync();
         cargando = false;
+    }
+
+    private async Task RecargarCategoriasAsync()
+    {
+        await using var db = await DbContextFactory.CreateDbContextAsync();
+        categorias = await db.CategoriasStock
+            .AsNoTracking()
+            .Where(x => x.Activo)
+            .OrderBy(x => x.Nombre)
+            .ToListAsync();
+    }
+
+    private async Task AgregarCategoriaAsync()
+    {
+        var nombre = DisplayHelper.NormalizarOpcional(nuevaCategoria);
+        if (nombre is null)
+        {
+            return;
+        }
+
+        try
+        {
+            guardandoCategoria = true;
+            await using var db = await DbContextFactory.CreateDbContextAsync();
+
+            var existe = await db.CategoriasStock.AnyAsync(x =>
+                x.Nombre.ToLower() == nombre.ToLower());
+            if (existe)
+            {
+                await AlertService.ShowWarningAsync($"Ya existe la clasificación {nombre}.");
+                return;
+            }
+
+            db.CategoriasStock.Add(new CategoriaStock
+            {
+                Nombre = nombre,
+                RequiereSerie = nuevaCategoriaSerie,
+                RequiereLote = nuevaCategoriaLote,
+                Activo = true
+            });
+            await db.SaveChangesAsync();
+            nuevaCategoria = string.Empty;
+            nuevaCategoriaSerie = false;
+            nuevaCategoriaLote = false;
+            await RecargarCategoriasAsync();
+            mensaje = "Clasificación agregada correctamente.";
+        }
+        catch (Exception ex)
+        {
+            await AlertService.ShowErrorAsync($"No se pudo agregar la clasificación: {ex.Message}");
+        }
+        finally
+        {
+            guardandoCategoria = false;
+        }
+    }
+
+    private async Task BorrarCategoriaAsync(CategoriaStock categoria)
+    {
+        var confirmado = await ConfirmService.AskAsync(
+            $"¿Eliminar la clasificación {categoria.Nombre}?",
+            confirmText: "Eliminar");
+
+        if (!confirmado)
+        {
+            return;
+        }
+
+        try
+        {
+            await using var db = await DbContextFactory.CreateDbContextAsync();
+            var enUso = await db.Productos.AnyAsync(x => x.Categoria == categoria.Nombre);
+            if (enUso)
+            {
+                await AlertService.ShowErrorAsync("No se puede eliminar la clasificación porque hay productos que la usan.");
+                return;
+            }
+
+            var categoriaDb = await db.CategoriasStock.SingleOrDefaultAsync(x => x.Id == categoria.Id);
+            if (categoriaDb is null)
+            {
+                return;
+            }
+
+            db.CategoriasStock.Remove(categoriaDb);
+            await db.SaveChangesAsync();
+            await RecargarCategoriasAsync();
+            mensaje = "Clasificación eliminada correctamente.";
+        }
+        catch (Exception ex)
+        {
+            await AlertService.ShowErrorAsync($"No se pudo eliminar la clasificación: {ex.Message}");
+        }
     }
 
     private async Task GuardarProductoAsync()
@@ -364,32 +528,18 @@
         errores.Clear();
         mensaje = null;
 
-        var sku = form.Sku.Trim().ToUpperInvariant();
-        var nombre = form.Nombre.Trim();
-
-        if (string.IsNullOrWhiteSpace(sku))
-        {
-            errores.Add("Debe indicar el SKU del producto.");
-        }
-
-        if (string.IsNullOrWhiteSpace(nombre))
-        {
-            errores.Add("Debe indicar el nombre del producto.");
-        }
+        var sku = DisplayHelper.NormalizarOpcional(form.Sku)?.ToUpperInvariant();
+        var nombre = DisplayHelper.NormalizarTexto(form.Nombre);
+        var categoria = DisplayHelper.NormalizarOpcional(form.Categoria);
 
         if (form.StockActual < 0)
         {
-            errores.Add("El stock actual no puede ser negativo.");
+            form.StockActual = 0;
         }
 
         if (form.StockMinimo < 0)
         {
-            errores.Add("El stock mínimo no puede ser negativo.");
-        }
-
-        if (errores.Count > 0)
-        {
-            return;
+            form.StockMinimo = 0;
         }
 
         try
@@ -397,9 +547,10 @@
             guardando = true;
             await using var db = await DbContextFactory.CreateDbContextAsync();
 
-            var skuDuplicado = form.Id is int productoActualId
-                ? await db.Productos.AnyAsync(x => x.Sku == sku && x.Id != productoActualId)
-                : await db.Productos.AnyAsync(x => x.Sku == sku);
+            var skuDuplicado = !string.IsNullOrWhiteSpace(sku)
+                && (form.Id is int productoActualId
+                    ? await db.Productos.AnyAsync(x => x.Sku == sku && x.Id != productoActualId)
+                    : await db.Productos.AnyAsync(x => x.Sku == sku));
 
             if (skuDuplicado)
             {
@@ -435,11 +586,11 @@
 
             producto.Sku = sku;
             producto.Nombre = nombre;
-            producto.Descripcion = NormalizarTextoOpcional(form.Descripcion);
-            producto.Categoria = form.Categoria;
-            producto.Marca = NormalizarTextoOpcional(form.Marca);
-            producto.Modelo = NormalizarTextoOpcional(form.Modelo);
-            producto.Calibre = NormalizarTextoOpcional(form.Calibre);
+            producto.Descripcion = DisplayHelper.NormalizarOpcional(form.Descripcion);
+            producto.Categoria = categoria;
+            producto.Marca = DisplayHelper.NormalizarOpcional(form.Marca);
+            producto.Modelo = DisplayHelper.NormalizarOpcional(form.Modelo);
+            producto.Calibre = DisplayHelper.NormalizarOpcional(form.Calibre);
             producto.PrecioUnitario = form.PrecioUnitario;
             producto.CostoUnitario = form.CostoUnitario;
             producto.StockActual = form.StockActual;
@@ -514,10 +665,10 @@
         form = new ProductoForm
         {
             Id = producto.Id,
-            Sku = producto.Sku,
-            Nombre = producto.Nombre,
+            Sku = producto.Sku ?? string.Empty,
+            Nombre = producto.Nombre ?? string.Empty,
             Descripcion = producto.Descripcion ?? string.Empty,
-            Categoria = producto.Categoria,
+            Categoria = producto.Categoria ?? string.Empty,
             Marca = producto.Marca ?? string.Empty,
             Modelo = producto.Modelo ?? string.Empty,
             Calibre = producto.Calibre ?? string.Empty,
@@ -534,7 +685,7 @@
         mensaje = null;
 
         var confirmado = await ConfirmService.AskAsync(
-            $"¿Eliminar el producto {producto.Nombre} ({producto.Sku})? Esta acción no se puede deshacer.");
+            $"¿Eliminar el producto {DisplayHelper.Mostrar(producto.Nombre)} ({DisplayHelper.Mostrar(producto.Sku)})? Esta acción no se puede deshacer.");
 
         if (!confirmado)
         {
@@ -720,16 +871,16 @@
     {
         public int? Id { get; set; }
 
-        [Required, MaxLength(40)]
+        [MaxLength(40)]
         public string Sku { get; set; } = string.Empty;
 
-        [Required, MaxLength(180)]
+        [MaxLength(180)]
         public string Nombre { get; set; } = string.Empty;
 
         [MaxLength(800)]
         public string Descripcion { get; set; } = string.Empty;
 
-        public ProductoCategoria Categoria { get; set; } = ProductoCategoria.General;
+        public string Categoria { get; set; } = string.Empty;
 
         [MaxLength(80)]
         public string Marca { get; set; } = string.Empty;

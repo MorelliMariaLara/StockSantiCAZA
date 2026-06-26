@@ -5,6 +5,7 @@ namespace StockSantiCaza.Web.Data;
 
 public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : DbContext(options)
 {
+    public DbSet<CategoriaStock> CategoriasStock => Set<CategoriaStock>();
     public DbSet<Producto> Productos => Set<Producto>();
     public DbSet<Arma> Armas => Set<Arma>();
     public DbSet<MunicionLote> MunicionLotes => Set<MunicionLote>();
@@ -21,13 +22,22 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     {
         base.OnModelCreating(modelBuilder);
 
+        modelBuilder.Entity<CategoriaStock>(entity =>
+        {
+            entity.HasIndex(x => x.Nombre).IsUnique();
+            entity.Property(x => x.Nombre).HasMaxLength(80);
+        });
+
         modelBuilder.Entity<Producto>(entity =>
         {
-            entity.HasIndex(x => x.Sku).IsUnique();
+            entity.HasIndex(x => x.Sku)
+                .IsUnique()
+                .HasFilter("[Sku] IS NOT NULL AND [Sku] <> ''");
             entity.Property(x => x.PrecioUnitario).HasPrecision(18, 2);
             entity.Property(x => x.CostoUnitario).HasPrecision(18, 2);
             entity.Property(x => x.Sku).HasMaxLength(40);
             entity.Property(x => x.Nombre).HasMaxLength(180);
+            entity.Property(x => x.Categoria).HasMaxLength(80);
         });
 
         modelBuilder.Entity<Arma>(entity =>
@@ -58,7 +68,9 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 
         modelBuilder.Entity<Cliente>(entity =>
         {
-            entity.HasIndex(x => x.DniCuit).IsUnique();
+            entity.HasIndex(x => x.DniCuit)
+                .IsUnique()
+                .HasFilter("[DniCuit] IS NOT NULL AND [DniCuit] <> ''");
             entity.Property(x => x.NombreRazonSocial).HasMaxLength(160);
             entity.Property(x => x.DniCuit).HasMaxLength(20);
             entity.Property(x => x.Activo).HasDefaultValue(true);
@@ -66,7 +78,9 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 
         modelBuilder.Entity<CredencialCLU>(entity =>
         {
-            entity.HasIndex(x => x.NumeroLegajo).IsUnique();
+            entity.HasIndex(x => x.NumeroLegajo)
+                .IsUnique()
+                .HasFilter("[NumeroLegajo] IS NOT NULL AND [NumeroLegajo] <> ''");
             entity.HasIndex(x => x.ClienteId).IsUnique();
             entity.HasOne(x => x.Cliente)
                 .WithOne(x => x.CredencialCLU)
@@ -76,7 +90,9 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 
         modelBuilder.Entity<Usuario>(entity =>
         {
-            entity.HasIndex(x => x.Login).IsUnique();
+            entity.HasIndex(x => x.Login)
+                .IsUnique()
+                .HasFilter("[Login] IS NOT NULL AND [Login] <> ''");
             entity.Property(x => x.Nombre).HasMaxLength(120);
             entity.Property(x => x.Login).HasMaxLength(60);
             entity.Property(x => x.PasswordHash).HasMaxLength(256);

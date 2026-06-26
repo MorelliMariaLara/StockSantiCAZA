@@ -1,6 +1,7 @@
 using ClosedXML.Excel;
 using Microsoft.EntityFrameworkCore;
 using StockSantiCaza.Web.Data;
+using StockSantiCaza.Web.Helpers;
 using StockSantiCaza.Web.Models;
 
 namespace StockSantiCaza.Web.Services.Stock;
@@ -48,24 +49,9 @@ public class StockImportService(IDbContextFactory<ApplicationDbContext> dbContex
 
         for (var fila = 2; fila <= ultimaFila; fila++)
         {
-            var sku = hoja.Cell(fila, 1).GetString().Trim().ToUpperInvariant();
-            if (string.IsNullOrWhiteSpace(sku))
-            {
-                continue;
-            }
-
-            var nombre = hoja.Cell(fila, 2).GetString().Trim();
-            if (string.IsNullOrWhiteSpace(nombre))
-            {
-                errores.Add($"Fila {fila}: falta el nombre del producto.");
-                continue;
-            }
-
-            if (!Enum.TryParse<ProductoCategoria>(hoja.Cell(fila, 3).GetString().Trim(), true, out var categoria))
-            {
-                categoria = ProductoCategoria.General;
-            }
-
+            var sku = Normalizar(hoja.Cell(fila, 1).GetString())?.ToUpperInvariant();
+            var nombre = Normalizar(hoja.Cell(fila, 2).GetString());
+            var categoria = Normalizar(hoja.Cell(fila, 3).GetString()) ?? "General";
             var marca = Normalizar(hoja.Cell(fila, 4).GetString());
             var modelo = Normalizar(hoja.Cell(fila, 5).GetString());
             var calibre = Normalizar(hoja.Cell(fila, 6).GetString());
@@ -74,7 +60,17 @@ public class StockImportService(IDbContextFactory<ApplicationDbContext> dbContex
             var precio = Math.Max(0m, (decimal)hoja.Cell(fila, 9).GetDouble());
             var costo = Math.Max(0m, (decimal)hoja.Cell(fila, 10).GetDouble());
 
-            var producto = await db.Productos.SingleOrDefaultAsync(x => x.Sku == sku, cancellationToken);
+            if (sku is null && nombre is null && marca is null && modelo is null)
+            {
+                continue;
+            }
+
+            Producto? producto = null;
+            if (!string.IsNullOrWhiteSpace(sku))
+            {
+                producto = await db.Productos.SingleOrDefaultAsync(x => x.Sku == sku, cancellationToken);
+            }
+
             var esNuevo = producto is null;
             var stockAnterior = producto?.StockActual ?? 0;
 
@@ -131,7 +127,7 @@ public class StockImportService(IDbContextFactory<ApplicationDbContext> dbContex
 
         ws.Cell(2, 1).Value = "SKU-001";
         ws.Cell(2, 2).Value = "Producto ejemplo";
-        ws.Cell(2, 3).Value = nameof(ProductoCategoria.General);
+        ws.Cell(2, 3).Value = "General";
         ws.Cell(2, 4).Value = "Marca";
         ws.Cell(2, 5).Value = "Modelo";
         ws.Cell(2, 6).Value = "9mm";

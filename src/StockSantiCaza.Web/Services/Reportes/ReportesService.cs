@@ -1,6 +1,7 @@
 using ClosedXML.Excel;
 using Microsoft.EntityFrameworkCore;
 using StockSantiCaza.Web.Data;
+using StockSantiCaza.Web.Helpers;
 using StockSantiCaza.Web.Models;
 
 namespace StockSantiCaza.Web.Services.Reportes;
@@ -82,7 +83,7 @@ public class ReportesService(IDbContextFactory<ApplicationDbContext> dbContextFa
             .ToListAsync(cancellationToken);
 
         var stock = await db.Productos.AsNoTracking()
-            .OrderBy(x => x.Categoria)
+            .OrderBy(x => x.Categoria ?? string.Empty)
             .ThenBy(x => x.Nombre)
             .Select(x => new StockExportRow(
                 x.Sku,
@@ -175,7 +176,7 @@ public class ReportesService(IDbContextFactory<ApplicationDbContext> dbContextFa
             ws.Cell(row, 2).Value = FormatearVendedor(detalle.venta);
             ws.Cell(row, 3).Value = detalle.detalle.Producto.Sku;
             ws.Cell(row, 4).Value = detalle.detalle.Producto.Nombre;
-            ws.Cell(row, 5).Value = detalle.detalle.Producto.Categoria.ToString();
+            ws.Cell(row, 5).Value = DisplayHelper.Mostrar(detalle.detalle.Producto.Categoria);
             ws.Cell(row, 6).Value = detalle.detalle.Arma?.NumeroSerie;
             ws.Cell(row, 7).Value = detalle.detalle.MunicionLote?.NumeroLote;
             ws.Cell(row, 8).Value = detalle.detalle.Arma?.Calibre ?? detalle.detalle.MunicionLote?.Calibre ?? detalle.detalle.Producto.Calibre;
@@ -204,7 +205,7 @@ public class ReportesService(IDbContextFactory<ApplicationDbContext> dbContextFa
         {
             ws.Cell(row, 1).Value = item.Sku;
             ws.Cell(row, 2).Value = item.Nombre;
-            ws.Cell(row, 3).Value = item.Categoria.ToString();
+            ws.Cell(row, 3).Value = DisplayHelper.Mostrar(item.Categoria);
             ws.Cell(row, 4).Value = item.Marca;
             ws.Cell(row, 5).Value = item.Modelo;
             ws.Cell(row, 6).Value = item.Calibre;
@@ -240,7 +241,7 @@ public class ReportesService(IDbContextFactory<ApplicationDbContext> dbContextFa
     private sealed record StockExportRow(
         string Sku,
         string Nombre,
-        ProductoCategoria Categoria,
+        string? Categoria,
         string? Marca,
         string? Modelo,
         string? Calibre,

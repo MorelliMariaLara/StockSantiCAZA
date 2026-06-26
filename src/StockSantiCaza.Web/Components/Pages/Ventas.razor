@@ -173,8 +173,8 @@ else
                                     <strong>@(venta.NumeroComprobante ?? $"VTA-{venta.Id:D8}")</strong>
                                 </td>
                                 <td>
-                                    @venta.Cliente.NombreRazonSocial
-                                    <small>@venta.Cliente.DniCuit</small>
+                                    @DisplayHelper.Mostrar(venta.Cliente.NombreRazonSocial)
+                                    <small>@DisplayHelper.Mostrar(venta.Cliente.DniCuit)</small>
                                 </td>
                                 <td>@FormatearVendedor(venta)</td>
                                 <td><span class="@ObtenerClaseEstado(venta.Estado)">@venta.Estado</span></td>
@@ -219,7 +219,7 @@ else
                                                             <strong>@detalle.Producto.Nombre</strong>
                                                             <small>@detalle.Producto.Sku</small>
                                                         </td>
-                                                        <td>@detalle.Producto.Categoria</td>
+                                                        <td>@DisplayHelper.Mostrar(detalle.Producto.Categoria)</td>
                                                         <td>@ObtenerTrazabilidad(detalle)</td>
                                                         <td>@detalle.Cantidad</td>
                                                         @if (EsAdministrador)
@@ -400,7 +400,7 @@ else
     {
         var referencia = venta.NumeroComprobante ?? $"VTA-{venta.Id:D8}";
         var confirmado = await ConfirmService.AskAsync(
-            $"¿Eliminar la venta {referencia} de {venta.Cliente.NombreRazonSocial}? Se revertirá el stock asociado.",
+            $"¿Eliminar la venta {referencia} de {DisplayHelper.Mostrar(venta.Cliente.NombreRazonSocial)}? Se revertirá el stock asociado.",
             confirmText: "Eliminar");
 
         if (!confirmado)

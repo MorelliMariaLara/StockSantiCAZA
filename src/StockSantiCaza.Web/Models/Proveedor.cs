@@ -6,8 +6,8 @@ public class Proveedor
 {
     public int Id { get; set; }
 
-    [Required, MaxLength(160)]
-    public string NombreRazonSocial { get; set; } = string.Empty;
+    [MaxLength(160)]
+    public string? NombreRazonSocial { get; set; }
 
     [MaxLength(40)]
     public string? Telefono { get; set; }

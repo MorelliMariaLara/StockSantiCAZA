@@ -116,7 +116,7 @@
             <section class="panel panel-editing" id="proveedor-cuenta">
                 <div class="section-header">
                     <div>
-                        <h2>Cuenta: @proveedorSeleccionado.NombreRazonSocial</h2>
+                        <h2>Cuenta: @DisplayHelper.Mostrar(proveedorSeleccionado.NombreRazonSocial)</h2>
                         <p>
                             Saldo pendiente:
                             <strong class="@(SaldoProveedorSeleccionado > 0 ? "saldo-pendiente" : null)">
@@ -249,20 +249,22 @@
                                 var saldo = ObtenerSaldo(proveedor);
                                 <tr class="@(proveedorSeleccionado?.Id == proveedor.Id ? "panel-editing" : null)">
                                     <td>
-                                        <strong>@proveedor.NombreRazonSocial</strong>
+                                        <strong>@DisplayHelper.Mostrar(proveedor.NombreRazonSocial)</strong>
+                                        <small>@DisplayHelper.Mostrar(proveedor.Telefono)</small>
                                         @if (!string.IsNullOrWhiteSpace(proveedor.Observaciones))
                                         {
                                             <small>@proveedor.Observaciones</small>
                                         }
                                     </td>
                                     <td>
-                                        @if (!string.IsNullOrWhiteSpace(proveedor.Telefono))
+                                        @if (!string.IsNullOrWhiteSpace(proveedor.Telefono) || !string.IsNullOrWhiteSpace(proveedor.Email))
                                         {
-                                            <div>@proveedor.Telefono</div>
+                                            <div>@DisplayHelper.Mostrar(proveedor.Telefono)</div>
+                                            <small>@DisplayHelper.Mostrar(proveedor.Email)</small>
                                         }
-                                        @if (!string.IsNullOrWhiteSpace(proveedor.Email))
+                                        else
                                         {
-                                            <small>@proveedor.Email</small>
+                                            <span>-</span>
                                         }
                                     </td>
                                     <td>
@@ -315,7 +317,7 @@
             if (!string.IsNullOrWhiteSpace(busqueda))
             {
                 query = query.Where(x =>
-                    x.NombreRazonSocial.Contains(busqueda, StringComparison.OrdinalIgnoreCase)
+                    (x.NombreRazonSocial?.Contains(busqueda, StringComparison.OrdinalIgnoreCase) ?? false)
                     || (x.Telefono?.Contains(busqueda, StringComparison.OrdinalIgnoreCase) ?? false)
                     || (x.Email?.Contains(busqueda, StringComparison.OrdinalIgnoreCase) ?? false)
                     || (x.Domicilio?.Contains(busqueda, StringComparison.OrdinalIgnoreCase) ?? false));
@@ -323,7 +325,7 @@
 
             return query
                 .OrderByDescending(x => ObtenerSaldo(x))
-                .ThenBy(x => x.NombreRazonSocial);
+                .ThenBy(x => x.NombreRazonSocial ?? string.Empty);
         }
     }
 
@@ -383,7 +385,7 @@
         form = new ProveedorForm
         {
             Id = proveedor.Id,
-            NombreRazonSocial = proveedor.NombreRazonSocial,
+            NombreRazonSocial = proveedor.NombreRazonSocial ?? string.Empty,
             Telefono = proveedor.Telefono ?? string.Empty,
             Email = proveedor.Email ?? string.Empty,
             Domicilio = proveedor.Domicilio ?? string.Empty,
@@ -422,13 +424,7 @@
         mensaje = null;
         guardando = true;
 
-        var nombre = form.NombreRazonSocial.Trim();
-        if (string.IsNullOrWhiteSpace(nombre))
-        {
-            errores.Add("Debe indicar el nombre del proveedor.");
-            guardando = false;
-            return;
-        }
+        var nombre = DisplayHelper.NormalizarTexto(form.NombreRazonSocial);
 
         if (form.Id is null && form.DeudaInicial < 0)
         {
@@ -446,10 +442,10 @@
                 var proveedor = new Proveedor
                 {
                     NombreRazonSocial = nombre,
-                    Telefono = NormalizarTexto(form.Telefono),
-                    Email = NormalizarTexto(form.Email),
-                    Domicilio = NormalizarTexto(form.Domicilio),
-                    Observaciones = NormalizarTexto(form.Observaciones),
+                    Telefono = DisplayHelper.NormalizarOpcional(form.Telefono),
+                    Email = DisplayHelper.NormalizarOpcional(form.Email),
+                    Domicilio = DisplayHelper.NormalizarOpcional(form.Domicilio),
+                    Observaciones = DisplayHelper.NormalizarOpcional(form.Observaciones),
                     Activo = true
                 };
 
@@ -479,10 +475,10 @@
                 }
 
                 proveedor.NombreRazonSocial = nombre;
-                proveedor.Telefono = NormalizarTexto(form.Telefono);
-                proveedor.Email = NormalizarTexto(form.Email);
-                proveedor.Domicilio = NormalizarTexto(form.Domicilio);
-                proveedor.Observaciones = NormalizarTexto(form.Observaciones);
+                proveedor.Telefono = DisplayHelper.NormalizarOpcional(form.Telefono);
+                proveedor.Email = DisplayHelper.NormalizarOpcional(form.Email);
+                proveedor.Domicilio = DisplayHelper.NormalizarOpcional(form.Domicilio);
+                proveedor.Observaciones = DisplayHelper.NormalizarOpcional(form.Observaciones);
                 proveedor.Activo = true;
                 await db.SaveChangesAsync();
                 mensaje = "Proveedor actualizado correctamente.";
@@ -555,7 +551,7 @@
                 Tipo = tipo,
                 Fecha = fecha,
                 Monto = movimientoForm.Monto,
-                Observaciones = NormalizarTexto(movimientoForm.Observaciones)
+                Observaciones = DisplayHelper.NormalizarOpcional(movimientoForm.Observaciones)
             });
 
             await db.SaveChangesAsync();
@@ -579,7 +575,7 @@
         mensaje = null;
 
         var confirmado = await ConfirmService.AskAsync(
-            $"¿Eliminar al proveedor {proveedor.NombreRazonSocial}? Se borrarán también sus deudas y pagos.");
+            $"¿Eliminar al proveedor {DisplayHelper.Mostrar(proveedor.NombreRazonSocial)}? Se borrarán también sus deudas y pagos.");
 
         if (!confirmado)
         {

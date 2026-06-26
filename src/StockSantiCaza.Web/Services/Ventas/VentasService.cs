@@ -75,9 +75,14 @@ public class VentasService(IDbContextFactory<ApplicationDbContext> dbContextFact
             .Where(x => loteIds.Contains(x.Id))
             .ToDictionaryAsync(x => x.Id, cancellationToken);
 
+        var categorias = await db.CategoriasStock
+            .AsNoTracking()
+            .Where(x => x.Activo)
+            .ToListAsync(cancellationToken);
+
         var contieneControlado = request.Items.Any(item =>
             productos.TryGetValue(item.ProductoId, out var producto)
-            && producto.Categoria is ProductoCategoria.Arma or ProductoCategoria.Municion);
+            && EsCategoriaControlada(producto.Categoria, categorias));
 
         RegistrarAdvertenciaCredencial(cliente, contieneControlado, advertencias);
 
@@ -105,12 +110,13 @@ public class VentasService(IDbContextFactory<ApplicationDbContext> dbContextFact
 
             Arma? arma = null;
             MunicionLote? lote = null;
+            var categoria = ObtenerCategoria(producto.Categoria, categorias);
 
-            if (producto.Categoria == ProductoCategoria.Arma && item.ArmaId.HasValue)
+            if (categoria?.RequiereSerie == true && item.ArmaId.HasValue)
             {
                 arma = ValidarArma(item, producto, armas, errores);
             }
-            else if (producto.Categoria == ProductoCategoria.Municion && item.MunicionLoteId.HasValue)
+            else if (categoria?.RequiereLote == true && item.MunicionLoteId.HasValue)
             {
                 lote = ValidarMunicion(item, producto, lotes, errores);
             }
@@ -243,6 +249,23 @@ public class VentasService(IDbContextFactory<ApplicationDbContext> dbContextFact
         await transaction.CommitAsync(cancellationToken);
     }
 
+    private static CategoriaStock? ObtenerCategoria(string? nombre, IReadOnlyList<CategoriaStock> categorias)
+    {
+        if (string.IsNullOrWhiteSpace(nombre))
+        {
+            return null;
+        }
+
+        return categorias.FirstOrDefault(x =>
+            x.Nombre.Equals(nombre, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool EsCategoriaControlada(string? nombre, IReadOnlyList<CategoriaStock> categorias)
+    {
+        var categoria = ObtenerCategoria(nombre, categorias);
+        return categoria?.RequiereSerie == true || categoria?.RequiereLote == true;
+    }
+
     private static void RegistrarAdvertenciaCredencial(Cliente cliente, bool contieneControlado, List<string> advertencias)
     {
         if (!contieneControlado)
@@ -256,9 +279,9 @@ public class VentasService(IDbContextFactory<ApplicationDbContext> dbContextFact
             return;
         }
 
-        if (!cliente.CredencialCLU.EstaVigente)
+        if (cliente.CredencialCLU.FechaVencimiento is DateOnly vencimiento && vencimiento < DateOnly.FromDateTime(DateTime.Today))
         {
-            advertencias.Add($"La CLU del cliente venció el {cliente.CredencialCLU.FechaVencimiento:dd/MM/yyyy}; la venta se confirmó igualmente.");
+            advertencias.Add($"La CLU del cliente venció el {vencimiento:dd/MM/yyyy}; la venta se confirmó igualmente.");
         }
     }
 

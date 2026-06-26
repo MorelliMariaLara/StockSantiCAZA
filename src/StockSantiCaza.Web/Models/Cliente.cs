@@ -6,11 +6,11 @@ public class Cliente
 {
     public int Id { get; set; }
 
-    [Required, MaxLength(160)]
-    public string NombreRazonSocial { get; set; } = string.Empty;
+    [MaxLength(160)]
+    public string? NombreRazonSocial { get; set; }
 
-    [Required, MaxLength(20)]
-    public string DniCuit { get; set; } = string.Empty;
+    [MaxLength(20)]
+    public string? DniCuit { get; set; }
 
     [MaxLength(180), EmailAddress]
     public string? Email { get; set; }

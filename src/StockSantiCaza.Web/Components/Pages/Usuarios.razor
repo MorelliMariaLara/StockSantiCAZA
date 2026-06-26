@@ -87,8 +87,8 @@
                     @foreach (var usuario in usuarios)
                     {
                         <tr>
-                            <td>@usuario.Nombre</td>
-                            <td>@usuario.Login</td>
+                            <td>@DisplayHelper.Mostrar(usuario.Nombre)</td>
+                            <td>@DisplayHelper.Mostrar(usuario.Login)</td>
                             <td>@usuario.Rol</td>
                             <td>
                                 <div class="row-actions">
@@ -169,7 +169,7 @@
         mensaje = null;
 
         var confirmado = await ConfirmService.AskAsync(
-            $"¿Eliminar al usuario {usuario.Nombre} ({usuario.Login})? Esta acción no se puede deshacer.");
+            $"¿Eliminar al usuario {DisplayHelper.Mostrar(usuario.Nombre)} ({DisplayHelper.Mostrar(usuario.Login)})? Esta acción no se puede deshacer.");
 
         if (!confirmado)
         {

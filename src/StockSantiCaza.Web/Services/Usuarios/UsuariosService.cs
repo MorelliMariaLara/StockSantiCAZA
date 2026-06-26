@@ -1,6 +1,7 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using StockSantiCaza.Web.Data;
+using StockSantiCaza.Web.Helpers;
 using StockSantiCaza.Web.Models;
 
 namespace StockSantiCaza.Web.Services.Usuarios;
@@ -54,43 +55,34 @@ public class UsuariosService(
 
     public async Task GuardarAsync(UsuarioFormRequest request, CancellationToken cancellationToken = default)
     {
-        var nombre = request.Nombre.Trim();
-        var login = request.Login.Trim().ToLowerInvariant();
+        var nombre = DisplayHelper.NormalizarTexto(request.Nombre);
+        var login = DisplayHelper.NormalizarOpcional(request.Login)?.ToLowerInvariant();
         var password = request.Password?.Trim();
-
-        if (string.IsNullOrWhiteSpace(nombre))
-        {
-            throw new InvalidOperationException("Debe indicar el nombre del usuario.");
-        }
-
-        if (string.IsNullOrWhiteSpace(login))
-        {
-            throw new InvalidOperationException("Debe indicar el usuario de acceso.");
-        }
 
         await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
-        var loginDuplicado = await db.Usuarios.AnyAsync(x =>
-            x.Login == login
-            && (!request.Id.HasValue || x.Id != request.Id.Value),
-            cancellationToken);
-
-        if (loginDuplicado)
+        if (!string.IsNullOrWhiteSpace(login))
         {
-            throw new InvalidOperationException($"Ya existe un usuario con login {login}.");
+            var loginDuplicado = await db.Usuarios.AnyAsync(x =>
+                x.Login == login
+                && (!request.Id.HasValue || x.Id != request.Id.Value),
+                cancellationToken);
+
+            if (loginDuplicado)
+            {
+                throw new InvalidOperationException($"Ya existe un usuario con login {login}.");
+            }
         }
 
         Usuario usuario;
         if (request.Id is null)
         {
-            if (string.IsNullOrWhiteSpace(password))
-            {
-                throw new InvalidOperationException("Debe indicar una contraseña para el usuario nuevo.");
-            }
-
             usuario = new Usuario { Activo = true };
             db.Usuarios.Add(usuario);
-            usuario.PasswordHash = passwordHasher.HashPassword(usuario, password);
+            var passwordInicial = string.IsNullOrWhiteSpace(password)
+                ? Guid.NewGuid().ToString("N")
+                : password;
+            usuario.PasswordHash = passwordHasher.HashPassword(usuario, passwordInicial);
         }
         else
         {

@@ -167,8 +167,8 @@ else
                     {
                         <tr>
                             <td>
-                                <strong>@cliente.NombreRazonSocial</strong>
-                                <small>@cliente.DniCuit</small>
+                                <strong>@DisplayHelper.Mostrar(cliente.NombreRazonSocial)</strong>
+                                <small>@DisplayHelper.Mostrar(cliente.DniCuit)</small>
                             </td>
                             <td>@FormatearContacto(cliente)</td>
                             <td>@FormatearClu(cliente.CredencialCLU)</td>
@@ -211,14 +211,14 @@ else
             if (!string.IsNullOrWhiteSpace(busqueda))
             {
                 query = query.Where(x =>
-                    x.NombreRazonSocial.Contains(busqueda, StringComparison.OrdinalIgnoreCase)
-                    || x.DniCuit.Contains(busqueda, StringComparison.OrdinalIgnoreCase)
+                    (x.NombreRazonSocial?.Contains(busqueda, StringComparison.OrdinalIgnoreCase) ?? false)
+                    || (x.DniCuit?.Contains(busqueda, StringComparison.OrdinalIgnoreCase) ?? false)
                     || (x.Email?.Contains(busqueda, StringComparison.OrdinalIgnoreCase) ?? false)
                     || (x.Telefono?.Contains(busqueda, StringComparison.OrdinalIgnoreCase) ?? false)
                     || (x.Domicilio?.Contains(busqueda, StringComparison.OrdinalIgnoreCase) ?? false));
             }
 
-            return query.OrderBy(x => x.NombreRazonSocial);
+            return query.OrderBy(x => x.NombreRazonSocial ?? string.Empty);
         }
     }
 
@@ -233,49 +233,9 @@ else
         errores.Clear();
         mensaje = null;
 
-        var nombre = form.NombreRazonSocial.Trim();
-        var dniCuit = form.DniCuit.Trim();
-        var numeroLegajo = form.NumeroLegajoClu.Trim();
-
-        if (string.IsNullOrWhiteSpace(nombre))
-        {
-            errores.Add("Debe indicar el nombre o razón social.");
-        }
-
-        if (string.IsNullOrWhiteSpace(dniCuit))
-        {
-            errores.Add("Debe indicar el DNI/CUIT.");
-        }
-
-        if (form.TieneClu)
-        {
-            if (string.IsNullOrWhiteSpace(numeroLegajo))
-            {
-                errores.Add("Debe indicar el número de legajo CLU.");
-            }
-
-            if (form.FechaEmisionClu is null)
-            {
-                errores.Add("Debe indicar la fecha de emisión de la CLU.");
-            }
-
-            if (form.FechaVencimientoClu is null)
-            {
-                errores.Add("Debe indicar la fecha de vencimiento de la CLU.");
-            }
-
-            if (form.FechaEmisionClu is not null
-                && form.FechaVencimientoClu is not null
-                && form.FechaVencimientoClu.Value < form.FechaEmisionClu.Value)
-            {
-                errores.Add("La fecha de vencimiento de la CLU no puede ser anterior a la emisión.");
-            }
-        }
-
-        if (errores.Count > 0)
-        {
-            return;
-        }
+        var nombre = DisplayHelper.NormalizarTexto(form.NombreRazonSocial);
+        var dniCuit = DisplayHelper.NormalizarOpcional(form.DniCuit);
+        var numeroLegajo = DisplayHelper.NormalizarOpcional(form.NumeroLegajoClu);
 
         try
         {
@@ -283,17 +243,20 @@ else
             await using var db = await DbContextFactory.CreateDbContextAsync();
 
             var clienteActualId = form.Id;
-            var dniDuplicado = await db.Clientes.AnyAsync(x =>
-                x.DniCuit == dniCuit
-                && (!clienteActualId.HasValue || x.Id != clienteActualId.Value));
-
-            if (dniDuplicado)
+            if (!string.IsNullOrWhiteSpace(dniCuit))
             {
-                errores.Add($"Ya existe un cliente con DNI/CUIT {dniCuit}.");
-                return;
+                var dniDuplicado = await db.Clientes.AnyAsync(x =>
+                    x.DniCuit == dniCuit
+                    && (!clienteActualId.HasValue || x.Id != clienteActualId.Value));
+
+                if (dniDuplicado)
+                {
+                    errores.Add($"Ya existe un cliente con DNI/CUIT {dniCuit}.");
+                    return;
+                }
             }
 
-            if (form.TieneClu)
+            if (form.TieneClu && !string.IsNullOrWhiteSpace(numeroLegajo))
             {
                 var cluDuplicada = await db.CredencialesCLU.AnyAsync(x =>
                     x.NumeroLegajo == numeroLegajo
@@ -332,17 +295,17 @@ else
 
             cliente.NombreRazonSocial = nombre;
             cliente.DniCuit = dniCuit;
-            cliente.Email = NormalizarTextoOpcional(form.Email);
-            cliente.Telefono = NormalizarTextoOpcional(form.Telefono);
-            cliente.Domicilio = NormalizarTextoOpcional(form.Domicilio);
+            cliente.Email = DisplayHelper.NormalizarOpcional(form.Email);
+            cliente.Telefono = DisplayHelper.NormalizarOpcional(form.Telefono);
+            cliente.Domicilio = DisplayHelper.NormalizarOpcional(form.Domicilio);
             cliente.Activo = true;
 
-            if (form.TieneClu)
+            if (form.TieneClu && !string.IsNullOrWhiteSpace(numeroLegajo))
             {
                 cliente.CredencialCLU ??= new CredencialCLU();
                 cliente.CredencialCLU.NumeroLegajo = numeroLegajo;
-                cliente.CredencialCLU.FechaEmision = form.FechaEmisionClu!.Value;
-                cliente.CredencialCLU.FechaVencimiento = form.FechaVencimientoClu!.Value;
+                cliente.CredencialCLU.FechaEmision = form.FechaEmisionClu;
+                cliente.CredencialCLU.FechaVencimiento = form.FechaVencimientoClu;
             }
             else if (cliente.CredencialCLU is not null)
             {
@@ -371,7 +334,7 @@ else
         mensaje = null;
 
         var confirmado = await ConfirmService.AskAsync(
-            $"¿Eliminar al cliente {cliente.NombreRazonSocial}? Esta acción no se puede deshacer.");
+            $"¿Eliminar al cliente {DisplayHelper.Mostrar(cliente.NombreRazonSocial)}? Esta acción no se puede deshacer.");
 
         if (!confirmado)
         {
@@ -448,8 +411,8 @@ else
         form = new ClienteForm
         {
             Id = cliente.Id,
-            NombreRazonSocial = cliente.NombreRazonSocial,
-            DniCuit = cliente.DniCuit,
+            NombreRazonSocial = cliente.NombreRazonSocial ?? string.Empty,
+            DniCuit = cliente.DniCuit ?? string.Empty,
             Email = cliente.Email ?? string.Empty,
             Telefono = cliente.Telefono ?? string.Empty,
             Domicilio = cliente.Domicilio ?? string.Empty,
@@ -469,16 +432,23 @@ else
     private static string FormatearContacto(Cliente cliente)
     {
         var datos = new[] { cliente.Telefono, cliente.Email, cliente.Domicilio }
-            .Where(x => !string.IsNullOrWhiteSpace(x));
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x!)
+            .ToArray();
 
-        return datos.Any() ? string.Join(" / ", datos) : "Sin contacto cargado";
+        return datos.Length > 0 ? string.Join(" / ", datos) : "-";
     }
 
     private static string FormatearClu(CredencialCLU? clu)
     {
-        if (clu is null)
+        if (clu is null || string.IsNullOrWhiteSpace(clu.NumeroLegajo))
         {
-            return "Sin CLU";
+            return "-";
+        }
+
+        if (!clu.FechaVencimiento.HasValue)
+        {
+            return clu.NumeroLegajo;
         }
 
         var estado = clu.EstaVigente ? "vigente" : "vencida";
@@ -489,10 +459,10 @@ else
     {
         public int? Id { get; set; }
 
-        [Required, MaxLength(160)]
+        [MaxLength(160)]
         public string NombreRazonSocial { get; set; } = string.Empty;
 
-        [Required, MaxLength(20)]
+        [MaxLength(20)]
         public string DniCuit { get; set; } = string.Empty;
 
         [MaxLength(180)]

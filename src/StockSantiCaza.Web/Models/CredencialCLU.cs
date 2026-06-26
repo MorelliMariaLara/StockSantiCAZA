@@ -10,13 +10,14 @@ public class CredencialCLU
     public int ClienteId { get; set; }
     public Cliente Cliente { get; set; } = null!;
 
-    [Required, MaxLength(80)]
-    public string NumeroLegajo { get; set; } = string.Empty;
+    [MaxLength(80)]
+    public string? NumeroLegajo { get; set; }
 
-    public DateOnly FechaEmision { get; set; }
+    public DateOnly? FechaEmision { get; set; }
 
-    public DateOnly FechaVencimiento { get; set; }
+    public DateOnly? FechaVencimiento { get; set; }
 
     [NotMapped]
-    public bool EstaVigente => FechaVencimiento >= DateOnly.FromDateTime(DateTime.Today);
+    public bool EstaVigente => FechaVencimiento.HasValue
+        && FechaVencimiento.Value >= DateOnly.FromDateTime(DateTime.Today);
 }

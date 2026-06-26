@@ -6,16 +6,17 @@ public class Producto
 {
     public int Id { get; set; }
 
-    [Required, MaxLength(40)]
-    public string Sku { get; set; } = string.Empty;
+    [MaxLength(40)]
+    public string? Sku { get; set; }
 
-    [Required, MaxLength(180)]
-    public string Nombre { get; set; } = string.Empty;
+    [MaxLength(180)]
+    public string? Nombre { get; set; }
 
     [MaxLength(800)]
     public string? Descripcion { get; set; }
 
-    public ProductoCategoria Categoria { get; set; } = ProductoCategoria.General;
+    [MaxLength(80)]
+    public string? Categoria { get; set; }
 
     [MaxLength(80)]
     public string? Marca { get; set; }

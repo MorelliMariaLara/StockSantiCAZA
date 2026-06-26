@@ -1,12 +1,5 @@
 namespace StockSantiCaza.Web.Models;
 
-public enum ProductoCategoria
-{
-    General = 1,
-    Arma = 2,
-    Municion = 3
-}
-
 public enum TipoArma
 {
     Pistola = 1,

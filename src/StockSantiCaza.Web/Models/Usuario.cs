@@ -6,13 +6,13 @@ public class Usuario
 {
     public int Id { get; set; }
 
-    [Required, MaxLength(120)]
-    public string Nombre { get; set; } = string.Empty;
+    [MaxLength(120)]
+    public string? Nombre { get; set; }
 
-    [Required, MaxLength(60)]
-    public string Login { get; set; } = string.Empty;
+    [MaxLength(60)]
+    public string? Login { get; set; }
 
-    [Required, MaxLength(256)]
+    [MaxLength(256)]
     public string PasswordHash { get; set; } = string.Empty;
 
     public RolUsuario Rol { get; set; } = RolUsuario.Vendedor;
