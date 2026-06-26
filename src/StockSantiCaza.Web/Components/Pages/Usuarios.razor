@@ -2,6 +2,7 @@
 @inject IUsuariosService UsuariosService
 @inject IAuthService AuthService
 @inject IJSRuntime Js
+@inject ConfirmDialogService ConfirmService
 
 <AuthorizeAccess RequiereAdministrador="true">
     <PageTitle>Usuarios - StockSantiCAZA</PageTitle>
@@ -100,11 +101,6 @@
             </table>
         </div>
     </section>
-
-    <ConfirmDialog Visible="mostrarConfirmacion"
-                   Message="@mensajeConfirmacion"
-                   OnConfirm="ConfirmarBorradoAsync"
-                   OnCancel="CancelarConfirmacion" />
 </AuthorizeAccess>
 
 @code {
@@ -112,10 +108,7 @@
     private List<Usuario> usuarios = [];
     private UsuarioForm form = new();
     private bool guardando;
-    private bool mostrarConfirmacion;
     private string? mensaje;
-    private string mensajeConfirmacion = string.Empty;
-    private Usuario? usuarioPendienteBorrar;
     private int EditFormKey => form.Id ?? 0;
 
     protected override async Task OnInitializedAsync()
@@ -169,32 +162,18 @@
         }
     }
 
-    private void BorrarAsync(Usuario usuario)
+    private async Task BorrarAsync(Usuario usuario)
     {
         errores.Clear();
         mensaje = null;
-        usuarioPendienteBorrar = usuario;
-        mensajeConfirmacion = $"¿Eliminar al usuario {usuario.Nombre} ({usuario.Login})? Esta acción no se puede deshacer.";
-        mostrarConfirmacion = true;
-    }
 
-    private void CancelarConfirmacion()
-    {
-        mostrarConfirmacion = false;
-        usuarioPendienteBorrar = null;
-    }
+        var confirmado = await ConfirmService.AskAsync(
+            $"¿Eliminar al usuario {usuario.Nombre} ({usuario.Login})? Esta acción no se puede deshacer.");
 
-    private async Task ConfirmarBorradoAsync()
-    {
-        mostrarConfirmacion = false;
-
-        if (usuarioPendienteBorrar is null)
+        if (!confirmado)
         {
             return;
         }
-
-        var usuario = usuarioPendienteBorrar;
-        usuarioPendienteBorrar = null;
 
         try
         {

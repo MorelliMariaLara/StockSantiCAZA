@@ -1,6 +1,7 @@
 @page "/clientes"
 @inject IDbContextFactory<ApplicationDbContext> DbContextFactory
 @inject IJSRuntime Js
+@inject ConfirmDialogService ConfirmService
 
 <AuthorizeAccess Modulo="ModuloSistema.Clientes">
 <PageTitle>Clientes - StockSantiCAZA</PageTitle>
@@ -188,11 +189,6 @@ else
     </section>
 }
 
-<ConfirmDialog Visible="mostrarConfirmacion"
-               Message="@mensajeConfirmacion"
-               OnConfirm="ConfirmarBorradoClienteAsync"
-               OnCancel="CancelarConfirmacion" />
-
 </AuthorizeAccess>
 
 @code {
@@ -203,9 +199,6 @@ else
     private bool guardando;
     private string? mensaje;
     private string busqueda = string.Empty;
-    private bool mostrarConfirmacion;
-    private string mensajeConfirmacion = string.Empty;
-    private Cliente? clientePendienteBorrar;
     private int EditFormKey => form.Id ?? 0;
 
     private IEnumerable<Cliente> ClientesFiltrados
@@ -371,32 +364,18 @@ else
         }
     }
 
-    private void BorrarClienteAsync(Cliente cliente)
+    private async Task BorrarClienteAsync(Cliente cliente)
     {
         errores.Clear();
         mensaje = null;
-        clientePendienteBorrar = cliente;
-        mensajeConfirmacion = $"¿Eliminar al cliente {cliente.NombreRazonSocial}? Esta acción no se puede deshacer.";
-        mostrarConfirmacion = true;
-    }
 
-    private void CancelarConfirmacion()
-    {
-        mostrarConfirmacion = false;
-        clientePendienteBorrar = null;
-    }
+        var confirmado = await ConfirmService.AskAsync(
+            $"¿Eliminar al cliente {cliente.NombreRazonSocial}? Esta acción no se puede deshacer.");
 
-    private async Task ConfirmarBorradoClienteAsync()
-    {
-        mostrarConfirmacion = false;
-
-        if (clientePendienteBorrar is null)
+        if (!confirmado)
         {
             return;
         }
-
-        var cliente = clientePendienteBorrar;
-        clientePendienteBorrar = null;
 
         try
         {

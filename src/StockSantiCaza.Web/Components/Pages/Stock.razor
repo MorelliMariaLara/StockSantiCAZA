@@ -3,6 +3,7 @@
 @inject IStockImportService ImportService
 @inject IJSRuntime Js
 @inject IAuthService AuthService
+@inject ConfirmDialogService ConfirmService
 
 <AuthorizeAccess Modulo="ModuloSistema.Stock">
     <PageTitle>Stock - StockSantiCAZA</PageTitle>
@@ -293,11 +294,6 @@
             </div>
         </section>
     }
-
-    <ConfirmDialog Visible="mostrarConfirmacion"
-                   Message="@mensajeConfirmacion"
-                   OnConfirm="ConfirmarBorradoProductoAsync"
-                   OnCancel="CancelarConfirmacion" />
 </AuthorizeAccess>
 
 @code {
@@ -317,9 +313,6 @@
     private string estadoStockFiltro = string.Empty;
     private IBrowserFile? archivoImportacion;
     private StockImportResult? resultadoImportacion;
-    private bool mostrarConfirmacion;
-    private string mensajeConfirmacion = string.Empty;
-    private Producto? productoPendienteBorrar;
     private int EditFormKey => form.Id ?? 0;
     private bool PuedeEditarStock => AuthService.UsuarioActual?.PuedeEditarStock == true;
 
@@ -534,32 +527,18 @@
         };
     }
 
-    private void BorrarProductoAsync(Producto producto)
+    private async Task BorrarProductoAsync(Producto producto)
     {
         errores.Clear();
         mensaje = null;
-        productoPendienteBorrar = producto;
-        mensajeConfirmacion = $"¿Eliminar el producto {producto.Nombre} ({producto.Sku})? Esta acción no se puede deshacer.";
-        mostrarConfirmacion = true;
-    }
 
-    private void CancelarConfirmacion()
-    {
-        mostrarConfirmacion = false;
-        productoPendienteBorrar = null;
-    }
+        var confirmado = await ConfirmService.AskAsync(
+            $"¿Eliminar el producto {producto.Nombre} ({producto.Sku})? Esta acción no se puede deshacer.");
 
-    private async Task ConfirmarBorradoProductoAsync()
-    {
-        mostrarConfirmacion = false;
-
-        if (productoPendienteBorrar is null)
+        if (!confirmado)
         {
             return;
         }
-
-        var producto = productoPendienteBorrar;
-        productoPendienteBorrar = null;
 
         try
         {

@@ -8,6 +8,7 @@ using StockSantiCaza.Web.Services.Reportes;
 using StockSantiCaza.Web.Services.Stock;
 using StockSantiCaza.Web.Services.Usuarios;
 using StockSantiCaza.Web.Services.Ventas;
+using StockSantiCaza.Web.Services.Ui;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -27,6 +28,7 @@ builder.Services.AddScoped<IUsuariosService, UsuariosService>();
 builder.Services.AddScoped<IVentasService, VentasService>();
 builder.Services.AddScoped<IReportesService, ReportesService>();
 builder.Services.AddScoped<IStockImportService, StockImportService>();
+builder.Services.AddScoped<ConfirmDialogService>();
 
 var app = builder.Build();
 
