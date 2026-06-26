@@ -89,6 +89,51 @@ else
                 <strong>@VentasFiltradas.SelectMany(x => x.Detalles).Count(x => x.Arma is not null || x.MunicionLote is not null)</strong>
             </div>
         </section>
+
+        <section class="panel">
+            <div class="section-header">
+                <div>
+                    <h2>Totales por vendedor</h2>
+                    <p>Resumen del período y filtros aplicados (ventas no anuladas).</p>
+                </div>
+            </div>
+
+            @if (!ResumenPorVendedor.Any())
+            {
+                <p>No hay ventas para mostrar en el resumen por vendedor.</p>
+            }
+            else
+            {
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Vendedor</th>
+                                <th>Cantidad de ventas</th>
+                                <th>Total vendido USD</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in ResumenPorVendedor)
+                            {
+                                <tr>
+                                    <td><strong>@item.Vendedor</strong></td>
+                                    <td>@item.CantidadVentas</td>
+                                    <td>@MonedaHelper.FormatearUsd(item.TotalVendido)</td>
+                                </tr>
+                            }
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <th>Total general</th>
+                                <th>@ResumenPorVendedor.Sum(x => x.CantidadVentas)</th>
+                                <th>@MonedaHelper.FormatearUsd(ResumenPorVendedor.Sum(x => x.TotalVendido))</th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            }
+        </section>
     }
 
     <section class="panel">
@@ -230,6 +275,21 @@ else
         }
     }
 
+    private IEnumerable<ResumenVendedorVm> ResumenPorVendedor =>
+        VentasFiltradas
+            .Where(x => x.Estado != EstadoVenta.Anulada)
+            .GroupBy(x => new
+            {
+                x.VendedorId,
+                Nombre = FormatearVendedor(x)
+            })
+            .Select(g => new ResumenVendedorVm(
+                g.Key.Nombre,
+                g.Count(),
+                g.Sum(x => x.Total)))
+            .OrderByDescending(x => x.TotalVendido)
+            .ThenBy(x => x.Vendedor);
+
     protected override async Task OnInitializedAsync()
     {
         await CargarVentasAsync();
@@ -330,4 +390,6 @@ else
         EstadoVenta.Facturada => "badge ok",
         _ => "badge muted"
     };
+
+    private sealed record ResumenVendedorVm(string Vendedor, int CantidadVentas, decimal TotalVendido);
 }
