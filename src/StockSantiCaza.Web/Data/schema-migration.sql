@@ -239,7 +239,7 @@ END;
 IF OBJECT_ID(N'[dbo].[Clientes]', N'U') IS NOT NULL
 AND EXISTS (
     SELECT 1 FROM sys.indexes
-    WHERE name = 'IX_Clientes_DniCuit' AND object_id = OBJECT_ID(N'dbo.Clientes') AND has_filter = 0
+    WHERE name = 'IX_Clientes_DniCuit' AND object_id = OBJECT_ID(N'dbo.Clientes')
 )
 BEGIN
     EXEC(N'DROP INDEX [IX_Clientes_DniCuit] ON [dbo].[Clientes];');
@@ -277,7 +277,7 @@ END;
 IF OBJECT_ID(N'[dbo].[Usuarios]', N'U') IS NOT NULL
 AND EXISTS (
     SELECT 1 FROM sys.indexes
-    WHERE name = 'IX_Usuarios_Login' AND object_id = OBJECT_ID(N'dbo.Usuarios') AND has_filter = 0
+    WHERE name = 'IX_Usuarios_Login' AND object_id = OBJECT_ID(N'dbo.Usuarios')
 )
 BEGIN
     EXEC(N'DROP INDEX [IX_Usuarios_Login] ON [dbo].[Usuarios];');
@@ -315,7 +315,7 @@ END;
 IF OBJECT_ID(N'[dbo].[CredencialesCLU]', N'U') IS NOT NULL
 AND EXISTS (
     SELECT 1 FROM sys.indexes
-    WHERE name = 'IX_CredencialesCLU_NumeroLegajo' AND object_id = OBJECT_ID(N'dbo.CredencialesCLU') AND has_filter = 0
+    WHERE name = 'IX_CredencialesCLU_NumeroLegajo' AND object_id = OBJECT_ID(N'dbo.CredencialesCLU')
 )
 BEGIN
     EXEC(N'DROP INDEX [IX_CredencialesCLU_NumeroLegajo] ON [dbo].[CredencialesCLU];');

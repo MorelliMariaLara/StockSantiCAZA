@@ -245,7 +245,7 @@ GO
 IF OBJECT_ID(N'[dbo].[Clientes]', N'U') IS NOT NULL
 AND EXISTS (
     SELECT 1 FROM sys.indexes
-    WHERE name = 'IX_Clientes_DniCuit' AND object_id = OBJECT_ID(N'dbo.Clientes') AND has_filter = 0
+    WHERE name = 'IX_Clientes_DniCuit' AND object_id = OBJECT_ID(N'dbo.Clientes')
 )
 BEGIN
     EXEC(N'DROP INDEX [IX_Clientes_DniCuit] ON [dbo].[Clientes];');
