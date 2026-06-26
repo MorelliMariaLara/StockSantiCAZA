@@ -2,6 +2,7 @@
 @inject IDbContextFactory<ApplicationDbContext> DbContextFactory
 @inject IJSRuntime Js
 @inject ConfirmDialogService ConfirmService
+@inject AlertDialogService AlertService
 
 <AuthorizeAccess RequiereAdministrador="true">
     <PageTitle>Proveedores - StockSantiCAZA</PageTitle>
@@ -591,7 +592,7 @@
             var proveedorDb = await db.Proveedores.SingleOrDefaultAsync(x => x.Id == proveedor.Id);
             if (proveedorDb is null)
             {
-                errores.Add("El proveedor ya no existe.");
+                await AlertService.ShowErrorAsync("El proveedor ya no existe.");
                 return;
             }
 
@@ -613,7 +614,7 @@
         }
         catch (Exception ex)
         {
-            errores.Add($"No se pudo eliminar el proveedor: {ex.Message}");
+            await AlertService.ShowErrorAsync($"No se pudo eliminar el proveedor: {ex.Message}");
         }
     }
 

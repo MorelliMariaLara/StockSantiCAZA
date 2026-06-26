@@ -2,6 +2,7 @@
 @inject IDbContextFactory<ApplicationDbContext> DbContextFactory
 @inject IJSRuntime Js
 @inject ConfirmDialogService ConfirmService
+@inject AlertDialogService AlertService
 
 <AuthorizeAccess Modulo="ModuloSistema.Clientes">
 <PageTitle>Clientes - StockSantiCAZA</PageTitle>
@@ -384,7 +385,7 @@ else
             var tieneVentas = await db.Ventas.AnyAsync(x => x.ClienteId == cliente.Id);
             if (tieneVentas)
             {
-                errores.Add("No se puede eliminar el cliente porque tiene ventas registradas.");
+                await AlertService.ShowErrorAsync("No se puede eliminar el cliente porque tiene ventas registradas.");
                 return;
             }
 
@@ -394,7 +395,7 @@ else
 
             if (clienteExistente is null)
             {
-                errores.Add("El cliente seleccionado ya no existe.");
+                await AlertService.ShowErrorAsync("El cliente seleccionado ya no existe.");
                 return;
             }
 
@@ -411,7 +412,7 @@ else
         }
         catch (Exception ex)
         {
-            errores.Add($"No se pudo eliminar el cliente: {ex.Message}");
+            await AlertService.ShowErrorAsync($"No se pudo eliminar el cliente: {ex.Message}");
         }
     }
 

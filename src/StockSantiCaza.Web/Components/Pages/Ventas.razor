@@ -1,6 +1,9 @@
 @page "/ventas"
 @inject IDbContextFactory<ApplicationDbContext> DbContextFactory
 @inject IAuthService AuthService
+@inject IVentasService VentasService
+@inject ConfirmDialogService ConfirmService
+@inject AlertDialogService AlertService
 
 <AuthorizeAccess Modulo="ModuloSistema.Ventas">
 <PageTitle>Ventas - StockSantiCAZA</PageTitle>
@@ -55,11 +58,6 @@
     @if (!EsAdministrador)
     {
         <p class="hint">Mostrando sus ventas recientes. Los totales y filtros por fecha son solo para administradores.</p>
-    }
-
-    @if (!string.IsNullOrWhiteSpace(error))
-    {
-        <div class="alert alert-danger">@error</div>
     }
 </section>
 
@@ -163,6 +161,7 @@ else
                             {
                                 <th>Total</th>
                             }
+                            <th>Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -183,9 +182,15 @@ else
                                 {
                                     <td>@MonedaHelper.FormatearUsd(venta.Total)</td>
                                 }
+                                <td>
+                                    @if (PuedeEliminarVenta(venta))
+                                    {
+                                        <button type="button" class="button btn-delete" @onclick="() => BorrarVentaAsync(venta)">Borrar</button>
+                                    }
+                                </td>
                             </tr>
                             <tr class="sale-detail-row">
-                                <td colspan="@(EsAdministrador ? 6 : 5)">
+                                <td colspan="@(EsAdministrador ? 7 : 6)">
                                     <div class="sale-detail">
                                         @if (!string.IsNullOrWhiteSpace(venta.Observaciones))
                                         {
@@ -245,7 +250,6 @@ else
     private DateTime fechaHasta = DateTime.Today;
     private string busqueda = string.Empty;
     private string estadoFiltro = string.Empty;
-    private string? error;
     private bool cargando = true;
 
     private bool EsAdministrador => AuthService.UsuarioActual?.EsAdministrador == true;
@@ -297,11 +301,9 @@ else
 
     private async Task CargarVentasAsync()
     {
-        error = null;
-
         if (EsAdministrador && fechaDesde.Date > fechaHasta.Date)
         {
-            error = "La fecha desde no puede ser posterior a la fecha hasta.";
+            await AlertService.ShowErrorAsync("La fecha desde no puede ser posterior a la fecha hasta.");
             return;
         }
 
@@ -343,7 +345,7 @@ else
         }
         catch (Exception ex)
         {
-            error = $"No se pudieron cargar las ventas: {ex.Message}";
+            await AlertService.ShowErrorAsync($"No se pudieron cargar las ventas: {ex.Message}");
         }
         finally
         {
@@ -390,6 +392,40 @@ else
         EstadoVenta.Facturada => "badge ok",
         _ => "badge muted"
     };
+
+    private bool PuedeEliminarVenta(Venta venta) =>
+        EsAdministrador || venta.VendedorId == AuthService.UsuarioActual?.Id;
+
+    private async Task BorrarVentaAsync(Venta venta)
+    {
+        var referencia = venta.NumeroComprobante ?? $"VTA-{venta.Id:D8}";
+        var confirmado = await ConfirmService.AskAsync(
+            $"¿Eliminar la venta {referencia} de {venta.Cliente.NombreRazonSocial}? Se revertirá el stock asociado.",
+            confirmText: "Eliminar");
+
+        if (!confirmado)
+        {
+            return;
+        }
+
+        try
+        {
+            await VentasService.EliminarAsync(
+                venta.Id,
+                AuthService.UsuarioActual?.Id,
+                EsAdministrador);
+            await AlertService.ShowSuccessAsync($"Venta {referencia} eliminada correctamente.");
+            await CargarVentasAsync();
+        }
+        catch (VentaValidationException ex)
+        {
+            await AlertService.ShowErrorsAsync(ex.Errores);
+        }
+        catch (Exception ex)
+        {
+            await AlertService.ShowErrorAsync($"No se pudo eliminar la venta: {ex.Message}");
+        }
+    }
 
     private sealed record ResumenVendedorVm(string Vendedor, int CantidadVentas, decimal TotalVendido);
 }

@@ -29,6 +29,7 @@ builder.Services.AddScoped<IVentasService, VentasService>();
 builder.Services.AddScoped<IReportesService, ReportesService>();
 builder.Services.AddScoped<IStockImportService, StockImportService>();
 builder.Services.AddScoped<ConfirmDialogService>();
+builder.Services.AddScoped<AlertDialogService>();
 
 var app = builder.Build();
 

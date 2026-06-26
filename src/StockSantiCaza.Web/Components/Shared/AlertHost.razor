@@ -1,0 +1,48 @@
+@inject AlertDialogService AlertService
+@implements IDisposable
+
+@if (AlertService.IsOpen)
+{
+    <div class="alert-backdrop no-print" @onclick="Cerrar">
+        <div class="alert-panel @ObtenerClasePanel()" role="alertdialog" aria-modal="true" aria-labelledby="alert-title" @onclick:stopPropagation="true">
+            <div class="alert-icon" aria-hidden="true">@ObtenerIcono()</div>
+            <h3 id="alert-title">@AlertService.Title</h3>
+            <p class="alert-message">@AlertService.Message</p>
+            <div class="alert-actions">
+                <button type="button" class="button primary" @onclick="Cerrar">Entendido</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    protected override void OnInitialized()
+    {
+        AlertService.StateChanged += OnStateChanged;
+    }
+
+    private void OnStateChanged() => InvokeAsync(StateHasChanged);
+
+    private void Cerrar() => AlertService.Dismiss();
+
+    private string ObtenerClasePanel() => AlertService.Kind switch
+    {
+        AlertKind.Warning => "warning",
+        AlertKind.Success => "success",
+        AlertKind.Info => "info",
+        _ => "error"
+    };
+
+    private string ObtenerIcono() => AlertService.Kind switch
+    {
+        AlertKind.Warning => "!",
+        AlertKind.Success => "✓",
+        AlertKind.Info => "i",
+        _ => "✕"
+    };
+
+    public void Dispose()
+    {
+        AlertService.StateChanged -= OnStateChanged;
+    }
+}

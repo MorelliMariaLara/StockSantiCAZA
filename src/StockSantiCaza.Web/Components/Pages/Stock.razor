@@ -4,6 +4,7 @@
 @inject IJSRuntime Js
 @inject IAuthService AuthService
 @inject ConfirmDialogService ConfirmService
+@inject AlertDialogService AlertService
 
 <AuthorizeAccess Modulo="ModuloSistema.Stock">
     <PageTitle>Stock - StockSantiCAZA</PageTitle>
@@ -547,14 +548,14 @@
             var enVentas = await db.DetallesVenta.AnyAsync(x => x.ProductoId == producto.Id);
             if (enVentas)
             {
-                errores.Add("No se puede eliminar el producto porque está asociado a ventas registradas.");
+                await AlertService.ShowErrorAsync("No se puede eliminar el producto porque está asociado a ventas registradas.");
                 return;
             }
 
             var productoDb = await db.Productos.SingleOrDefaultAsync(x => x.Id == producto.Id);
             if (productoDb is null)
             {
-                errores.Add("El producto seleccionado ya no existe.");
+                await AlertService.ShowErrorAsync("El producto seleccionado ya no existe.");
                 return;
             }
 
@@ -566,7 +567,7 @@
             if (armaIds.Count > 0
                 && await db.DetallesVenta.AnyAsync(x => x.ArmaId.HasValue && armaIds.Contains(x.ArmaId.Value)))
             {
-                errores.Add("No se puede eliminar el producto porque tiene armas vinculadas a ventas.");
+                await AlertService.ShowErrorAsync("No se puede eliminar el producto porque tiene armas vinculadas a ventas.");
                 return;
             }
 
@@ -578,7 +579,7 @@
             if (loteIds.Count > 0
                 && await db.DetallesVenta.AnyAsync(x => x.MunicionLoteId.HasValue && loteIds.Contains(x.MunicionLoteId.Value)))
             {
-                errores.Add("No se puede eliminar el producto porque tiene lotes vinculados a ventas.");
+                await AlertService.ShowErrorAsync("No se puede eliminar el producto porque tiene lotes vinculados a ventas.");
                 return;
             }
 
@@ -606,7 +607,7 @@
         }
         catch (Exception ex)
         {
-            errores.Add($"No se pudo eliminar el producto: {ex.Message}");
+            await AlertService.ShowErrorAsync($"No se pudo eliminar el producto: {ex.Message}");
         }
     }
 

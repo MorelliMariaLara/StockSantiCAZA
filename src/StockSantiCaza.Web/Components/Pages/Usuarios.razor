@@ -3,6 +3,7 @@
 @inject IAuthService AuthService
 @inject IJSRuntime Js
 @inject ConfirmDialogService ConfirmService
+@inject AlertDialogService AlertService
 
 <AuthorizeAccess RequiereAdministrador="true">
     <PageTitle>Usuarios - StockSantiCAZA</PageTitle>
@@ -189,7 +190,7 @@
         }
         catch (Exception ex)
         {
-            errores.Add(ex.Message);
+            await AlertService.ShowErrorAsync(ex.Message);
         }
     }
 

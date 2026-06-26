@@ -175,6 +175,74 @@ public class VentasService(IDbContextFactory<ApplicationDbContext> dbContextFact
             advertencias);
     }
 
+    public async Task EliminarAsync(
+        int ventaId,
+        int? usuarioActualId,
+        bool esAdministrador,
+        CancellationToken cancellationToken = default)
+    {
+        await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+
+        var venta = await db.Ventas
+            .Include(x => x.Detalles)
+            .SingleOrDefaultAsync(x => x.Id == ventaId, cancellationToken);
+
+        if (venta is null)
+        {
+            throw new VentaValidationException(["La venta seleccionada no existe."]);
+        }
+
+        if (!esAdministrador && venta.VendedorId != usuarioActualId)
+        {
+            throw new VentaValidationException(["No tiene permiso para eliminar esta venta."]);
+        }
+
+        var referencia = venta.NumeroComprobante ?? $"VTA-{venta.Id:D8}";
+
+        foreach (var detalle in venta.Detalles)
+        {
+            var producto = await db.Productos.SingleAsync(x => x.Id == detalle.ProductoId, cancellationToken);
+            producto.StockActual += detalle.Cantidad;
+
+            if (detalle.ArmaId is int armaId)
+            {
+                var arma = await db.Armas.SingleAsync(x => x.Id == armaId, cancellationToken);
+                arma.ClienteActualId = null;
+                arma.EstadoTramiteAnmac = EstadoTramiteAnmac.Autorizado;
+                arma.FechaTransferencia = null;
+            }
+
+            if (detalle.MunicionLoteId is int loteId)
+            {
+                var lote = await db.MunicionLotes.SingleAsync(x => x.Id == loteId, cancellationToken);
+                lote.CantidadDisponible += detalle.Cantidad;
+            }
+
+            db.MovimientosStock.Add(new MovimientoStock
+            {
+                ProductoId = producto.Id,
+                ArmaId = detalle.ArmaId,
+                MunicionLoteId = detalle.MunicionLoteId,
+                Tipo = TipoMovimientoStock.AnulacionVenta,
+                Cantidad = detalle.Cantidad,
+                StockResultante = producto.StockActual,
+                Observacion = $"Anulación de venta {referencia}"
+            });
+        }
+
+        var movimientosVenta = await db.MovimientosStock
+            .Where(x => x.VentaId == ventaId)
+            .ToListAsync(cancellationToken);
+        db.MovimientosStock.RemoveRange(movimientosVenta);
+
+        db.DetallesVenta.RemoveRange(venta.Detalles);
+        db.Ventas.Remove(venta);
+
+        await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+    }
+
     private static void RegistrarAdvertenciaCredencial(Cliente cliente, bool contieneControlado, List<string> advertencias)
     {
         if (!contieneControlado)
