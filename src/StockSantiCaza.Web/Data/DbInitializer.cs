@@ -102,19 +102,21 @@ public static class DbInitializer
             IF COL_LENGTH('dbo.Productos', 'CategoriaNombre') IS NOT NULL
                AND COL_LENGTH('dbo.Productos', 'Categoria') = 4
             BEGIN
-                UPDATE [dbo].[Productos]
-                SET [CategoriaNombre] = CASE [Categoria]
-                    WHEN 2 THEN N'Arma'
-                    WHEN 3 THEN N'Munición'
-                    ELSE N'General'
-                END;
+                EXEC(N'
+                    UPDATE [dbo].[Productos]
+                    SET [CategoriaNombre] = CASE [Categoria]
+                        WHEN 2 THEN N''Arma''
+                        WHEN 3 THEN N''Munición''
+                        ELSE N''General''
+                    END;
+                ');
             END;
             """);
 
         await db.Database.ExecuteSqlRawAsync("""
             IF COL_LENGTH('dbo.Productos', 'Categoria') = 4
             BEGIN
-                ALTER TABLE [dbo].[Productos] DROP COLUMN [Categoria];
+                EXEC(N'ALTER TABLE [dbo].[Productos] DROP COLUMN [Categoria];');
             END;
             """);
 
@@ -122,7 +124,7 @@ public static class DbInitializer
             IF COL_LENGTH('dbo.Productos', 'CategoriaNombre') IS NOT NULL
                AND COL_LENGTH('dbo.Productos', 'Categoria') IS NULL
             BEGIN
-                EXEC sp_rename 'dbo.Productos.CategoriaNombre', 'Categoria', 'COLUMN';
+                EXEC(N'EXEC sp_rename ''dbo.Productos.CategoriaNombre'', ''Categoria'', ''COLUMN'';');
             END;
             """);
 

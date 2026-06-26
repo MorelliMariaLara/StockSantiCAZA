@@ -1,8 +1,6 @@
 -- Categorías de stock + migración Productos.Categoria (int -> nvarchar)
--- Base: w400048_santicazarmeria (SQL Server / Ferozo)
--- Ejecutar en el administrador SQL de Ferozo o SSMS, paso a paso (cada bloque GO por separado).
+-- Ejecutar en SQL Server (Ferozo). Cada bloque GO por separado si hace falta.
 
--- 1) Tabla de clasificaciones
 IF OBJECT_ID(N'[dbo].[CategoriasStock]', N'U') IS NULL
 BEGIN
     CREATE TABLE [dbo].[CategoriasStock] (
@@ -17,7 +15,6 @@ BEGIN
 END;
 GO
 
--- 2) Agregar columna temporal (solo si Categoria sigue siendo int)
 IF COL_LENGTH('dbo.Productos', 'Categoria') = 4
    AND COL_LENGTH('dbo.Productos', 'CategoriaNombre') IS NULL
 BEGIN
@@ -25,42 +22,39 @@ BEGIN
 END;
 GO
 
--- 3) Copiar valores int -> texto
 IF COL_LENGTH('dbo.Productos', 'CategoriaNombre') IS NOT NULL
    AND COL_LENGTH('dbo.Productos', 'Categoria') = 4
 BEGIN
-    UPDATE [dbo].[Productos]
-    SET [CategoriaNombre] = CASE [Categoria]
-        WHEN 2 THEN N'Arma'
-        WHEN 3 THEN N'Munición'
-        ELSE N'General'
-    END;
+    EXEC(N'
+        UPDATE [dbo].[Productos]
+        SET [CategoriaNombre] = CASE [Categoria]
+            WHEN 2 THEN N''Arma''
+            WHEN 3 THEN N''Munición''
+            ELSE N''General''
+        END;
+    ');
 END;
 GO
 
--- 4) Quitar columna int vieja
 IF COL_LENGTH('dbo.Productos', 'Categoria') = 4
 BEGIN
-    ALTER TABLE [dbo].[Productos] DROP COLUMN [Categoria];
+    EXEC(N'ALTER TABLE [dbo].[Productos] DROP COLUMN [Categoria];');
 END;
 GO
 
--- 5) Renombrar CategoriaNombre -> Categoria
 IF COL_LENGTH('dbo.Productos', 'CategoriaNombre') IS NOT NULL
    AND COL_LENGTH('dbo.Productos', 'Categoria') IS NULL
 BEGIN
-    EXEC sp_rename 'dbo.Productos.CategoriaNombre', 'Categoria', 'COLUMN';
+    EXEC(N'EXEC sp_rename ''dbo.Productos.CategoriaNombre'', ''Categoria'', ''COLUMN'';');
 END;
 GO
 
--- 6) Si no existe ninguna columna Categoria, crearla
 IF COL_LENGTH('dbo.Productos', 'Categoria') IS NULL
 BEGIN
     ALTER TABLE [dbo].[Productos] ADD [Categoria] nvarchar(80) NULL;
 END;
 GO
 
--- 7) Datos iniciales de clasificaciones
 IF NOT EXISTS (SELECT 1 FROM [dbo].[CategoriasStock])
 BEGIN
     INSERT INTO [dbo].[CategoriasStock] ([Nombre], [RequiereSerie], [RequiereLote], [Activo])
