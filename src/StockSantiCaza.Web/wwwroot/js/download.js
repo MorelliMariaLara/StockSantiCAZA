@@ -21,5 +21,19 @@ window.stockSanti = {
   },
   openInNewTab: (url) => {
     window.open(url, '_blank');
+  },
+  openDialog: (dialog) => {
+    if (!dialog || dialog.open) {
+      return;
+    }
+
+    dialog.showModal();
+  },
+  closeDialog: (dialog) => {
+    if (!dialog || !dialog.open) {
+      return;
+    }
+
+    dialog.close();
   }
 };

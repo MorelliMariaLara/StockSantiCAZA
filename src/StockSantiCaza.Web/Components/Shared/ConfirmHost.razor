@@ -1,32 +1,80 @@
 @inject ConfirmDialogService ConfirmService
+@inject IJSRuntime Js
 @implements IDisposable
 
-@if (ConfirmService.IsOpen)
-{
-    <div class="confirm-backdrop no-print" @onclick="Cancelar">
-        <div class="confirm-panel" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" @onclick:stopPropagation="true">
-            <div class="confirm-icon" aria-hidden="true">!</div>
-            <h3 id="confirm-title">@ConfirmService.Title</h3>
-            <p>@ConfirmService.Message</p>
-            <div class="confirm-actions">
-                <button type="button" class="button btn-delete" @onclick="Confirmar">@ConfirmService.ConfirmText</button>
-                <button type="button" class="button ghost" @onclick="Cancelar">Cancelar</button>
-            </div>
+<dialog @ref="_dialog"
+        class="ui-dialog confirm-dialog no-print"
+        @oncancel="OnCancel">
+    <div class="confirm-panel" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" @onclick:stopPropagation="true">
+        <div class="confirm-icon" aria-hidden="true">!</div>
+        <h3 id="confirm-title">@ConfirmService.Title</h3>
+        <p>@ConfirmService.Message</p>
+        <div class="confirm-actions">
+            <button type="button" class="button btn-delete" @onclick="Confirmar">@ConfirmService.ConfirmText</button>
+            <button type="button" class="button ghost" @onclick="Cancelar">Cancelar</button>
         </div>
     </div>
-}
+</dialog>
 
 @code {
+    private ElementReference _dialog;
+    private bool _dialogOpen;
+
     protected override void OnInitialized()
     {
         ConfirmService.StateChanged += OnStateChanged;
     }
 
-    private void OnStateChanged() => InvokeAsync(StateHasChanged);
+    private void OnStateChanged() => InvokeAsync(HandleStateChangedAsync);
 
-    private void Confirmar() => ConfirmService.Confirm();
+    private async Task HandleStateChangedAsync()
+    {
+        StateHasChanged();
+        await SyncDialogAsync();
+    }
 
-    private void Cancelar() => ConfirmService.Cancel();
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await SyncDialogAsync();
+    }
+
+    private async Task SyncDialogAsync()
+    {
+        if (ConfirmService.IsOpen)
+        {
+            if (!_dialogOpen)
+            {
+                await Js.InvokeVoidAsync("stockSanti.openDialog", _dialog);
+                _dialogOpen = true;
+            }
+
+            return;
+        }
+
+        if (_dialogOpen)
+        {
+            await Js.InvokeVoidAsync("stockSanti.closeDialog", _dialog);
+            _dialogOpen = false;
+        }
+    }
+
+    private async Task Confirmar()
+    {
+        ConfirmService.Confirm();
+        await SyncDialogAsync();
+    }
+
+    private async Task Cancelar()
+    {
+        ConfirmService.Cancel();
+        await SyncDialogAsync();
+    }
+
+    private async Task OnCancel()
+    {
+        ConfirmService.Cancel();
+        await SyncDialogAsync();
+    }
 
     public void Dispose()
     {

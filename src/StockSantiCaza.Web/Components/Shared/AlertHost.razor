@@ -1,29 +1,73 @@
 @inject AlertDialogService AlertService
+@inject IJSRuntime Js
 @implements IDisposable
 
-@if (AlertService.IsOpen)
-{
-    <div class="alert-backdrop no-print" @onclick="Cerrar">
-        <div class="alert-panel @ObtenerClasePanel()" role="alertdialog" aria-modal="true" aria-labelledby="alert-title" @onclick:stopPropagation="true">
-            <div class="alert-icon" aria-hidden="true">@ObtenerIcono()</div>
-            <h3 id="alert-title">@AlertService.Title</h3>
-            <p class="alert-message">@AlertService.Message</p>
-            <div class="alert-actions">
-                <button type="button" class="button primary" @onclick="Cerrar">Entendido</button>
-            </div>
+<dialog @ref="_dialog"
+        class="ui-dialog alert-dialog no-print"
+        @oncancel="OnCancel">
+    <div class="alert-panel @ObtenerClasePanel()" role="alertdialog" aria-modal="true" aria-labelledby="alert-title" @onclick:stopPropagation="true">
+        <div class="alert-icon" aria-hidden="true">@ObtenerIcono()</div>
+        <h3 id="alert-title">@AlertService.Title</h3>
+        <p class="alert-message">@AlertService.Message</p>
+        <div class="alert-actions">
+            <button type="button" class="button primary" @onclick="Cerrar">Entendido</button>
         </div>
     </div>
-}
+</dialog>
 
 @code {
+    private ElementReference _dialog;
+    private bool _dialogOpen;
+
     protected override void OnInitialized()
     {
         AlertService.StateChanged += OnStateChanged;
     }
 
-    private void OnStateChanged() => InvokeAsync(StateHasChanged);
+    private void OnStateChanged() => InvokeAsync(HandleStateChangedAsync);
 
-    private void Cerrar() => AlertService.Dismiss();
+    private async Task HandleStateChangedAsync()
+    {
+        StateHasChanged();
+        await SyncDialogAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await SyncDialogAsync();
+    }
+
+    private async Task SyncDialogAsync()
+    {
+        if (AlertService.IsOpen)
+        {
+            if (!_dialogOpen)
+            {
+                await Js.InvokeVoidAsync("stockSanti.openDialog", _dialog);
+                _dialogOpen = true;
+            }
+
+            return;
+        }
+
+        if (_dialogOpen)
+        {
+            await Js.InvokeVoidAsync("stockSanti.closeDialog", _dialog);
+            _dialogOpen = false;
+        }
+    }
+
+    private async Task Cerrar()
+    {
+        AlertService.Dismiss();
+        await SyncDialogAsync();
+    }
+
+    private async Task OnCancel()
+    {
+        AlertService.Dismiss();
+        await SyncDialogAsync();
+    }
 
     private string ObtenerClasePanel() => AlertService.Kind switch
     {

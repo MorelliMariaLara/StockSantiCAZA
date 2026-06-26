@@ -409,6 +409,26 @@ label {
     backdrop-filter: blur(2px);
 }
 
+.ui-dialog {
+    border: none;
+    padding: 0;
+    margin: auto;
+    max-width: calc(100vw - 2.5rem);
+    max-height: calc(100dvh - 2.5rem);
+    overflow: visible;
+    background: transparent;
+    color: var(--text);
+}
+
+.ui-dialog::backdrop {
+    background: rgba(10, 14, 8, 0.62);
+    backdrop-filter: blur(2px);
+}
+
+.ui-dialog:not([open]) {
+    display: none;
+}
+
 .confirm-panel {
     width: min(100%, 400px);
     margin: 0;
