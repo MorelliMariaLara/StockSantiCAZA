@@ -34,7 +34,6 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
                 .IsUnique()
                 .HasFilter("[Sku] IS NOT NULL AND [Sku] <> ''");
             entity.Property(x => x.PrecioUnitario).HasPrecision(18, 2);
-            entity.Property(x => x.CostoUnitario).HasPrecision(18, 2);
             entity.Property(x => x.Sku).HasMaxLength(40);
             entity.Property(x => x.Nombre).HasMaxLength(180);
             entity.Property(x => x.Categoria).HasMaxLength(80);

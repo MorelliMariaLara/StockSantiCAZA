@@ -29,8 +29,6 @@ public class Producto
 
     public decimal PrecioUnitario { get; set; }
 
-    public decimal CostoUnitario { get; set; }
-
     public int StockActual { get; set; }
 
     public int StockMinimo { get; set; } = 1;

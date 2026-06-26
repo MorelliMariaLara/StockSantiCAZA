@@ -20,7 +20,7 @@ public class StockImportService(IDbContextFactory<ApplicationDbContext> dbContex
 {
     private static readonly string[] EncabezadosEsperados =
     [
-        "SKU", "Producto", "Categoría", "Marca", "Modelo", "Calibre", "Stock", "Mínimo", "Precio USD", "Costo USD"
+        "SKU", "Producto", "Categoría", "Marca", "Modelo", "Calibre", "Stock", "Mínimo", "Precio USD"
     ];
 
     public async Task<StockImportResult> ImportarAsync(Stream archivo, CancellationToken cancellationToken = default)
@@ -58,7 +58,6 @@ public class StockImportService(IDbContextFactory<ApplicationDbContext> dbContex
             var stock = Math.Max(0, (int)hoja.Cell(fila, 7).GetDouble());
             var minimo = Math.Max(0, (int)hoja.Cell(fila, 8).GetDouble());
             var precio = Math.Max(0m, (decimal)hoja.Cell(fila, 9).GetDouble());
-            var costo = Math.Max(0m, (decimal)hoja.Cell(fila, 10).GetDouble());
 
             if (sku is null && nombre is null && marca is null && modelo is null)
             {
@@ -84,7 +83,6 @@ public class StockImportService(IDbContextFactory<ApplicationDbContext> dbContex
             producto.StockActual = stock;
             producto.StockMinimo = minimo;
             producto.PrecioUnitario = precio;
-            producto.CostoUnitario = costo;
             producto.Activo = true;
 
             if (esNuevo)
@@ -134,7 +132,6 @@ public class StockImportService(IDbContextFactory<ApplicationDbContext> dbContex
         ws.Cell(2, 7).Value = 10;
         ws.Cell(2, 8).Value = 2;
         ws.Cell(2, 9).Value = 150m;
-        ws.Cell(2, 10).Value = 90m;
 
         ws.Row(1).Style.Font.Bold = true;
         ws.Columns().AdjustToContents();

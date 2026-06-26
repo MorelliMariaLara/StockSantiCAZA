@@ -95,7 +95,6 @@ public class ReportesService(IDbContextFactory<ApplicationDbContext> dbContextFa
                 x.StockActual,
                 x.StockMinimo,
                 x.PrecioUnitario,
-                x.CostoUnitario,
                 x.StockActual <= x.StockMinimo ? "ALERTA" : "OK"))
             .ToListAsync(cancellationToken);
 
@@ -109,16 +108,8 @@ public class ReportesService(IDbContextFactory<ApplicationDbContext> dbContextFa
         return stream.ToArray();
     }
 
-    private static decimal CalcularGananciaVenta(Venta venta)
-    {
-        var gananciaLineas = venta.Detalles.Sum(detalle =>
-        {
-            var margenUnitario = detalle.PrecioUnitario - detalle.Producto.CostoUnitario;
-            return (margenUnitario * detalle.Cantidad) - detalle.Descuento;
-        });
-
-        return gananciaLineas - venta.DescuentoTotal;
-    }
+    private static decimal CalcularGananciaVenta(Venta venta) =>
+        venta.Detalles.Sum(detalle => detalle.Total) - venta.DescuentoTotal;
 
     private static void AgregarHojaVentas(XLWorkbook workbook, IReadOnlyList<Venta> ventas)
     {
@@ -169,8 +160,7 @@ public class ReportesService(IDbContextFactory<ApplicationDbContext> dbContextFa
         var row = 2;
         foreach (var detalle in ventas.SelectMany(x => x.Detalles, (venta, detalle) => new { venta, detalle }))
         {
-            var gananciaLinea = ((detalle.detalle.PrecioUnitario - detalle.detalle.Producto.CostoUnitario) * detalle.detalle.Cantidad)
-                - detalle.detalle.Descuento;
+            var gananciaLinea = detalle.detalle.Total;
 
             ws.Cell(row, 1).Value = detalle.venta.NumeroComprobante;
             ws.Cell(row, 2).Value = FormatearVendedor(detalle.venta);
@@ -193,7 +183,7 @@ public class ReportesService(IDbContextFactory<ApplicationDbContext> dbContextFa
     private static void AgregarHojaStock(XLWorkbook workbook, IEnumerable<StockExportRow> stock)
     {
         var ws = workbook.Worksheets.Add("Stock");
-        var headers = new[] { "SKU", "Producto", "Categoría", "Marca", "Modelo", "Calibre", "Stock", "Mínimo", "Precio USD", "Costo USD", "Estado" };
+        var headers = new[] { "SKU", "Producto", "Categoría", "Marca", "Modelo", "Calibre", "Stock", "Mínimo", "Precio USD", "Estado" };
 
         for (var i = 0; i < headers.Length; i++)
         {
@@ -212,8 +202,7 @@ public class ReportesService(IDbContextFactory<ApplicationDbContext> dbContextFa
             ws.Cell(row, 7).Value = item.StockActual;
             ws.Cell(row, 8).Value = item.StockMinimo;
             ws.Cell(row, 9).Value = item.PrecioUnitario;
-            ws.Cell(row, 10).Value = item.CostoUnitario;
-            ws.Cell(row, 11).Value = item.Estado;
+            ws.Cell(row, 10).Value = item.Estado;
             if (item.Estado == "ALERTA")
             {
                 ws.Row(row).Style.Fill.BackgroundColor = XLColor.LightPink;
@@ -248,6 +237,5 @@ public class ReportesService(IDbContextFactory<ApplicationDbContext> dbContextFa
         int StockActual,
         int StockMinimo,
         decimal PrecioUnitario,
-        decimal CostoUnitario,
         string Estado);
 }

@@ -126,13 +126,8 @@
                     </label>
 
                     <label>
-                        Precio unitario (USD)
+                        Precio (USD)
                         <InputNumber class="input" @bind-Value="form.PrecioUnitario" />
-                    </label>
-
-                    <label>
-                        Costo unitario (USD)
-                        <InputNumber class="input" @bind-Value="form.CostoUnitario" />
                     </label>
 
                     <label>
@@ -592,7 +587,6 @@
             producto.Modelo = DisplayHelper.NormalizarOpcional(form.Modelo);
             producto.Calibre = DisplayHelper.NormalizarOpcional(form.Calibre);
             producto.PrecioUnitario = form.PrecioUnitario;
-            producto.CostoUnitario = form.CostoUnitario;
             producto.StockActual = form.StockActual;
             producto.StockMinimo = form.StockMinimo;
             producto.Activo = true;
@@ -673,7 +667,6 @@
             Modelo = producto.Modelo ?? string.Empty,
             Calibre = producto.Calibre ?? string.Empty,
             PrecioUnitario = producto.PrecioUnitario,
-            CostoUnitario = producto.CostoUnitario,
             StockActual = producto.StockActual,
             StockMinimo = producto.StockMinimo
         };
@@ -893,9 +886,6 @@
 
         [Range(0, 999999999)]
         public decimal PrecioUnitario { get; set; }
-
-        [Range(0, 999999999)]
-        public decimal CostoUnitario { get; set; }
 
         [Range(0, int.MaxValue)]
         public int StockActual { get; set; }
