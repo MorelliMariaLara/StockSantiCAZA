@@ -16,6 +16,7 @@ public static class DbInitializer
         await db.Database.EnsureCreatedAsync();
         await EnsureProveedoresSchemaAsync(db);
         await EnsureCategoriasStockSchemaAsync(db);
+        await EnsureProductosSchemaAsync(db);
 
         if (await db.Usuarios.AnyAsync())
         {
@@ -91,8 +92,30 @@ public static class DbInitializer
             """);
 
         await db.Database.ExecuteSqlRawAsync("""
-            IF COL_LENGTH('dbo.Productos', 'Categoria') = 4
-               AND COL_LENGTH('dbo.Productos', 'CategoriaNombre') IS NULL
+            IF NOT EXISTS (SELECT 1 FROM [dbo].[CategoriasStock])
+            BEGIN
+                INSERT INTO [dbo].[CategoriasStock] ([Nombre], [RequiereSerie], [RequiereLote], [Activo])
+                VALUES
+                    (N'General', 0, 0, 1),
+                    (N'Arma', 1, 0, 1),
+                    (N'Munición', 0, 1, 1),
+                    (N'Miras', 0, 0, 1),
+                    (N'Accesorios', 0, 0, 1);
+            END;
+            """);
+    }
+
+    private static async Task EnsureProductosSchemaAsync(ApplicationDbContext db)
+    {
+        await db.Database.ExecuteSqlRawAsync("""
+            IF EXISTS (
+                SELECT 1
+                FROM sys.columns c
+                INNER JOIN sys.types t ON c.user_type_id = t.user_type_id
+                INNER JOIN sys.tables tb ON c.object_id = tb.object_id
+                WHERE tb.name = 'Productos' AND c.name = 'Categoria' AND t.name = 'int'
+            )
+            AND COL_LENGTH('dbo.Productos', 'CategoriaNombre') IS NULL
             BEGIN
                 ALTER TABLE [dbo].[Productos] ADD [CategoriaNombre] nvarchar(80) NULL;
             END;
@@ -100,7 +123,13 @@ public static class DbInitializer
 
         await db.Database.ExecuteSqlRawAsync("""
             IF COL_LENGTH('dbo.Productos', 'CategoriaNombre') IS NOT NULL
-               AND COL_LENGTH('dbo.Productos', 'Categoria') = 4
+            AND EXISTS (
+                SELECT 1
+                FROM sys.columns c
+                INNER JOIN sys.types t ON c.user_type_id = t.user_type_id
+                INNER JOIN sys.tables tb ON c.object_id = tb.object_id
+                WHERE tb.name = 'Productos' AND c.name = 'Categoria' AND t.name = 'int'
+            )
             BEGIN
                 EXEC(N'
                     UPDATE [dbo].[Productos]
@@ -108,13 +137,20 @@ public static class DbInitializer
                         WHEN 2 THEN N''Arma''
                         WHEN 3 THEN N''Munición''
                         ELSE N''General''
-                    END;
+                    END
+                    WHERE [CategoriaNombre] IS NULL;
                 ');
             END;
             """);
 
         await db.Database.ExecuteSqlRawAsync("""
-            IF COL_LENGTH('dbo.Productos', 'Categoria') = 4
+            IF EXISTS (
+                SELECT 1
+                FROM sys.columns c
+                INNER JOIN sys.types t ON c.user_type_id = t.user_type_id
+                INNER JOIN sys.tables tb ON c.object_id = tb.object_id
+                WHERE tb.name = 'Productos' AND c.name = 'Categoria' AND t.name = 'int'
+            )
             BEGIN
                 EXEC(N'ALTER TABLE [dbo].[Productos] DROP COLUMN [Categoria];');
             END;
@@ -136,15 +172,64 @@ public static class DbInitializer
             """);
 
         await db.Database.ExecuteSqlRawAsync("""
-            IF NOT EXISTS (SELECT 1 FROM [dbo].[CategoriasStock])
+            IF COL_LENGTH('dbo.Productos', 'Categoria') IS NOT NULL
+            AND EXISTS (
+                SELECT 1
+                FROM sys.columns c
+                INNER JOIN sys.types t ON c.user_type_id = t.user_type_id
+                INNER JOIN sys.tables tb ON c.object_id = tb.object_id
+                WHERE tb.name = 'Productos' AND c.name = 'Categoria' AND t.name <> 'nvarchar'
+            )
             BEGIN
-                INSERT INTO [dbo].[CategoriasStock] ([Nombre], [RequiereSerie], [RequiereLote], [Activo])
-                VALUES
-                    (N'General', 0, 0, 1),
-                    (N'Arma', 1, 0, 1),
-                    (N'Munición', 0, 1, 1),
-                    (N'Miras', 0, 0, 1),
-                    (N'Accesorios', 0, 0, 1);
+                EXEC(N'
+                    ALTER TABLE [dbo].[Productos] ADD [CategoriaTxt] nvarchar(80) NULL;
+                    UPDATE [dbo].[Productos]
+                    SET [CategoriaTxt] = CASE [Categoria]
+                        WHEN 2 THEN N''Arma''
+                        WHEN 3 THEN N''Munición''
+                        ELSE N''General''
+                    END;
+                    ALTER TABLE [dbo].[Productos] DROP COLUMN [Categoria];
+                    EXEC sp_rename ''dbo.Productos.CategoriaTxt'', ''Categoria'', ''COLUMN'';
+                ');
+            END;
+            """);
+
+        await db.Database.ExecuteSqlRawAsync("""
+            IF COL_LENGTH('dbo.Productos', 'Sku') IS NOT NULL
+            BEGIN
+                EXEC(N'ALTER TABLE [dbo].[Productos] ALTER COLUMN [Sku] nvarchar(40) NULL;');
+            END;
+            """);
+
+        await db.Database.ExecuteSqlRawAsync("""
+            IF COL_LENGTH('dbo.Productos', 'Nombre') IS NOT NULL
+            BEGIN
+                EXEC(N'ALTER TABLE [dbo].[Productos] ALTER COLUMN [Nombre] nvarchar(180) NULL;');
+            END;
+            """);
+
+        await db.Database.ExecuteSqlRawAsync("""
+            IF EXISTS (
+                SELECT 1 FROM sys.indexes
+                WHERE name = 'IX_Productos_Sku' AND object_id = OBJECT_ID(N'dbo.Productos')
+            )
+            BEGIN
+                EXEC(N'DROP INDEX [IX_Productos_Sku] ON [dbo].[Productos];');
+            END;
+            """);
+
+        await db.Database.ExecuteSqlRawAsync("""
+            IF NOT EXISTS (
+                SELECT 1 FROM sys.indexes
+                WHERE name = 'IX_Productos_Sku' AND object_id = OBJECT_ID(N'dbo.Productos')
+            )
+            BEGIN
+                EXEC(N'
+                    CREATE UNIQUE INDEX [IX_Productos_Sku]
+                    ON [dbo].[Productos] ([Sku])
+                    WHERE [Sku] IS NOT NULL AND [Sku] <> '''';
+                ');
             END;
             """);
     }

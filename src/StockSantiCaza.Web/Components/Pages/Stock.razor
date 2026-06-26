@@ -529,7 +529,7 @@
         mensaje = null;
 
         var sku = DisplayHelper.NormalizarOpcional(form.Sku)?.ToUpperInvariant();
-        var nombre = DisplayHelper.NormalizarTexto(form.Nombre);
+        var nombre = DisplayHelper.NormalizarOpcional(form.Nombre);
         var categoria = DisplayHelper.NormalizarOpcional(form.Categoria);
 
         if (form.StockActual < 0)
@@ -628,7 +628,7 @@
         }
         catch (Exception ex)
         {
-            errores.Add($"Error inesperado al guardar producto: {ex.Message}");
+            errores.Add($"Error inesperado al guardar producto: {ExceptionHelper.ObtenerMensaje(ex)}");
         }
         finally
         {
