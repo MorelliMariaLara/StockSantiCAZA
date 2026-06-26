@@ -16,17 +16,33 @@
     <nav class="nav-menu">
         @if (AuthService.UsuarioActual.EsAdministrador)
         {
-            <NavLink href="" Match="NavLinkMatch.All"><span class="nav-icon">◆</span> Dashboard</NavLink>
+            <NavLink href="" Match="NavLinkMatch.All" @onclick="NotificarNavegacion">
+                <span class="nav-icon">◆</span> Dashboard
+            </NavLink>
         }
-        <NavLink href="ventas/nueva"><span class="nav-icon">◆</span> Nueva venta</NavLink>
-        <NavLink href="ventas"><span class="nav-icon">◆</span> Historial ventas</NavLink>
-        <NavLink href="clientes"><span class="nav-icon">◆</span> Clientes</NavLink>
-        <NavLink href="stock"><span class="nav-icon">◆</span> Stock</NavLink>
+        <NavLink href="ventas/nueva" @onclick="NotificarNavegacion">
+            <span class="nav-icon">◆</span> Nueva venta
+        </NavLink>
+        <NavLink href="ventas" @onclick="NotificarNavegacion">
+            <span class="nav-icon">◆</span> Historial ventas
+        </NavLink>
+        <NavLink href="clientes" @onclick="NotificarNavegacion">
+            <span class="nav-icon">◆</span> Clientes
+        </NavLink>
+        <NavLink href="stock" @onclick="NotificarNavegacion">
+            <span class="nav-icon">◆</span> Stock
+        </NavLink>
         @if (AuthService.UsuarioActual.EsAdministrador)
         {
-            <NavLink href="proveedores"><span class="nav-icon">◆</span> Proveedores</NavLink>
-            <NavLink href="reportes"><span class="nav-icon">◆</span> Reportes</NavLink>
-            <NavLink href="usuarios"><span class="nav-icon">◆</span> Usuarios</NavLink>
+            <NavLink href="proveedores" @onclick="NotificarNavegacion">
+                <span class="nav-icon">◆</span> Proveedores
+            </NavLink>
+            <NavLink href="reportes" @onclick="NotificarNavegacion">
+                <span class="nav-icon">◆</span> Reportes
+            </NavLink>
+            <NavLink href="usuarios" @onclick="NotificarNavegacion">
+                <span class="nav-icon">◆</span> Usuarios
+            </NavLink>
         }
     </nav>
 
@@ -34,8 +50,20 @@
 }
 
 @code {
+    [Parameter]
+    public EventCallback OnNavigate { get; set; }
+
+    private async Task NotificarNavegacion()
+    {
+        if (OnNavigate.HasDelegate)
+        {
+            await OnNavigate.InvokeAsync();
+        }
+    }
+
     private async Task CerrarSesionAsync()
     {
+        await NotificarNavegacion();
         await AuthService.CerrarSesionAsync();
         Navigation.NavigateTo("/login", true);
     }

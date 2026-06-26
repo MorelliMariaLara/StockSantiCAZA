@@ -1,13 +1,30 @@
 @inherits LayoutComponentBase
 
-<div class="shell">
-    <aside class="sidebar no-print">
-        <NavMenu />
+<div class="shell @(menuAbierto ? "nav-open" : null)">
+    <button type="button"
+            class="menu-toggle no-print"
+            @onclick="ToggleMenu"
+            aria-expanded="@menuAbierto"
+            aria-controls="app-sidebar"
+            aria-label="@(menuAbierto ? "Cerrar menú" : "Abrir menú")">
+        @(menuAbierto ? "✕" : "☰")
+    </button>
+
+    @if (menuAbierto)
+    {
+        <button type="button"
+                class="nav-backdrop no-print"
+                @onclick="CerrarMenu"
+                aria-label="Cerrar menú"></button>
+    }
+
+    <aside id="app-sidebar" class="sidebar no-print">
+        <NavMenu OnNavigate="CerrarMenu" />
     </aside>
 
     <main class="content">
         <div class="top-row no-print">
-            <span>Sistema de stock y ventas — armería</span>
+            <span class="top-row-title">Sistema de stock y ventas — armería</span>
             <strong class="operation-mode">USD · Sin IVA</strong>
         </div>
         <article class="page-body">
@@ -15,3 +32,11 @@
         </article>
     </main>
 </div>
+
+@code {
+    private bool menuAbierto;
+
+    private void ToggleMenu() => menuAbierto = !menuAbierto;
+
+    private void CerrarMenu() => menuAbierto = false;
+}
