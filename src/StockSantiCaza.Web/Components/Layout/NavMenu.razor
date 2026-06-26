@@ -32,11 +32,14 @@
         <NavLink href="stock" @onclick="NotificarNavegacion">
             <span class="nav-icon">◆</span> Stock
         </NavLink>
-        @if (AuthService.UsuarioActual.EsAdministrador)
+        @if (AuthService.UsuarioActual.PuedeAcceder(ModuloSistema.Proveedores))
         {
             <NavLink href="proveedores" @onclick="NotificarNavegacion">
                 <span class="nav-icon">◆</span> Proveedores
             </NavLink>
+        }
+        @if (AuthService.UsuarioActual.EsAdministrador)
+        {
             <NavLink href="reportes" @onclick="NotificarNavegacion">
                 <span class="nav-icon">◆</span> Reportes
             </NavLink>

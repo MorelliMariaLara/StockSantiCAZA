@@ -19,7 +19,7 @@ public static class PermisosAcceso
         rol switch
         {
             RolUsuario.Administrador => true,
-            RolUsuario.Vendedor => modulo is ModuloSistema.Clientes or ModuloSistema.Stock or ModuloSistema.Ventas,
+            RolUsuario.Vendedor => modulo is ModuloSistema.Clientes or ModuloSistema.Stock or ModuloSistema.Ventas or ModuloSistema.Proveedores,
             _ => false
         };
 
