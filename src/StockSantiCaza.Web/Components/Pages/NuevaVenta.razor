@@ -22,12 +22,6 @@
             {
                 <div class="alert alert-success venta-flash">
                     <strong>@mensajeExito</strong>
-                    @if (ultimaVentaId.HasValue)
-                    {
-                        <a class="button ghost" href="@($"ventas/{ultimaVentaId}/imprimir")" target="_blank">
-                            Ver comprobante
-                        </a>
-                    }
                 </div>
             }
 
@@ -253,7 +247,6 @@
     private Cliente? clienteSeleccionado;
     private Producto? productoSeleccionado;
     private string? mensajeExito;
-    private int? ultimaVentaId;
     private bool cargando = true;
     private bool procesando;
     private bool procesandoCliente;
@@ -666,7 +659,6 @@
         {
             procesando = true;
             var ventaGuardada = await VentasService.ConfirmarVentaAsync(form);
-            ultimaVentaId = ventaGuardada.VentaId;
 
             mensajeExito = $"Venta {ventaGuardada.NumeroComprobante} registrada — {MonedaHelper.FormatearUsd(ventaGuardada.Total)}.";
 
