@@ -1,6 +1,6 @@
 # StockSantiCAZA
 
-Aplicación web Blazor WebApp (.NET 8) para control de stock y ventas de armería, con trazabilidad de armas y municiones, validación de CLU, facturación simulada y exportación Excel.
+Aplicación web Blazor Server (.NET 6) para control de stock y ventas de armería, con trazabilidad de armas y municiones, validación de CLU, facturación simulada y exportación Excel.
 
 ## Estructura
 

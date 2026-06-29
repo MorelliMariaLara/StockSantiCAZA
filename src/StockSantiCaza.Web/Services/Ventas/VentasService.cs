@@ -4,8 +4,15 @@ using StockSantiCaza.Web.Models;
 
 namespace StockSantiCaza.Web.Services.Ventas;
 
-public class VentasService(IDbContextFactory<ApplicationDbContext> dbContextFactory) : IVentasService
+public class VentasService : IVentasService
 {
+    private readonly IDbContextFactory<ApplicationDbContext> dbContextFactory;
+
+    public VentasService(IDbContextFactory<ApplicationDbContext> dbContextFactory)
+    {
+        this.dbContextFactory = dbContextFactory;
+    }
+
     public async Task<VentaConfirmadaDto> ConfirmarVentaAsync(
         NuevaVentaRequest request,
         CancellationToken cancellationToken = default)
@@ -42,12 +49,12 @@ public class VentasService(IDbContextFactory<ApplicationDbContext> dbContextFact
 
         if (cliente is null)
         {
-            throw new VentaValidationException(["El cliente seleccionado no existe."]);
+            throw new VentaValidationException(new[] { "El cliente seleccionado no existe." });
         }
 
         if (!cliente.Activo)
         {
-            throw new VentaValidationException(["El cliente seleccionado está dado de baja."]);
+            throw new VentaValidationException(new[] { "El cliente seleccionado está dado de baja." });
         }
 
         var vendedor = await db.Usuarios
@@ -55,7 +62,7 @@ public class VentasService(IDbContextFactory<ApplicationDbContext> dbContextFact
 
         if (vendedor is null)
         {
-            throw new VentaValidationException(["El vendedor seleccionado no existe o está inactivo."]);
+            throw new VentaValidationException(new[] { "El vendedor seleccionado no existe o está inactivo." });
         }
 
         var productoIds = request.Items.Select(x => x.ProductoId).Distinct().ToArray();
@@ -196,12 +203,12 @@ public class VentasService(IDbContextFactory<ApplicationDbContext> dbContextFact
 
         if (venta is null)
         {
-            throw new VentaValidationException(["La venta seleccionada no existe."]);
+            throw new VentaValidationException(new[] { "La venta seleccionada no existe." });
         }
 
         if (!esAdministrador && venta.VendedorId != usuarioActualId)
         {
-            throw new VentaValidationException(["No tiene permiso para eliminar esta venta."]);
+            throw new VentaValidationException(new[] { "No tiene permiso para eliminar esta venta." });
         }
 
         var referencia = venta.NumeroComprobante ?? $"VTA-{venta.Id:D8}";

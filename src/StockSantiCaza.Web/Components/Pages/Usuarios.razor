@@ -105,8 +105,8 @@
 </AuthorizeAccess>
 
 @code {
-    private readonly List<string> errores = [];
-    private List<Usuario> usuarios = [];
+    private readonly List<string> errores = new();
+    private List<Usuario> usuarios = new();
     private UsuarioForm form = new();
     private bool guardando;
     private string? mensaje;

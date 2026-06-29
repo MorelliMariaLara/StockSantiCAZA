@@ -6,8 +6,15 @@ using StockSantiCaza.Web.Models;
 
 namespace StockSantiCaza.Web.Services.Reportes;
 
-public class ReportesService(IDbContextFactory<ApplicationDbContext> dbContextFactory) : IReportesService
+public class ReportesService : IReportesService
 {
+    private readonly IDbContextFactory<ApplicationDbContext> dbContextFactory;
+
+    public ReportesService(IDbContextFactory<ApplicationDbContext> dbContextFactory)
+    {
+        this.dbContextFactory = dbContextFactory;
+    }
+
     public async Task<DashboardResumenDto> ObtenerDashboardAsync(
         DateOnly fecha,
         CancellationToken cancellationToken = default)

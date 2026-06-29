@@ -193,8 +193,8 @@ else
 </AuthorizeAccess>
 
 @code {
-    private readonly List<string> errores = [];
-    private List<Cliente> clientes = [];
+    private readonly List<string> errores = new();
+    private List<Cliente> clientes = new();
     private ClienteForm form = new();
     private bool cargando = true;
     private bool guardando;

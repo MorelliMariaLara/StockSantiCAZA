@@ -245,7 +245,7 @@ else
 </AuthorizeAccess>
 
 @code {
-    private List<Venta> ventas = [];
+    private List<Venta> ventas = new();
     private DateTime fechaDesde = DateTime.Today.AddDays(-30);
     private DateTime fechaHasta = DateTime.Today;
     private string busqueda = string.Empty;

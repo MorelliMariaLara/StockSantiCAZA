@@ -16,7 +16,7 @@ public class NuevaVentaRequest
     public string? Observaciones { get; set; }
 
     [MinLength(1, ErrorMessage = "Debe agregar al menos un producto.")]
-    public List<ItemVentaRequest> Items { get; set; } = [];
+    public List<ItemVentaRequest> Items { get; set; } = new();
 }
 
 public class ItemVentaRequest

@@ -288,8 +288,8 @@
 </AuthorizeAccess>
 
 @code {
-    private readonly List<string> errores = [];
-    private List<Proveedor> proveedores = [];
+    private readonly List<string> errores = new();
+    private List<Proveedor> proveedores = new();
     private ProveedorForm form = new();
     private MovimientoForm formDeuda = new();
     private MovimientoForm formPago = new();

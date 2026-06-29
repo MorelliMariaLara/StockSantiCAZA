@@ -48,7 +48,7 @@
 
                     <label>
                         Producto
-                        <InputSelect class="input" @bind-Value="productoSeleccionadoId" @bind-Value:after="ActualizarProductoSeleccionado">
+                        <InputSelect class="input" Value="productoSeleccionadoId" ValueChanged="@(EventCallback.Factory.Create<int>(this, ProductoSeleccionadoChangedAsync))" ValueExpression="@(() => productoSeleccionadoId)">
                             <option value="0">Seleccione...</option>
                             @foreach (var producto in ProductosFiltrados)
                             {
@@ -129,7 +129,7 @@
 
                     <label>
                         Cliente
-                        <InputSelect class="input" @bind-Value="clienteIdSeleccionado" @bind-Value:after="ActualizarClienteSeleccionado">
+                        <InputSelect class="input" Value="clienteIdSeleccionado" ValueChanged="@(EventCallback.Factory.Create<int>(this, ClienteSeleccionadoChangedAsync))" ValueExpression="@(() => clienteIdSeleccionado)">
                             <option value="0">Seleccione...</option>
                             @foreach (var cliente in ClientesFiltrados)
                             {
@@ -239,11 +239,11 @@
 
 @code {
     private readonly NuevaVentaRequest form = new();
-    private readonly List<LineaVentaVm> items = [];
-    private readonly List<string> errores = [];
-    private List<Cliente> clientes = [];
-    private List<Producto> productos = [];
-    private List<Usuario> vendedores = [];
+    private readonly List<LineaVentaVm> items = new();
+    private readonly List<string> errores = new();
+    private List<Cliente> clientes = new();
+    private List<Producto> productos = new();
+    private List<Usuario> vendedores = new();
     private Cliente? clienteSeleccionado;
     private Producto? productoSeleccionado;
     private string? mensajeExito;
@@ -368,6 +368,18 @@
     {
         mostrarFormularioCliente = false;
         clienteNuevo = new();
+    }
+
+    private async Task ProductoSeleccionadoChangedAsync(int value)
+    {
+        productoSeleccionadoId = value;
+        await ActualizarProductoSeleccionado();
+    }
+
+    private async Task ClienteSeleccionadoChangedAsync(int value)
+    {
+        clienteIdSeleccionado = value;
+        await ActualizarClienteSeleccionado();
     }
 
     private Task ActualizarClienteSeleccionado()

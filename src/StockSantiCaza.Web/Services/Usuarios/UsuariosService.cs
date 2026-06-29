@@ -30,10 +30,19 @@ public sealed class UsuarioFormRequest
     public RolUsuario Rol { get; set; } = RolUsuario.Vendedor;
 }
 
-public class UsuariosService(
-    IDbContextFactory<ApplicationDbContext> dbContextFactory,
-    PasswordHasher<Usuario> passwordHasher) : IUsuariosService
+public class UsuariosService : IUsuariosService
 {
+    private readonly IDbContextFactory<ApplicationDbContext> dbContextFactory;
+    private readonly PasswordHasher<Usuario> passwordHasher;
+
+    public UsuariosService(
+        IDbContextFactory<ApplicationDbContext> dbContextFactory,
+        PasswordHasher<Usuario> passwordHasher)
+    {
+        this.dbContextFactory = dbContextFactory;
+        this.passwordHasher = passwordHasher;
+    }
+
     public async Task<IReadOnlyList<Usuario>> ListarAsync(CancellationToken cancellationToken = default)
     {
         await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken);

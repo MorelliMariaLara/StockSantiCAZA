@@ -359,9 +359,9 @@
 @code {
     private const long MaxTamanoArchivoImportacion = 10 * 1024 * 1024;
 
-    private readonly List<string> errores = [];
-    private List<Producto> productos = [];
-    private List<CategoriaStock> categorias = [];
+    private readonly List<string> errores = new();
+    private List<Producto> productos = new();
+    private List<CategoriaStock> categorias = new();
     private ProductoForm form = new();
     private bool cargando = true;
     private bool guardando;

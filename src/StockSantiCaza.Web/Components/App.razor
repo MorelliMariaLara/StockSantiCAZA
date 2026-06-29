@@ -1,20 +1,13 @@
-<!DOCTYPE html>
-<html lang="es-ar">
-
-<head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <base href="/" />
-    <link rel="stylesheet" href="css/app.css?v=3" />
-    <HeadOutlet @rendermode="InteractiveServer" />
-</head>
-
-<body>
-    <Routes @rendermode="InteractiveServer" />
-    <script src="_framework/blazor.web.js"></script>
-    <script src="js/download.js?v=3"></script>
-</body>
-
-</html>
+<Router AppAssembly="@typeof(Program).Assembly">
+    <Found Context="routeData">
+        <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
+        <ConfirmHost />
+        <AlertHost />
+    </Found>
+    <NotFound>
+        <LayoutView Layout="@typeof(MainLayout)">
+            <h1>Página no encontrada</h1>
+            <p role="alert">No existe una pantalla para la ruta solicitada.</p>
+        </LayoutView>
+    </NotFound>
+</Router>

@@ -5,10 +5,19 @@ using StockSantiCaza.Web.Models;
 
 namespace StockSantiCaza.Web.Services.Auth;
 
-public class AuthService(
-    IDbContextFactory<ApplicationDbContext> dbContextFactory,
-    PasswordHasher<Usuario> passwordHasher) : IAuthService
+public class AuthService : IAuthService
 {
+    private readonly IDbContextFactory<ApplicationDbContext> dbContextFactory;
+    private readonly PasswordHasher<Usuario> passwordHasher;
+
+    public AuthService(
+        IDbContextFactory<ApplicationDbContext> dbContextFactory,
+        PasswordHasher<Usuario> passwordHasher)
+    {
+        this.dbContextFactory = dbContextFactory;
+        this.passwordHasher = passwordHasher;
+    }
+
     public UsuarioSesion? UsuarioActual { get; private set; }
 
     public event Action? SesionCambiada;

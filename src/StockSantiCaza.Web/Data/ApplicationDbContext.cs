@@ -3,8 +3,12 @@ using StockSantiCaza.Web.Models;
 
 namespace StockSantiCaza.Web.Data;
 
-public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : DbContext(options)
+public class ApplicationDbContext : DbContext
 {
+    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
+    {
+    }
+
     public DbSet<CategoriaStock> CategoriasStock => Set<CategoriaStock>();
     public DbSet<Producto> Productos => Set<Producto>();
     public DbSet<Arma> Armas => Set<Arma>();

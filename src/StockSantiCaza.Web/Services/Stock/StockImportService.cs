@@ -16,12 +16,19 @@ public sealed record StockImportResult(
     int Actualizados,
     IReadOnlyList<string> Errores);
 
-public class StockImportService(IDbContextFactory<ApplicationDbContext> dbContextFactory) : IStockImportService
+public class StockImportService : IStockImportService
 {
+    private readonly IDbContextFactory<ApplicationDbContext> dbContextFactory;
+
     private static readonly string[] EncabezadosEsperados =
-    [
+    {
         "SKU", "Producto", "Categoría", "Marca", "Modelo", "Calibre", "Stock", "Mínimo", "Precio USD"
-    ];
+    };
+
+    public StockImportService(IDbContextFactory<ApplicationDbContext> dbContextFactory)
+    {
+        this.dbContextFactory = dbContextFactory;
+    }
 
     public async Task<StockImportResult> ImportarAsync(Stream archivo, CancellationToken cancellationToken = default)
     {
