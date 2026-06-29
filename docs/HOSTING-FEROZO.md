@@ -107,3 +107,74 @@ Si la base ya tiene datos viejos, revisá `scripts/sql/007-migracion-completa.sq
 - No subas contraseñas al repositorio Git.
 - `appsettings.Production.json` está en `.gitignore`.
 - Si una contraseña quedó expuesta en un commit, cambiala en el panel de Ferozo.
+
+---
+
+## ¿El dominio inactivo impide publicar?
+
+**En general, no.** Son cosas distintas:
+
+| Problema | Síntoma | Relacionado al dominio |
+|----------|---------|----------------------|
+| **Fallo FTP** | Visual Studio dice error al subir archivos | No |
+| **Sitio no abre** | Publicación OK pero `santicazastock.com.ar` no carga | Sí (DNS, propagación, SSL) |
+| **Error 500 al entrar** | El dominio abre pero la app crashea | No (config BD / .NET en servidor) |
+
+El FTP usa la **IP del servidor** (`200.58.120.140`) o `w400048.ferozo.com`, no depende de que el dominio esté propagado.
+
+Si Visual Studio muestra error **después** de publicar al abrir el navegador, puede ser solo el dominio. Revisá en Ferozo → Administrador de archivos si los archivos llegaron a `public_html`.
+
+---
+
+## Requisitos del plan Donweb
+
+Tu app es **ASP.NET Core 6 + SQL Server**. Necesitás **Web Hosting Windows** (no Linux). En el panel Ferozo deberías ver soporte para **.NET Core** y **MS SQL Server 2016**.
+
+Si tu plan es solo Linux/PHP, la publicación FTP puede funcionar pero **la app no va a ejecutarse**.
+
+---
+
+## Publicar paso a paso (Visual Studio)
+
+### Antes de publicar
+
+1. Creá `appsettings.Production.json` (copiá del `.example`) con `Server=sql2016` y tu contraseña.
+2. Verificá en Ferozo → FTP: usuario, servidor, contraseña (generá una nueva si hace falta).
+3. Confirmá que la ruta remota es `/public_html` (Administrador de archivos).
+
+### Opción A — Perfil FTPProfile
+
+1. Clic derecho en el proyecto → **Publicar** → perfil `FTPProfile`.
+2. Si falla la contraseña, editá el perfil y volvé a ingresarla.
+3. **Modo pasivo** ya está activado (`FtpPassiveMode`).
+
+### Opción B — Carpeta + FileZilla (más confiable)
+
+1. Publicá con perfil `FolderProfile` → genera `publish/ferozo/`.
+2. En FileZilla conectá con los datos del panel Ferozo.
+3. Subí **todo el contenido** de `publish/ferozo/` dentro de `public_html` (no la carpeta `ferozo` entera).
+
+### Después de publicar
+
+En el panel Ferozo (si está disponible), definí:
+
+- `ASPNETCORE_ENVIRONMENT` = `Production`
+
+---
+
+## Errores frecuentes al publicar
+
+| Error | Qué hacer |
+|-------|-----------|
+| `530 Login incorrect` | Regenerá contraseña FTP en Ferozo y actualizá el perfil |
+| `550 Permission denied` | Verificá ruta `/public_html` y permisos de la cuenta FTP |
+| Timeout / muchos archivos | Usá `FolderProfile` + FileZilla |
+| Publicó pero sitio en blanco | Falta `web.config` o plan no es Windows/.NET |
+| Error 500.30 al entrar | Cadena `Server=sql2016` en producción + `Encrypt=False` |
+| Dominio no resuelve | Esperá propagación DNS o probá la URL temporal de Ferozo |
+
+---
+
+## Probar sin esperar al dominio
+
+En el panel Ferozo suele haber una **URL temporal** del hosting (tipo `http://w400048.ferozo.com` o similar). Usala para probar si la app corre antes de que `santicazastock.com.ar` esté activo.
