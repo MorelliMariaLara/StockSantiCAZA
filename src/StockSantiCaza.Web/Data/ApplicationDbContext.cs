@@ -85,6 +85,8 @@ public class ApplicationDbContext : DbContext
                 .IsUnique()
                 .HasFilter("[NumeroLegajo] IS NOT NULL AND [NumeroLegajo] <> ''");
             entity.HasIndex(x => x.ClienteId).IsUnique();
+            entity.Property(x => x.FechaEmision).HasConversion(EfCoreConverters.NullableDateOnly);
+            entity.Property(x => x.FechaVencimiento).HasConversion(EfCoreConverters.NullableDateOnly);
             entity.HasOne(x => x.Cliente)
                 .WithOne(x => x.CredencialCLU)
                 .HasForeignKey<CredencialCLU>(x => x.ClienteId)
@@ -109,6 +111,7 @@ public class ApplicationDbContext : DbContext
             entity.Property(x => x.IvaTotal).HasPrecision(18, 2);
             entity.Property(x => x.Total).HasPrecision(18, 2);
             entity.Property(x => x.Vendedor).HasMaxLength(120);
+            entity.Property(x => x.CaeVencimiento).HasConversion(EfCoreConverters.NullableDateOnly);
             entity.HasOne(x => x.Cliente)
                 .WithMany(x => x.Ventas)
                 .HasForeignKey(x => x.ClienteId)
