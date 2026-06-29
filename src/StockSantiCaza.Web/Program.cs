@@ -18,7 +18,14 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
     ?? throw new InvalidOperationException("Connection string 'DefaultConnection' was not configured.");
 
 builder.Services.AddDbContextFactory<ApplicationDbContext>(options =>
-    options.UseSqlServer(connectionString));
+    options.UseSqlServer(
+        connectionString,
+        sqlOptions =>
+        {
+            // SQL Server 2016 (Ferozo): timeout y reintentos; Encrypt=False va en la cadena de conexión.
+            sqlOptions.EnableRetryOnFailure();
+            sqlOptions.CommandTimeout(60);
+        }));
 
 builder.Services.AddSingleton<PasswordHasher<Usuario>>();
 builder.Services.AddScoped<IAuthService, AuthService>();
