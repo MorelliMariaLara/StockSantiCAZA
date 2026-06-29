@@ -190,3 +190,68 @@ En el panel Ferozo (si está disponible), definí:
 ## Probar sin esperar al dominio
 
 En el panel Ferozo suele haber una **URL temporal** del hosting (tipo `http://w400048.ferozo.com` o similar). Usala para probar si la app corre antes de que `santicazastock.com.ar` esté activo.
+
+---
+
+## Subiste un ZIP (carpeta local → Donweb)
+
+### 1. Descomprimir en el lugar correcto
+
+En Ferozo → **Administrador de archivos**:
+
+1. Entrá a **`public_html`**
+2. Subí el `.zip` ahí
+3. Descomprimí el zip **dentro de `public_html`**
+4. Los archivos deben quedar **sueltos** en la raíz, por ejemplo:
+   - `public_html/web.config`
+   - `public_html/StockSantiCaza.Web.exe` (o `.dll`)
+   - `public_html/appsettings.Production.json`
+   - `public_html/wwwroot/...`
+
+Si quedaron dentro de `public_html/publish/ferozo/...`, mové todo **un nivel arriba** a `public_html`.
+
+### 2. `appsettings.Production.json` en el servidor
+
+Tiene que estar en `public_html` con la cadena de **producción**:
+
+```text
+Server=sql2016;Database=w400048_santicazaarmeria;User Id=w400048_MariAdmin;Password=TU_PASSWORD;MultipleActiveResultSets=true;TrustServerCertificate=True;Encrypt=False
+```
+
+### 3. Publicar de nuevo en local (si falta `web.config`)
+
+Desde Visual Studio: perfil **FolderProfile** → Release → publicar.  
+Eso genera `web.config` necesario para IIS. Volvé a subir el zip.
+
+---
+
+## ¿Puedo entrar por IP y puerto?
+
+### Web Hosting compartido (tu plan Ferozo)
+
+| Forma de acceso | ¿Funciona? |
+|-----------------|------------|
+| `http://200.58.120.140` (solo IP) | Casi nunca muestra tu sitio (hay muchos sitios en la misma IP) |
+| `http://200.58.120.140:53095` (puerto custom) | **No** — no podés elegir puerto como en local |
+| `http://w400048.ferozo.com` (dominio alternativo) | **Sí** — es la forma correcta sin dominio propio |
+| `https://santicazastock.com.ar` | Sí, cuando el dominio esté apuntado al hosting |
+
+En hosting compartido los puertos son los estándar:
+
+- **HTTP** → puerto **80**
+- **HTTPS** → puerto **443**
+
+No se usa `:puerto` en la URL salvo casos especiales (Cloud Server / VPS).
+
+### Cómo ver tu URL temporal (dominio alternativo)
+
+1. Panel Ferozo → **Dominios** → **Dominios**
+2. Ahí aparece el **dominio alternativo** (ej: `w400048.ferozo.com`)
+3. Abrilo en el navegador: `http://w400048.ferozo.com`
+4. Puede pedir **usuario y contraseña de Ferozo** (es normal en dominio temporal)
+
+La IP del plan la ves abajo a la derecha en Ferozo, pero para probar el sitio usá el **dominio alternativo**, no la IP sola.
+
+### Si tuvieras Cloud Server / VPS
+
+Ahí sí podrías usar `http://TU_IP` o abrir puertos custom, pero es otro tipo de plan.
