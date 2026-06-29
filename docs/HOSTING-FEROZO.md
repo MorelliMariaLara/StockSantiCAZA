@@ -150,9 +150,21 @@ Si tu plan es solo Linux/PHP, la publicación FTP puede funcionar pero **la app 
 
 ### Opción B — Carpeta + FileZilla (más confiable)
 
+Guía detallada: **`docs/FILEZILLA-FEROZO.md`**
+
+Resumen FileZilla:
+
+| Campo | Valor |
+|-------|--------|
+| Protocolo | FTP (no SFTP) |
+| Puerto | 21 |
+| Cifrado | Requerir FTP explícito sobre TLS |
+| Usuario | `w400048@w400048.ferozo.com` (el del panel) |
+| Host | El del panel Ferozo, no el dominio propio |
+
 1. Publicá con perfil `FolderProfile` → genera `publish/ferozo/`.
-2. En FileZilla conectá con los datos del panel Ferozo.
-3. Subí **todo el contenido** de `publish/ferozo/` dentro de `public_html` (no la carpeta `ferozo` entera).
+2. En Ferozo generá **contraseña FTP nueva** (no se puede ver la actual).
+3. Conectá FileZilla y subí el contenido a `public_html`.
 
 ### Después de publicar
 
