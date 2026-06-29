@@ -1,73 +1,101 @@
 # Publicar en DonWeb / Ferozo (SQL Server)
 
+## FTP ≠ base de datos
+
+| Qué | Para qué sirve |
+|-----|----------------|
+| **FTP** (`w400048.ferozo.com`) | Subir los archivos de la aplicación al hosting |
+| **SQL Server** (`sql2016`) | La base de datos (solo cuando la app corre **en** Ferozo) |
+
+La app **no** se conecta a la BD por FTP. La cadena de conexión va en `appsettings.Production.json` o en variables de entorno del panel.
+
+---
+
 ## Datos de tu base (panel Ferozo)
 
 | Parámetro | Valor |
 |-----------|-------|
-| Servidor | `sql2016` |
-| Base de datos | `w400048_santicazarmeria` |
-| Usuario SQL | `MariAdmin` |
-| Contraseña | *(la configurada en el panel)* |
+| Servidor (en el hosting) | `sql2016` |
+| Base de datos | `w400048_santicazaarmeria` |
+| Usuario SQL | `w400048_MariAdmin` |
+| Contraseña | *(la del panel)* |
 
-> **Importante:** Las cadenas con `Integrated Security` / `Trusted_Connection` solo funcionan en Windows local. En Ferozo hay que usar **usuario y contraseña SQL**.
+> En Ferozo el servidor `sql2016` **solo funciona cuando la app está publicada en el mismo hosting**. Desde tu PC no alcanza con poner `sql2016` o `127.0.0.1` sin un túnel SSH.
 
-## Cadena de conexión para .NET (EF Core)
+---
 
-```text
-Server=sql2016;Database=w400048_santicazarmeria;User Id=MariAdmin;Password=TU_PASSWORD;MultipleActiveResultSets=true;TrustServerCertificate=True;Encrypt=False;Connection Timeout=60
-```
+## Escenario A — Desarrollar en tu PC (Visual Studio)
 
-Si DonWeb te muestra el usuario con prefijo de cuenta, probá también:
+Usá la base **local** (`LARA-NB\SQLEXPRESS02`). Ya está en:
 
-```text
-User Id=w400048_MariAdmin
-```
+- `appsettings.json`
+- `appsettings.Development.json`
 
-## Configuración en el proyecto
+Ejecutá con perfil **Development** (F5). No uses la cadena de Donweb en local salvo que tengas túnel SSH (escenario C).
 
-1. Copiá el ejemplo de producción:
+---
+
+## Escenario B — App publicada en Ferozo (producción)
+
+### 1. Crear configuración de producción
 
 ```bash
-cp src/StockSantiCaza.Web/appsettings.Production.example.json src/StockSantiCaza.Web/appsettings.Production.json
+copy src\StockSantiCaza.Web\appsettings.Production.example.json src\StockSantiCaza.Web\appsettings.Production.json
 ```
 
-2. Editá `appsettings.Production.json` y reemplazá `__PASSWORD__` por tu contraseña.
+Editá `appsettings.Production.json` y reemplazá `__PASSWORD__` por tu contraseña real.
 
-3. El archivo `appsettings.Production.json` **no se sube a Git** (está en `.gitignore`).
+Cadena correcta en el servidor:
 
-## Publicar la aplicación
+```text
+Server=sql2016;Database=w400048_santicazaarmeria;User Id=w400048_MariAdmin;Password=TU_PASSWORD;MultipleActiveResultSets=true;TrustServerCertificate=True;Encrypt=False;Connection Timeout=60
+```
+
+### 2. Publicar
+
+**Opción Visual Studio:** perfil `FTPProfile` → publicar a  
+`ftp://w400048.ferozo.com/stock.santicazaarmeria.com.ar/public_html`
+
+**Opción línea de comandos:**
 
 ```bash
 cd src/StockSantiCaza.Web
 dotnet publish -c Release -o ./publish
 ```
 
-Subí el contenido de la carpeta `publish` al hosting por FTP o el administrador de archivos de Ferozo.
+Subí el contenido de `publish/` por FTP (o usá el perfil de publicación).
 
-## Variables de entorno en Ferozo (alternativa)
-
-En el panel del sitio, podés definir:
+### 3. Variables en el panel Ferozo (alternativa)
 
 | Variable | Valor |
 |----------|-------|
 | `ASPNETCORE_ENVIRONMENT` | `Production` |
 | `ConnectionStrings__DefaultConnection` | *(cadena completa de arriba)* |
 
-## Primera ejecución / tablas
+---
 
-Al iniciar la app, `DbInitializer` ejecuta:
+## Escenario C — Conectar desde tu PC a la BD de Donweb (opcional)
 
-- `EnsureCreated` (crea tablas si la base está vacía)
-- Script de tablas `Proveedores` si faltan
+Solo si el panel permite **acceso remoto** a SQL Server:
 
-Si la base ya tiene datos de SQL Server local, migrá el esquema con los scripts en `scripts/sql/` (SQL Server) o exportá/importá datos.
+1. Creá un **túnel SSH** al hosting (puerto local 1433 → SQL remoto).
+2. Recién ahí usá en local: `Server=127.0.0.1,1433;...`
+3. Si el túnel no está activo, verás: *"el equipo de destino denegó expresamente dicha conexión"*.
 
-## Probar conexión desde tu PC
+Sin túnel, desarrollá con la base local (escenario A).
 
-Si `sql2016` no resuelve fuera del hosting, en el panel Ferozo buscá el **host externo** de SQL Server (a veces es una IP o `sql2016.tudominio.com`) y usalo en lugar de `sql2016`.
+---
+
+## Primera ejecución en Ferozo
+
+Al iniciar, `DbInitializer` crea tablas y aplica el script de migración automático.
+
+Si la base ya tiene datos viejos, revisá `scripts/sql/007-migracion-completa.sql`.
+
+---
 
 ## Seguridad
 
-- No subas contraseñas al repositorio.
-- Cambiá la contraseña si se expuso en algún chat o commit.
-- Usá HTTPS en el sitio publicado.
+- No subas contraseñas al repositorio Git.
+- `appsettings.Production.json` está en `.gitignore`.
+- Si una contraseña quedó expuesta en un commit, cambiala en el panel de Ferozo.
