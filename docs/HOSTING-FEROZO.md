@@ -76,13 +76,21 @@ Subí el contenido de `publish/` por FTP (o usá el perfil de publicación).
 
 ## Escenario C — Conectar desde tu PC a la BD de Donweb (opcional)
 
-Solo si el panel permite **acceso remoto** a SQL Server:
+Solo si tenés un **túnel SSH** activo hacia Ferozo:
 
-1. Creá un **túnel SSH** al hosting (puerto local 1433 → SQL remoto).
-2. Recién ahí usá en local: `Server=127.0.0.1,1433;...`
-3. Si el túnel no está activo, verás: *"el equipo de destino denegó expresamente dicha conexión"*.
+1. Abrí el túnel (puerto local 1433 → SQL remoto).
+2. Copiá el ejemplo local:
 
-Sin túnel, desarrollá con la base local (escenario A).
+```bash
+copy src\StockSantiCaza.Web\appsettings.Local.json.example src\StockSantiCaza.Web\appsettings.Local.json
+```
+
+3. Editá `appsettings.Local.json` con tu contraseña.
+4. Ese archivo **no se sube a Git** y pisa `appsettings.Development.json`.
+
+Sin túnel activo, `127.0.0.1,1433` siempre falla con *"conexión denegada"*.
+
+**No pongas la cadena de Donweb en `appsettings.Development.json`** — Visual Studio usa Development al presionar F5 y te va a pisar la config local.
 
 ---
 

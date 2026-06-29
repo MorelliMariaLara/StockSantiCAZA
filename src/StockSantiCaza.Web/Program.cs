@@ -12,11 +12,22 @@ using StockSantiCaza.Web.Services.Ui;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Opcional: appsettings.Local.json (gitignored) pisa Development/Production en tu máquina.
+builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
+
 builder.Services.AddRazorPages();
 builder.Services.AddServerSideBlazor();
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("Connection string 'DefaultConnection' was not configured.");
+
+var sqlServer = connectionString.Split(';', StringSplitOptions.RemoveEmptyEntries)
+    .Select(part => part.Trim())
+    .FirstOrDefault(part => part.StartsWith("Server=", StringComparison.OrdinalIgnoreCase))
+    ?? "Server=?";
+
+Console.WriteLine($"[StockSantiCAZA] Entorno: {builder.Environment.EnvironmentName}");
+Console.WriteLine($"[StockSantiCAZA] {sqlServer}");
 
 builder.Services.AddDbContextFactory<ApplicationDbContext>(options =>
     options.UseSqlServer(
