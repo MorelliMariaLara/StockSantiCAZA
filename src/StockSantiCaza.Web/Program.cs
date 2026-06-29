@@ -1,3 +1,4 @@
+using EntityFrameworkCore.UseRowNumberForPaging;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using StockSantiCaza.Web.Data;
@@ -20,11 +21,11 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 builder.Services.AddDbContextFactory<ApplicationDbContext>(options =>
     options.UseSqlServer(
         connectionString,
-        sqlOptions =>
+        providerOptions =>
         {
-            // SQL Server 2016 (Ferozo): timeout y reintentos; Encrypt=False va en la cadena de conexión.
-            sqlOptions.EnableRetryOnFailure();
-            sqlOptions.CommandTimeout(60);
+            providerOptions.UseRowNumberForPaging();
+            providerOptions.EnableRetryOnFailure();
+            providerOptions.CommandTimeout(60);
         }));
 
 builder.Services.AddSingleton<PasswordHasher<Usuario>>();

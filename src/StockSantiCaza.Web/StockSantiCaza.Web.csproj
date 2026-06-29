@@ -13,6 +13,7 @@
 
   <ItemGroup>
     <PackageReference Include="ClosedXML" Version="0.102.3" />
+    <PackageReference Include="EntityFrameworkCore.UseRowNumberForPaging" Version="0.5.0" />
     <PackageReference Include="Microsoft.Extensions.Identity.Core" Version="6.0.36" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="6.0.36">
       <PrivateAssets>all</PrivateAssets>
