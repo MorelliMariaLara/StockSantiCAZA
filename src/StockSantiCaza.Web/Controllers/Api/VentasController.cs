@@ -264,12 +264,13 @@ public class ReportesController : ApiControllerBase
     }
 
     [HttpGet("dashboard")]
-    public async Task<ActionResult<DashboardResumenDto>> Dashboard([FromQuery] DateOnly? fecha, CancellationToken ct)
+    public async Task<ActionResult<DashboardResumenDto>> Dashboard([FromQuery] string? fecha, CancellationToken ct)
     {
         try
         {
             RequireAdmin();
-            var resumen = await reportesService.ObtenerDashboardAsync(fecha ?? DateOnly.FromDateTime(DateTime.Today), ct);
+            var fechaConsulta = FechaQueryHelper.ParseOpcional(fecha) ?? DateOnly.FromDateTime(DateTime.Today);
+            var resumen = await reportesService.ObtenerDashboardAsync(fechaConsulta, ct);
             return Ok(resumen);
         }
         catch (Exception ex)
@@ -280,19 +281,22 @@ public class ReportesController : ApiControllerBase
 
     [HttpGet("periodo")]
     public async Task<ActionResult<ReportePeriodoDto>> Periodo(
-        [FromQuery] DateOnly desde,
-        [FromQuery] DateOnly hasta,
+        [FromQuery] string desde,
+        [FromQuery] string hasta,
         CancellationToken ct)
     {
         try
         {
             RequireAdmin();
-            if (desde > hasta)
+            var desdeFecha = FechaQueryHelper.ParseRequerida(desde, "desde");
+            var hastaFecha = FechaQueryHelper.ParseRequerida(hasta, "hasta");
+
+            if (desdeFecha > hastaFecha)
             {
                 return BadRequest(new { error = "La fecha desde no puede ser posterior a la fecha hasta." });
             }
 
-            var resumen = await reportesService.ObtenerReportePeriodoAsync(desde, hasta, ct);
+            var resumen = await reportesService.ObtenerReportePeriodoAsync(desdeFecha, hastaFecha, ct);
             return Ok(resumen);
         }
         catch (Exception ex)
@@ -303,20 +307,23 @@ public class ReportesController : ApiControllerBase
 
     [HttpGet("excel")]
     public async Task<IActionResult> Excel(
-        [FromQuery] DateOnly desde,
-        [FromQuery] DateOnly hasta,
+        [FromQuery] string desde,
+        [FromQuery] string hasta,
         CancellationToken ct)
     {
         try
         {
             RequireAdmin();
-            if (desde > hasta)
+            var desdeFecha = FechaQueryHelper.ParseRequerida(desde, "desde");
+            var hastaFecha = FechaQueryHelper.ParseRequerida(hasta, "hasta");
+
+            if (desdeFecha > hastaFecha)
             {
                 return BadRequest(new { error = "La fecha desde no puede ser posterior a la fecha hasta." });
             }
 
-            var bytes = await reportesService.ExportarVentasExcelAsync(desde, hasta, ct);
-            var fileName = $"ventas-stock-{desde:yyyyMMdd}-{hasta:yyyyMMdd}.xlsx";
+            var bytes = await reportesService.ExportarVentasExcelAsync(desdeFecha, hastaFecha, ct);
+            var fileName = $"ventas-stock-{desdeFecha:yyyyMMdd}-{hastaFecha:yyyyMMdd}.xlsx";
             return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
         }
         catch (Exception ex)
