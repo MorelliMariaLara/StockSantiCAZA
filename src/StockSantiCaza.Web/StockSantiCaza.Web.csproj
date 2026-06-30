@@ -23,6 +23,7 @@
 
   <ItemGroup>
     <Content Include="logs\.gitkeep" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="keys\.gitkeep" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

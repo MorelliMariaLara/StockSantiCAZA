@@ -1,12 +1,19 @@
 const api = {
+  url(path) {
+    const base = (window.APP_CONFIG?.apiBase || '').replace(/\/$/, '');
+    if (!path) return base || '/';
+    return path.startsWith('http') ? path : `${base}${path.startsWith('/') ? path : `/${path}`}`;
+  },
+
   async request(path, options = {}) {
     const controller = new AbortController();
     const timeoutMs = options.timeoutMs ?? 15000;
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    const url = this.url(path);
 
     let response;
     try {
-      response = await fetch(path, {
+      response = await fetch(url, {
         credentials: 'same-origin',
         signal: controller.signal,
         headers: {
@@ -17,15 +24,16 @@ const api = {
       });
     } catch (err) {
       if (err.name === 'AbortError') {
-        throw new Error('El servidor no respondió a tiempo. El backend .NET no está en ejecución o la base SQL no responde. Probá /api/health en el navegador.');
+        throw new Error('El servidor no respondió a tiempo. Probá /api/health en el navegador.');
       }
-      throw new Error('No se pudo conectar con el servidor. Verifique que la aplicación esté publicada y en ejecución.');
+      throw new Error('No se pudo conectar con el servidor. Verifique que la aplicación .NET esté publicada completa.');
     } finally {
       clearTimeout(timeoutId);
     }
 
     const isAuthMe = path.includes('/api/auth/me');
-    const isLoginPage = window.location.pathname.replace(/\/$/, '') === '/login';
+    const isLoginPage = window.location.pathname.replace(/\/$/, '') === '/login'
+      || window.location.pathname === '/';
 
     if (response.status === 401 && !path.includes('/api/auth/login') && !isAuthMe) {
       if (!isLoginPage) {
@@ -62,10 +70,11 @@ const api = {
     return this.request(path, options);
   },
 
-  post(path, data) {
+  post(path, data, options = {}) {
     return this.request(path, {
       method: 'POST',
-      body: data === undefined ? undefined : JSON.stringify(data)
+      body: data === undefined ? undefined : JSON.stringify(data),
+      ...options
     });
   },
 
@@ -74,7 +83,7 @@ const api = {
   },
 
   async upload(path, formData) {
-    const response = await fetch(path, {
+    const response = await fetch(this.url(path), {
       method: 'POST',
       credentials: 'same-origin',
       body: formData
@@ -98,7 +107,7 @@ const api = {
   },
 
   async download(path, fileName) {
-    const response = await fetch(path, { credentials: 'same-origin' });
+    const response = await fetch(this.url(path), { credentials: 'same-origin' });
     if (response.status === 401) {
       window.location.href = '/login';
       return;

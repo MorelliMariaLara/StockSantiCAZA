@@ -1,4 +1,5 @@
 using EntityFrameworkCore.UseRowNumberForPaging;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
@@ -24,11 +25,19 @@ builder.Services.AddControllers()
 
 builder.Services.AddDistributedMemoryCache();
 
+var keysPath = Path.Combine(builder.Environment.ContentRootPath, "keys");
+Directory.CreateDirectory(keysPath);
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(keysPath))
+    .SetApplicationName("StockSantiCaza.Web");
+
 builder.Services.AddSession(options =>
 {
     options.Cookie.Name = "StockSanti.Session";
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true;
+    options.Cookie.SameSite = SameSiteMode.Lax;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
     options.IdleTimeout = TimeSpan.FromHours(8);
 });
 

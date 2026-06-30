@@ -34,8 +34,8 @@ if ($LASTEXITCODE -ne 0) { throw "dotnet publish fallo" }
 
 Copy-Item $productionSettings (Join-Path $publishDir "appsettings.Production.json") -Force
 
-$logsDir = Join-Path $publishDir "logs"
-New-Item -ItemType Directory -Path $logsDir -Force | Out-Null
+New-Item -ItemType Directory -Path (Join-Path $publishDir "logs") -Force | Out-Null
+New-Item -ItemType Directory -Path (Join-Path $publishDir "keys") -Force | Out-Null
 
 $exe = Join-Path $publishDir "StockSantiCaza.Web.exe"
 $webConfig = Join-Path $publishDir "web.config"
@@ -53,7 +53,7 @@ Write-Host "LISTO ($fileCount archivos, $dllCount DLLs)" -ForegroundColor Green
 Write-Host "  $publishDir" -ForegroundColor White
 Write-Host ""
 Write-Host "Subi TODO el contenido a public_html (no solo wwwroot ni solo el .exe)." -ForegroundColor Cyan
-Write-Host "Crea o verifica carpeta logs\ en el servidor." -ForegroundColor Cyan
+Write-Host "Crea o verifica carpetas logs\ y keys\ en el servidor." -ForegroundColor Cyan
 Write-Host "Proba: https://TU-DOMINIO/api/health" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "Si da error 502.5, probá 64 bits: .\scripts\publicar-donweb-x64.ps1" -ForegroundColor Yellow
