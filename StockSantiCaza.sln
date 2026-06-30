@@ -1,8 +1,14 @@
+﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.0.31903.59
+# Visual Studio Version 18
+VisualStudioVersion = 18.4.11626.88 stable
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556F}") = "StockSantiCaza.Web", "src\StockSantiCaza.Web\StockSantiCaza.Web.csproj", "{2B3F9271-A1F0-4BD9-8F2B-2D20526EEBC1}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StockSantiCaza.Web", "src\StockSantiCaza.Web\StockSantiCaza.Web.csproj", "{2B3F9271-A1F0-4BD9-8F2B-2D20526EEBC1}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Elementos de la solución", "Elementos de la solución", "{1660B5A6-0F07-4BB8-8858-C4958529E2A3}"
+	ProjectSection(SolutionItems) = preProject
+		appsettings.Production.json = appsettings.Production.json
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -17,5 +23,8 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {3E8BB1D0-C6AB-4224-9639-74EA08AC294E}
 	EndGlobalSection
 EndGlobal
