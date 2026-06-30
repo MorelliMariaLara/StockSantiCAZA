@@ -63,33 +63,7 @@ builder.Services.AddScoped<IStockImportService, StockImportService>();
 
 var app = builder.Build();
 
-<<<<<<< HEAD
-// ==========================================
-// SECCIÓN MAESTRA: CREACIÓN DE BASE DE DATOS SIN MIGRACIONES
-// ==========================================
-using (var scope = app.Services.CreateScope())
-{
-    var services = scope.ServiceProvider;
-    try
-    {
-        var context = services.GetRequiredService<ApplicationDbContext>();
-
-        // EnsureCreated crea las tablas si no existen en DonWeb usando tus entidades de C#
-        context.Database.EnsureCreated();
-
-        // Si tenés lógica para cargar el usuario administrador por defecto, 
-        // podés descomentar la línea de abajo llamando a tu inicializador manual:
-        // await DbInitializer.InitializeAsync(app.Services);
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"[StockSantiCAZA] Error al inicializar tablas: {ex.Message}");
-    }
-}
-// ==========================================
-=======
 // La base de datos ya debe existir en DonWeb (sin migración automática al iniciar).
->>>>>>> e622d25c56e60125a7b283cf4b42b5d9ea26c84e
 
 if (!app.Environment.IsDevelopment())
 {
