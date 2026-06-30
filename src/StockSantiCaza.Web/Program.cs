@@ -22,6 +22,7 @@ builder.Services.AddControllers()
     });
 
 builder.Services.AddDistributedMemoryCache();
+
 builder.Services.AddSession(options =>
 {
     options.Cookie.Name = "StockSanti.Session";
@@ -60,46 +61,31 @@ builder.Services.AddScoped<IVentasService, VentasService>();
 builder.Services.AddScoped<IReportesService, ReportesService>();
 builder.Services.AddScoped<IStockImportService, StockImportService>();
 
-builder.Services.AddSingleton<DatabaseInitializationState>();
-builder.Services.AddHostedService<DatabaseInitializationHostedService>();
-
 var app = builder.Build();
 
-app.Use(async (context, next) =>
+// ==========================================
+// SECCIÓN MAESTRA: CREACIÓN DE BASE DE DATOS SIN MIGRACIONES
+// ==========================================
+using (var scope = app.Services.CreateScope())
 {
-    if (!context.Request.Path.StartsWithSegments("/api") ||
-        context.Request.Path.StartsWithSegments("/api/health"))
+    var services = scope.ServiceProvider;
+    try
     {
-        await next();
-        return;
-    }
+        var context = services.GetRequiredService<ApplicationDbContext>();
 
-    var initState = context.RequestServices.GetRequiredService<DatabaseInitializationState>();
-    if (initState.IsReady)
-    {
-        await next();
-        return;
-    }
+        // EnsureCreated crea las tablas si no existen en DonWeb usando tus entidades de C#
+        context.Database.EnsureCreated();
 
-    if (initState.Status == DatabaseInitStatus.Failed)
-    {
-        context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
-        context.Response.ContentType = "application/json; charset=utf-8";
-        await context.Response.WriteAsJsonAsync(new
-        {
-            error = "No se pudo inicializar la base de datos. Revise la cadena de conexión en appsettings.Production.json.",
-            detail = initState.ErrorMessage
-        });
-        return;
+        // Si tenés lógica para cargar el usuario administrador por defecto, 
+        // podés descomentar la línea de abajo llamando a tu inicializador manual:
+        // await DbInitializer.InitializeAsync(app.Services);
     }
-
-    context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
-    context.Response.ContentType = "application/json; charset=utf-8";
-    await context.Response.WriteAsJsonAsync(new
+    catch (Exception ex)
     {
-        error = "La base de datos se está inicializando. Espere unos segundos e intente de nuevo."
-    });
-});
+        Console.WriteLine($"[StockSantiCAZA] Error al inicializar tablas: {ex.Message}");
+    }
+}
+// ==========================================
 
 if (!app.Environment.IsDevelopment())
 {
