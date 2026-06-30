@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="es-ar">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Iniciar sesión - StockSantiCAZA</title>
+  <link rel="stylesheet" href="/css/app.css?v=4" />
+</head>
+<body>
+  <section class="login-shell">
+    <div class="login-card panel">
+      <h1>StockSantiCAZA</h1>
+      <p>Ingrese con su usuario para operar el sistema.</p>
+      <div id="login-alerts"></div>
+      <form id="login-form">
+        <label>
+          Usuario
+          <input class="input" type="text" id="login" name="login" autocomplete="username" required />
+        </label>
+        <label>
+          Contraseña
+          <input class="input" type="password" id="password" name="password" autocomplete="current-password" required />
+        </label>
+        <button class="button primary" type="submit" id="login-btn">Ingresar</button>
+      </form>
+    </div>
+  </section>
+  <script src="/js/api.js?v=4"></script>
+  <script src="/js/app.js?v=4"></script>
+  <script src="/js/pages/login.js?v=4"></script>
+</body>
+</html>

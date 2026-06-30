@@ -1,23 +1,46 @@
 # StockSantiCAZA
 
-Aplicación web Blazor Server (.NET 6) para control de stock y ventas de armería, con trazabilidad de armas y municiones, validación de CLU, facturación simulada y exportación Excel.
+Aplicaci?n web para control de stock y ventas de armer?a, con trazabilidad de armas y municiones, validaci?n de CLU y exportaci?n Excel.
+
+## Arquitectura
+
+- **Frontend:** HTML + JavaScript vanilla en `wwwroot/` (misma UI y flujos que el sistema original).
+- **Backend:** ASP.NET Core 6 con API REST (`/api/*`) y sesi?n por cookie.
+- **Base de datos:** SQL Server con Entity Framework Core.
 
 ## Estructura
 
-- `src/StockSantiCaza.Web/Components`: componentes Razor, layout, navegación y páginas.
+- `src/StockSantiCaza.Web/wwwroot/`: p?ginas HTML, CSS y JS del frontend.
+- `src/StockSantiCaza.Web/Controllers/Api/`: endpoints REST para cada m?dulo.
 - `src/StockSantiCaza.Web/Models`: entidades de dominio y enumeraciones.
-- `src/StockSantiCaza.Web/Data`: `ApplicationDbContext` para SQL Server con Entity Framework Core.
-- `src/StockSantiCaza.Web/Services`: servicios de ventas, reportes y facturación electrónica simulada.
+- `src/StockSantiCaza.Web/Data`: `ApplicationDbContext` para SQL Server.
+- `src/StockSantiCaza.Web/Services`: l?gica de negocio (ventas, reportes, stock, auth).
 
-## Configuración
+## Rutas
 
-Actualice `ConnectionStrings:DefaultConnection` en `appsettings.json` o variables de entorno antes del despliegue en un dominio `.com.ar`.
+| Ruta | M?dulo |
+|------|--------|
+| `/` | Dashboard (admin) |
+| `/login` | Inicio de sesi?n |
+| `/ventas/nueva` | Nueva venta |
+| `/ventas` | Historial de ventas |
+| `/clientes` | Clientes y CLU |
+| `/stock` | Stock e importaci?n Excel |
+| `/proveedores` | Proveedores y cuentas |
+| `/reportes` | Reportes (admin) |
+| `/usuarios` | Usuarios (admin) |
+
+## Configuraci?n
+
+Actualice `ConnectionStrings:DefaultConnection` en `appsettings.json` o variables de entorno antes del despliegue.
 
 ```bash
 dotnet restore
-dotnet ef migrations add InitialCreate --project src/StockSantiCaza.Web
-dotnet ef database update --project src/StockSantiCaza.Web
 dotnet run --project src/StockSantiCaza.Web
 ```
 
-La integración AFIP queda encapsulada detrás de `IFacturacionElectronicaService`; la implementación actual genera comprobantes simulados para desarrollo.
+Usuario inicial: `admin` / `Admin123!`
+
+## Notas
+
+Los componentes Blazor en `Components/` se conservan como referencia hist?rica; la aplicaci?n activa usa el frontend HTML en `wwwroot/`.
