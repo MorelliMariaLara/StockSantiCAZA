@@ -60,5 +60,23 @@ En el perfil FTP verificá:
 ## Después de subir
 
 1. En Ferozo, variable `ASPNETCORE_ENVIRONMENT` = `Production`
-2. Cadena SQL en `appsettings.Production.json` o variable de entorno
+2. Cadena SQL en `appsettings.Production.json` o variable de entorno  
+   (copiá desde `appsettings.Production.example.json` y reemplazá `__PASSWORD__`)
 3. Abrí el sitio y probá login: `admin` / `Admin123!`
+
+---
+
+## Error: "El servidor no respondió a tiempo" en el login
+
+La pantalla de login carga pero la API no responde. Suele pasar si subiste **solo** `wwwroot` (HTML/JS) y no el publish completo.
+
+**Checklist en `public_html`:**
+
+- [ ] `web.config` en la raíz
+- [ ] `StockSantiCaza.Web.dll` y el resto de `.dll`
+- [ ] `appsettings.Production.json` con cadena `sql2016`
+- [ ] Carpeta `wwwroot/` completa
+
+Guía detallada: [ERROR-TIMEOUT-LOGIN.md](./ERROR-TIMEOUT-LOGIN.md)
+
+**Prueba:** `https://tudominio.com/api/auth/me` debe devolver JSON 401, no timeout.

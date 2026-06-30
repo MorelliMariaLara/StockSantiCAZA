@@ -63,7 +63,7 @@ cd src/StockSantiCaza.Web
 dotnet publish -c Release -o ./publish
 ```
 
-Subí el contenido de `publish/` por FTP (o usá el perfil de publicación).
+Subí **todo** el contenido de `publish/` por FTP (incluye `web.config`, `.dll`, `appsettings.Production.json` y `wwwroot/`). No subas solo la carpeta `wwwroot`.
 
 ### 3. Variables en el panel Ferozo (alternativa)
 
@@ -96,9 +96,17 @@ Sin túnel activo, `127.0.0.1,1433` siempre falla con *"conexión denegada"*.
 
 ## Primera ejecución en Ferozo
 
-Al iniciar, `DbInitializer` crea tablas y aplica el script de migración automático.
+Si la base está vacía, descomentá en `Program.cs`:
 
-Si la base ya tiene datos viejos, revisá `scripts/sql/007-migracion-completa.sql`.
+```csharp
+await DbInitializer.InitializeAsync(app.Services);
+```
+
+Eso crea tablas y aplica el script de migración automático. Si la base ya tiene datos, dejalo comentado y revisá `scripts/sql/007-migracion-completa.sql`.
+
+## Si el login muestra timeout
+
+Ver [ERROR-TIMEOUT-LOGIN.md](./ERROR-TIMEOUT-LOGIN.md) — casi siempre falta subir el publish completo (no solo HTML) o falta `appsettings.Production.json`.
 
 ---
 
