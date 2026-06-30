@@ -5,7 +5,16 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>StockSantiCaza.Web</RootNamespace>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
   </PropertyGroup>
+
+  <!-- UI activa: wwwroot (HTML). Blazor legacy queda fuera del build. -->
+  <ItemGroup>
+    <Content Remove="Components\**\*" />
+    <Content Remove="Pages\**\*" />
+    <None Include="Components\**\*" />
+    <None Include="Pages\**\*" />
+  </ItemGroup>
 
   <ItemGroup>
     <EmbeddedResource Include="Data\schema-migration.sql" />
