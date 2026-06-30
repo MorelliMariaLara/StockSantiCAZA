@@ -6,6 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>StockSantiCaza.Web</RootNamespace>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <AspNetCoreHostingModel>OutOfProcess</AspNetCoreHostingModel>
   </PropertyGroup>
 
   <!-- UI activa: wwwroot (HTML). Blazor legacy queda fuera del build. -->
