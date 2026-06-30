@@ -34,11 +34,14 @@ const app = {
     return dni && /^S\d+/.test(dni);
   },
 
-  renderAlerts(container, { errors = [], success = null, error = null } = {}) {
+  renderAlerts(container, { errors = [], success = null, error = null, info = null } = {}) {
     if (!container) return;
     const items = [...errors];
     if (error) items.push(error);
     let html = '';
+    if (info) {
+      html += `<div class="alert alert-info">${info}</div>`;
+    }
     if (items.length) {
       html += `<div class="alert alert-danger"><strong>No se pudo completar la operación</strong><ul>${items.map(e => `<li>${e}</li>`).join('')}</ul></div>`;
     }

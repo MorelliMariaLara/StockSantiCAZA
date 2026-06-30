@@ -24,15 +24,24 @@ public static class DbInitializer
         await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
 
         var tablaUsuariosExiste = await TablaExisteAsync(db, "Usuarios", cancellationToken);
+        var esquemaRecienCreado = false;
 
         if (!tablaUsuariosExiste)
         {
             logger.LogInformation("[DbInitializer] La base no tiene tablas. Creando esquema inicial...");
             await db.Database.EnsureCreatedAsync(cancellationToken);
+            esquemaRecienCreado = true;
         }
 
-        logger.LogInformation("[DbInitializer] Aplicando actualizaciones de esquema...");
-        await SchemaMigrationRunner.ApplyAsync(db, cancellationToken);
+        if (!esquemaRecienCreado)
+        {
+            logger.LogInformation("[DbInitializer] Aplicando actualizaciones de esquema...");
+            await SchemaMigrationRunner.ApplyAsync(db, cancellationToken);
+        }
+        else
+        {
+            logger.LogInformation("[DbInitializer] Esquema nuevo: se omiten migraciones legacy.");
+        }
 
         if (!await db.Usuarios.AnyAsync(cancellationToken))
         {
