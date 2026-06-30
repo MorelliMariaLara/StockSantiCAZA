@@ -1,7 +1,5 @@
 using EntityFrameworkCore.UseRowNumberForPaging;
-using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Diagnostics;
-using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using StockSantiCaza.Web.Data;
@@ -24,38 +22,18 @@ builder.Services.AddControllers()
     });
 
 builder.Services.AddDistributedMemoryCache();
-
-var keysPath = Path.Combine(builder.Environment.ContentRootPath, "keys");
-Directory.CreateDirectory(keysPath);
-builder.Services.AddDataProtection()
-    .PersistKeysToFileSystem(new DirectoryInfo(keysPath))
-    .SetApplicationName("StockSantiCaza.Web");
-
 builder.Services.AddSession(options =>
 {
     options.Cookie.Name = "StockSanti.Session";
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true;
-    options.Cookie.SameSite = SameSiteMode.Lax;
-    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
     options.IdleTimeout = TimeSpan.FromHours(8);
 });
 
 builder.Services.AddHttpContextAccessor();
 
-builder.Services.Configure<ForwardedHeadersOptions>(options =>
-{
-    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-    options.KnownNetworks.Clear();
-    options.KnownProxies.Clear();
-});
-
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-if (string.IsNullOrWhiteSpace(connectionString))
-{
-    Console.WriteLine("[StockSantiCAZA] ADVERTENCIA: falta ConnectionStrings:DefaultConnection. Agregue appsettings.Production.json en el servidor.");
-    connectionString = "Server=127.0.0.1;Database=__sin_configurar__;User Id=__;Password=__;TrustServerCertificate=True;Encrypt=False;Connect Timeout=5";
-}
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? throw new InvalidOperationException("Connection string 'DefaultConnection' was not configured.");
 
 var sqlServer = connectionString.Split(';', StringSplitOptions.RemoveEmptyEntries)
     .Select(part => part.Trim())
@@ -86,13 +64,6 @@ var app = builder.Build();
 
 // La base de datos ya debe existir en DonWeb (sin migración automática al iniciar).
 
-app.Lifetime.ApplicationStarted.Register(() =>
-{
-    app.Logger.LogInformation(
-        "[StockSantiCAZA] Aplicación iniciada. Entorno={Environment}. Diagnóstico: GET /api/health y GET /api/health/db",
-        app.Environment.EnvironmentName);
-});
-
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler(errorApp =>
@@ -110,42 +81,26 @@ if (!app.Environment.IsDevelopment())
                 return;
             }
 
-            context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-            context.Response.ContentType = "text/html; charset=utf-8";
-            var mensajeHtml = System.Net.WebUtility.HtmlEncode(mensaje);
-            await context.Response.WriteAsync(
-                "<!DOCTYPE html><html lang=\"es\"><head><meta charset=\"utf-8\"><title>Error</title></head>" +
-                "<body style=\"font-family:sans-serif;padding:2rem\">" +
-                "<h1>Error en el servidor</h1><p>" + mensajeHtml + "</p>" +
-                "<p><a href=\"/login\">Volver al login</a> · <a href=\"/api/health\">Diagnóstico API</a></p>" +
-                "</body></html>");
+            context.Response.Redirect("/error");
         });
     });
-}
-
-app.UseForwardedHeaders();
-
-// En Ferozo/IIS el HTTPS ya lo maneja el hosting; forzar redirección suele causar error 500.
-var disableHttpsRedirect = app.Configuration.GetValue("Hosting:DisableHttpsRedirection", true);
-if (!disableHttpsRedirect && !app.Environment.IsDevelopment())
-{
     app.UseHsts();
-    app.UseHttpsRedirection();
 }
-else if (app.Environment.IsDevelopment())
-{
-    app.UseHttpsRedirection();
-}
-app.UseStaticFiles();
+
+app.UseHttpsRedirection();
 app.UseRouting();
 app.UseSession();
-app.MapControllers();
+
+var publicHtmlRoutes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+{
+    "/login",
+    "/error"
+};
 
 var htmlRoutes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
 {
-    ["/"] = "login.html",
-    ["/login"] = "login.html",
     ["/inicio"] = "index.html",
+    ["/login"] = "login.html",
     ["/clientes"] = "clientes.html",
     ["/stock"] = "stock.html",
     ["/ventas"] = "ventas.html",
@@ -155,6 +110,64 @@ var htmlRoutes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase
     ["/usuarios"] = "usuarios.html",
     ["/error"] = "error.html"
 };
+
+app.Use(async (context, next) =>
+{
+    var path = context.Request.Path.Value ?? string.Empty;
+    var normalizedPath = path.Length > 1 ? path.TrimEnd('/') : path;
+
+    if (path.StartsWith("/api", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWith("/css", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWith("/js", StringComparison.OrdinalIgnoreCase))
+    {
+        await next();
+        return;
+    }
+
+    var isProtectedHtml = htmlRoutes.ContainsKey(normalizedPath)
+        || (path.EndsWith(".html", StringComparison.OrdinalIgnoreCase)
+            && !path.EndsWith("/login.html", StringComparison.OrdinalIgnoreCase)
+            && !path.EndsWith("/error.html", StringComparison.OrdinalIgnoreCase));
+
+    if (isProtectedHtml && !publicHtmlRoutes.Contains(normalizedPath))
+    {
+        var authService = context.RequestServices.GetRequiredService<IAuthService>();
+        if (authService.UsuarioActual is null)
+        {
+            context.Response.Redirect("/login");
+            return;
+        }
+    }
+
+    await next();
+});
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    OnPrepareResponse = ctx =>
+    {
+        var fileName = ctx.File.Name;
+        if (fileName.EndsWith(".html", StringComparison.OrdinalIgnoreCase)
+            && !fileName.Equals("login.html", StringComparison.OrdinalIgnoreCase)
+            && !fileName.Equals("error.html", StringComparison.OrdinalIgnoreCase))
+        {
+            ctx.Context.Response.StatusCode = StatusCodes.Status404NotFound;
+            ctx.Context.Response.ContentLength = 0;
+        }
+    }
+});
+
+app.MapControllers();
+
+app.MapGet("/", context =>
+{
+    var authService = context.RequestServices.GetRequiredService<IAuthService>();
+    var usuario = authService.UsuarioActual;
+    context.Response.Redirect(usuario is null
+        ? "/login"
+        : usuario.EsAdministrador ? "/inicio" : "/ventas/nueva");
+    return Task.CompletedTask;
+});
 
 foreach (var (route, file) in htmlRoutes)
 {
@@ -171,25 +184,5 @@ foreach (var (route, file) in htmlRoutes)
         await context.Response.SendFileAsync(filePath);
     });
 }
-
-// Cualquier otra ruta (excepto /api y archivos estáticos) muestra el login.
-app.MapFallback(async context =>
-{
-    if (context.Request.Path.StartsWithSegments("/api"))
-    {
-        context.Response.StatusCode = 404;
-        return;
-    }
-
-    var loginPath = Path.Combine(app.Environment.WebRootPath, "login.html");
-    if (!File.Exists(loginPath))
-    {
-        context.Response.StatusCode = 404;
-        return;
-    }
-
-    context.Response.ContentType = "text/html; charset=utf-8";
-    await context.Response.SendFileAsync(loginPath);
-});
 
 app.Run();

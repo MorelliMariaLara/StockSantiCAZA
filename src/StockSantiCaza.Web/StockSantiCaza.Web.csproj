@@ -6,7 +6,6 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>StockSantiCaza.Web</RootNamespace>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
-    <AspNetCoreHostingModel>OutOfProcess</AspNetCoreHostingModel>
   </PropertyGroup>
 
   <!-- UI activa: wwwroot (HTML). Blazor legacy queda fuera del build. -->
@@ -19,11 +18,6 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Data\schema-migration.sql" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Content Include="logs\.gitkeep" CopyToPublishDirectory="PreserveNewest" />
-    <Content Include="keys\.gitkeep" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>
