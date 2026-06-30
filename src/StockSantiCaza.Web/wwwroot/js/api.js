@@ -1,16 +1,36 @@
 const api = {
   async request(path, options = {}) {
-    const response = await fetch(path, {
-      credentials: 'same-origin',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(options.headers || {})
-      },
-      ...options
-    });
+    const controller = new AbortController();
+    const timeoutMs = options.timeoutMs ?? 15000;
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-    if (response.status === 401 && !path.includes('/api/auth/login')) {
-      window.location.href = '/login';
+    let response;
+    try {
+      response = await fetch(path, {
+        credentials: 'same-origin',
+        signal: controller.signal,
+        headers: {
+          'Content-Type': 'application/json',
+          ...(options.headers || {})
+        },
+        ...options
+      });
+    } catch (err) {
+      if (err.name === 'AbortError') {
+        throw new Error('El servidor no respondió a tiempo. Verifique que la aplicación .NET esté en ejecución.');
+      }
+      throw new Error('No se pudo conectar con el servidor. Verifique que la aplicación esté publicada y en ejecución.');
+    } finally {
+      clearTimeout(timeoutId);
+    }
+
+    const isAuthMe = path.includes('/api/auth/me');
+    const isLoginPage = window.location.pathname.replace(/\/$/, '') === '/login';
+
+    if (response.status === 401 && !path.includes('/api/auth/login') && !isAuthMe) {
+      if (!isLoginPage) {
+        window.location.href = '/login';
+      }
       throw new Error('No autorizado');
     }
 

@@ -1,13 +1,16 @@
-document.addEventListener('DOMContentLoaded', async () => {
-  const user = await app.loadUser();
-  if (user) {
-    window.location.href = user.esAdministrador ? '/' : '/ventas/nueva';
-    return;
-  }
-
+document.addEventListener('DOMContentLoaded', () => {
   const form = document.getElementById('login-form');
   const alerts = document.getElementById('login-alerts');
   const btn = document.getElementById('login-btn');
+
+  // Verificar sesión existente sin bloquear el formulario.
+  app.loadUser().then((user) => {
+    if (user) {
+      window.location.href = user.esAdministrador ? '/' : '/ventas/nueva';
+    }
+  }).catch(() => {
+    // Sin sesión: el formulario ya está listo para usar.
+  });
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();

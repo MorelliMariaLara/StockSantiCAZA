@@ -52,8 +52,11 @@ const app = {
     try {
       this.usuario = await api.get('/api/auth/me');
       return this.usuario;
-    } catch {
+    } catch (err) {
       this.usuario = null;
+      if (err.status && err.status !== 401) {
+        console.error('Error al verificar sesión:', err.message);
+      }
       return null;
     }
   },
