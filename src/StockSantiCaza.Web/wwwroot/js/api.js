@@ -17,15 +17,7 @@ const api = {
       });
     } catch (err) {
       if (err.name === 'AbortError') {
-<<<<<<< HEAD
-<<<<<<< HEAD
-        throw new Error('El servidor no respondió a tiempo. Probá /api/health en el navegador.');
-=======
         throw new Error('El servidor no respondió a tiempo. Verifique que la aplicación .NET esté en ejecución.');
->>>>>>> parent of 5da91d4 (fix: publish autocontenido para Ferozo, diagnóstico en login y guía de alternativas)
-=======
-        throw new Error('El servidor no respondió a tiempo. Verifique que la aplicación .NET esté en ejecución.');
->>>>>>> 015993b3f9a6afdff3d0c188f0de78b51864a472
       }
       throw new Error('No se pudo conectar con el servidor. Verifique que la aplicación esté publicada y en ejecución.');
     } finally {
