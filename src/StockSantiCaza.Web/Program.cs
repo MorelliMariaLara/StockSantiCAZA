@@ -1,5 +1,6 @@
 using EntityFrameworkCore.UseRowNumberForPaging;
 using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using StockSantiCaza.Web.Data;
@@ -32,6 +33,13 @@ builder.Services.AddSession(options =>
 });
 
 builder.Services.AddHttpContextAccessor();
+
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 if (string.IsNullOrWhiteSpace(connectionString))
@@ -93,13 +101,32 @@ if (!app.Environment.IsDevelopment())
                 return;
             }
 
-            context.Response.Redirect("/error");
+            context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+            context.Response.ContentType = "text/html; charset=utf-8";
+            var mensajeHtml = System.Net.WebUtility.HtmlEncode(mensaje);
+            await context.Response.WriteAsync(
+                "<!DOCTYPE html><html lang=\"es\"><head><meta charset=\"utf-8\"><title>Error</title></head>" +
+                "<body style=\"font-family:sans-serif;padding:2rem\">" +
+                "<h1>Error en el servidor</h1><p>" + mensajeHtml + "</p>" +
+                "<p><a href=\"/login\">Volver al login</a> · <a href=\"/api/health\">Diagnóstico API</a></p>" +
+                "</body></html>");
         });
     });
-    app.UseHsts();
 }
 
-app.UseHttpsRedirection();
+app.UseForwardedHeaders();
+
+// En Ferozo/IIS el HTTPS ya lo maneja el hosting; forzar redirección suele causar error 500.
+var disableHttpsRedirect = app.Configuration.GetValue("Hosting:DisableHttpsRedirection", true);
+if (!disableHttpsRedirect && !app.Environment.IsDevelopment())
+{
+    app.UseHsts();
+    app.UseHttpsRedirection();
+}
+else if (app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 app.UseStaticFiles();
 app.UseRouting();
 app.UseSession();
