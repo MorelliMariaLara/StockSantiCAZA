@@ -8,10 +8,12 @@ namespace StockSantiCaza.Web.Controllers.Api;
 public class AuthController : ControllerBase
 {
     private readonly IAuthService authService;
+    private readonly ILogger<AuthController> logger;
 
-    public AuthController(IAuthService authService)
+    public AuthController(IAuthService authService, ILogger<AuthController> logger)
     {
         this.authService = authService;
+        this.logger = logger;
     }
 
     [HttpGet("me")]
@@ -29,13 +31,25 @@ public class AuthController : ControllerBase
     [HttpPost("login")]
     public async Task<ActionResult<UsuarioSesionDto>> Login([FromBody] LoginRequest request, CancellationToken ct)
     {
-        var ok = await authService.IniciarSesionAsync(request.Login, request.Password, ct);
-        if (!ok)
+        try
         {
-            return Unauthorized(new { error = "Usuario o contraseña incorrectos." });
-        }
+            var ok = await authService.IniciarSesionAsync(request.Login, request.Password, ct);
+            if (!ok)
+            {
+                return Unauthorized(new { error = "Usuario o contraseña incorrectos." });
+            }
 
-        return Ok(UsuarioSesionDto.From(authService.UsuarioActual!));
+            return Ok(UsuarioSesionDto.From(authService.UsuarioActual!));
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error en login para usuario {Login}", request.Login);
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, new
+            {
+                error = "No se pudo conectar con la base de datos. Revise appsettings.Production.json en el servidor.",
+                detail = ex.Message
+            });
+        }
     }
 
     [HttpPost("logout")]

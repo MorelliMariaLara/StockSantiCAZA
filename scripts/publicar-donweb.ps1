@@ -29,8 +29,8 @@ if (Test-Path $publishDir) {
     Remove-Item $publishDir -Recurse -Force
 }
 
-Write-Host "Compilando y publicando en Release..." -ForegroundColor Green
-dotnet publish $project -c Release -o $publishDir
+Write-Host "Compilando publish autocontenido (win-x64, no requiere .NET instalado en Ferozo)..." -ForegroundColor Green
+dotnet publish $project -c Release -r win-x64 --self-contained true -o $publishDir
 if ($LASTEXITCODE -ne 0) { throw "dotnet publish fallo" }
 
 Copy-Item $productionSettings (Join-Path $publishDir "appsettings.Production.json") -Force

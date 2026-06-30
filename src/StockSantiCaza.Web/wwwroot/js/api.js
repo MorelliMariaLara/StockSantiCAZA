@@ -17,7 +17,7 @@ const api = {
       });
     } catch (err) {
       if (err.name === 'AbortError') {
-        throw new Error('El servidor no respondió a tiempo. Verifique que la aplicación .NET esté en ejecución.');
+        throw new Error('El servidor no respondió a tiempo. El backend .NET no está en ejecución o la base SQL no responde. Probá /api/health en el navegador.');
       }
       throw new Error('No se pudo conectar con el servidor. Verifique que la aplicación esté publicada y en ejecución.');
     } finally {
@@ -58,8 +58,8 @@ const api = {
     return body;
   },
 
-  get(path) {
-    return this.request(path);
+  get(path, options = {}) {
+    return this.request(path, options);
   },
 
   post(path, data) {
