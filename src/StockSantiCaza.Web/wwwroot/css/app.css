@@ -658,6 +658,12 @@ tbody tr:hover {
     border-color: #a8c49c;
 }
 
+.alert-info {
+    background: #e8f0f8;
+    color: #1a4a6e;
+    border-color: #a8c4dc;
+}
+
 .badge {
     display: inline-flex;
     border-radius: 999px;

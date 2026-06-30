@@ -60,16 +60,46 @@ builder.Services.AddScoped<IVentasService, VentasService>();
 builder.Services.AddScoped<IReportesService, ReportesService>();
 builder.Services.AddScoped<IStockImportService, StockImportService>();
 
+builder.Services.AddSingleton<DatabaseInitializationState>();
+builder.Services.AddHostedService<DatabaseInitializationHostedService>();
+
 var app = builder.Build();
 
-try
+app.Use(async (context, next) =>
 {
-    await DbInitializer.InitializeAsync(app.Services, app.Configuration, app.Logger);
-}
-catch (Exception ex)
-{
-    app.Logger.LogError(ex, "No se pudo inicializar la base de datos. Revise la cadena de conexión y los permisos SQL.");
-}
+    if (!context.Request.Path.StartsWithSegments("/api") ||
+        context.Request.Path.StartsWithSegments("/api/health"))
+    {
+        await next();
+        return;
+    }
+
+    var initState = context.RequestServices.GetRequiredService<DatabaseInitializationState>();
+    if (initState.IsReady)
+    {
+        await next();
+        return;
+    }
+
+    if (initState.Status == DatabaseInitStatus.Failed)
+    {
+        context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
+        context.Response.ContentType = "application/json; charset=utf-8";
+        await context.Response.WriteAsJsonAsync(new
+        {
+            error = "No se pudo inicializar la base de datos. Revise la cadena de conexión en appsettings.Production.json.",
+            detail = initState.ErrorMessage
+        });
+        return;
+    }
+
+    context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
+    context.Response.ContentType = "application/json; charset=utf-8";
+    await context.Response.WriteAsJsonAsync(new
+    {
+        error = "La base de datos se está inicializando. Espere unos segundos e intente de nuevo."
+    });
+});
 
 if (!app.Environment.IsDevelopment())
 {

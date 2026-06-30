@@ -2,13 +2,15 @@
 
 ## Qué hace la aplicación al iniciar
 
+La inicialización corre **en segundo plano** para que la página no se cuelgue en DonWeb.
+
 Al arrancar, la app revisa la base configurada en `appsettings.Production.json`:
 
 1. Si **no existe la tabla `Usuarios`** → crea todas las tablas (`EnsureCreated`).
-2. Ejecuta **migraciones idempotentes** (script embebido, seguro de re-ejecutar).
+2. Si la base **ya existía** → aplica migraciones idempotentes (script legacy).
 3. Si **no hay usuarios** → crea `admin` / `Admin123!`.
 
-No hace falta descomentar código ni correr scripts manualmente en una base **vacía**.
+En el login verás *"La base de datos se está inicializando..."* la primera vez. Esperá hasta que desaparezca el mensaje.
 
 ---
 
