@@ -63,6 +63,7 @@ builder.Services.AddScoped<IStockImportService, StockImportService>();
 
 var app = builder.Build();
 
+<<<<<<< HEAD
 // ==========================================
 // SECCIÓN MAESTRA: CREACIÓN DE BASE DE DATOS SIN MIGRACIONES
 // ==========================================
@@ -86,6 +87,9 @@ using (var scope = app.Services.CreateScope())
     }
 }
 // ==========================================
+=======
+// La base de datos ya debe existir en DonWeb (sin migración automática al iniciar).
+>>>>>>> e622d25c56e60125a7b283cf4b42b5d9ea26c84e
 
 if (!app.Environment.IsDevelopment())
 {
