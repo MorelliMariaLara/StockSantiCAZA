@@ -62,7 +62,14 @@ builder.Services.AddScoped<IStockImportService, StockImportService>();
 
 var app = builder.Build();
 
-//await DbInitializer.InitializeAsync(app.Services);
+try
+{
+    await DbInitializer.InitializeAsync(app.Services, app.Configuration, app.Logger);
+}
+catch (Exception ex)
+{
+    app.Logger.LogError(ex, "No se pudo inicializar la base de datos. Revise la cadena de conexión y los permisos SQL.");
+}
 
 if (!app.Environment.IsDevelopment())
 {
