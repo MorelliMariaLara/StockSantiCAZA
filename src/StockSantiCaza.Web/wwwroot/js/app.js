@@ -52,6 +52,10 @@ const app = {
   },
 
   async loadUser() {
+    if (!window.api) {
+      this.usuario = null;
+      return null;
+    }
     try {
       this.usuario = await api.get('/api/auth/me');
       return this.usuario;
