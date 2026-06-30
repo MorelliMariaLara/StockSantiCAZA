@@ -1,7 +1,9 @@
 using EntityFrameworkCore.UseRowNumberForPaging;
+using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using StockSantiCaza.Web.Data;
+using StockSantiCaza.Web.Helpers;
 using StockSantiCaza.Web.Models;
 using StockSantiCaza.Web.Services.Auth;
 using StockSantiCaza.Web.Services.Reportes;
@@ -64,7 +66,24 @@ await DbInitializer.InitializeAsync(app.Services);
 
 if (!app.Environment.IsDevelopment())
 {
-    app.UseExceptionHandler("/error");
+    app.UseExceptionHandler(errorApp =>
+    {
+        errorApp.Run(async context =>
+        {
+            var ex = context.Features.Get<IExceptionHandlerFeature>()?.Error;
+            var mensaje = ex is null ? "Error interno del servidor." : ExceptionHelper.ObtenerMensaje(ex);
+
+            if (context.Request.Path.StartsWithSegments("/api"))
+            {
+                context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+                context.Response.ContentType = "application/json; charset=utf-8";
+                await context.Response.WriteAsJsonAsync(new { error = mensaje });
+                return;
+            }
+
+            context.Response.Redirect("/error");
+        });
+    });
     app.UseHsts();
 }
 

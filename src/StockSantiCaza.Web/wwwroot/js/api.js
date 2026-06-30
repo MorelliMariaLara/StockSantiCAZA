@@ -36,7 +36,16 @@ const api = {
 
     const contentType = response.headers.get('content-type') || '';
     const isJson = contentType.includes('application/json');
-    const body = isJson ? await response.json().catch(() => null) : await response.blob();
+    let body = null;
+
+    if (isJson) {
+      body = await response.json().catch(() => null);
+    } else if (!response.ok) {
+      const text = await response.text().catch(() => '');
+      body = text ? { error: text.slice(0, 500) } : null;
+    } else {
+      body = await response.blob();
+    }
 
     if (!response.ok) {
       const message = body?.error || body?.errors?.join?.('\n') || `Error ${response.status}`;

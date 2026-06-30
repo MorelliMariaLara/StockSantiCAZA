@@ -56,7 +56,7 @@ public class ReportesService : IReportesService
             .OrderBy(x => x.StockActual)
             .ThenBy(x => x.Nombre)
             .Take(25)
-            .Select(x => new StockAlertaDto(x.Sku, x.Nombre, x.StockActual, x.StockMinimo))
+            .Select(x => new StockAlertaDto(x.Sku ?? string.Empty, x.Nombre ?? string.Empty, x.StockActual, x.StockMinimo))
             .ToListAsync(cancellationToken);
 
         return new ReportePeriodoDto(

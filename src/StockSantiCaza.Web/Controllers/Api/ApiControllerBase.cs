@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using StockSantiCaza.Web.Helpers;
 using StockSantiCaza.Web.Services.Auth;
 
 namespace StockSantiCaza.Web.Controllers.Api;
@@ -49,7 +50,7 @@ public abstract class ApiControllerBase : ControllerBase
         ex switch
         {
             UnauthorizedAccessException => Unauthorized(new { error = ex.Message }),
-            InvalidOperationException => BadRequest(new { error = ex.Message }),
-            _ => StatusCode(500, new { error = ex.Message })
+            InvalidOperationException => BadRequest(new { error = ExceptionHelper.ObtenerMensaje(ex) }),
+            _ => StatusCode(500, new { error = ExceptionHelper.ObtenerMensaje(ex) })
         };
 }
