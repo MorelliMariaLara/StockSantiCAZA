@@ -61,4 +61,6 @@ En el perfil FTP verificá:
 
 1. En Ferozo, variable `ASPNETCORE_ENVIRONMENT` = `Production`
 2. Cadena SQL en `appsettings.Production.json` o variable de entorno
-3. Abrí el sitio y probá login: `admin` / `Admin123!`
+3. Creá la carpeta `logs` en `public_html` si no se subió con el publish
+4. Probá diagnóstico: `/api/health` → `/api/health/db` → login
+5. Guía completa: [DIAGNOSTICO-HOSTING.md](./DIAGNOSTICO-HOSTING.md)

@@ -65,6 +65,13 @@ var app = builder.Build();
 
 // La base de datos ya debe existir en DonWeb (sin migración automática al iniciar).
 
+app.Lifetime.ApplicationStarted.Register(() =>
+{
+    app.Logger.LogInformation(
+        "[StockSantiCAZA] Aplicación iniciada. Entorno={Environment}. Diagnóstico: GET /api/health y GET /api/health/db",
+        app.Environment.EnvironmentName);
+});
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler(errorApp =>

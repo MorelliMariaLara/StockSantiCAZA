@@ -40,5 +40,8 @@ Ejecutá los scripts en el panel SQL de DonWeb o en SSMS conectado a la base:
 ## Si el login falla
 
 - Verificá que la cadena SQL sea correcta y que las tablas existan.
+- Guía completa de diagnóstico: [DIAGNOSTICO-HOSTING.md](./DIAGNOSTICO-HOSTING.md)
+- Probá `https://tudominio.com/api/health` (debe dar JSON `status: ok`).
+- Probá `https://tudominio.com/api/health/db` (debe dar `database: connected`).
 - Probá `https://tudominio.com/api/auth/me` (debe responder JSON 401, no timeout).
-- Activá logs en `web.config` (`stdoutLogEnabled="true"`) y revisá `logs/stdout_*.log`.
+- Revisá `logs/stdout_*.log` en el servidor (carpeta `logs` en `public_html`).
