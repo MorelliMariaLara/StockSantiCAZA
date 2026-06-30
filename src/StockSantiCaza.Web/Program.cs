@@ -33,8 +33,12 @@ builder.Services.AddSession(options =>
 
 builder.Services.AddHttpContextAccessor();
 
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? throw new InvalidOperationException("Connection string 'DefaultConnection' was not configured.");
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+if (string.IsNullOrWhiteSpace(connectionString))
+{
+    Console.WriteLine("[StockSantiCAZA] ADVERTENCIA: falta ConnectionStrings:DefaultConnection. Agregue appsettings.Production.json en el servidor.");
+    connectionString = "Server=127.0.0.1;Database=__sin_configurar__;User Id=__;Password=__;TrustServerCertificate=True;Encrypt=False;Connect Timeout=5";
+}
 
 var sqlServer = connectionString.Split(';', StringSplitOptions.RemoveEmptyEntries)
     .Select(part => part.Trim())

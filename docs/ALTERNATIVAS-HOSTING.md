@@ -23,11 +23,13 @@ Si ves *"El servidor no respondió a tiempo"* en el login, el problema es uno de
 4. Reiniciá el sitio en el panel Ferozo
 5. Probá `/api/health`
 
-Si sigue con 500.31, probá publish **32 bits** (algunos pools de Ferozo son x86):
+Si sigue con 500.31, probá publish **64 bits**:
 
 ```powershell
-dotnet publish src\StockSantiCaza.Web\StockSantiCaza.Web.csproj -c Release -r win-x86 --self-contained true -o "$env:USERPROFILE\Desktop\Publish"
+.\scripts\publicar-donweb-x64.ps1
 ```
+
+Si aparece **502.5**, volvé a **32 bits** con `.\scripts\publicar-donweb.ps1`. Ver [ERROR-502-5-FEROZO.md](./ERROR-502-5-FEROZO.md).
 
 ---
 
