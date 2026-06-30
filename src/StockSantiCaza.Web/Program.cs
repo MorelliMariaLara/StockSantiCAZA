@@ -1,5 +1,7 @@
 using EntityFrameworkCore.UseRowNumberForPaging;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using StockSantiCaza.Web.Data;
@@ -22,15 +24,32 @@ builder.Services.AddControllers()
     });
 
 builder.Services.AddDistributedMemoryCache();
+
+var keysPath = Path.Combine(builder.Environment.ContentRootPath, "keys");
+Directory.CreateDirectory(keysPath);
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(keysPath))
+    .SetApplicationName("StockSantiCaza.Web");
+
 builder.Services.AddSession(options =>
 {
     options.Cookie.Name = "StockSanti.Session";
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true;
+    options.Cookie.Path = "/";
+    options.Cookie.SameSite = SameSiteMode.Lax;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
     options.IdleTimeout = TimeSpan.FromHours(8);
 });
 
 builder.Services.AddHttpContextAccessor();
+
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("Connection string 'DefaultConnection' was not configured.");
@@ -87,7 +106,13 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
-app.UseHttpsRedirection();
+app.UseForwardedHeaders();
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
+
 app.UseRouting();
 app.UseSession();
 
@@ -131,6 +156,7 @@ app.Use(async (context, next) =>
 
     if (isProtectedHtml && !publicHtmlRoutes.Contains(normalizedPath))
     {
+        await context.Session.LoadAsync();
         var authService = context.RequestServices.GetRequiredService<IAuthService>();
         if (authService.UsuarioActual is null)
         {
@@ -159,14 +185,14 @@ app.UseStaticFiles(new StaticFileOptions
 
 app.MapControllers();
 
-app.MapGet("/", context =>
+app.MapGet("/", async context =>
 {
+    await context.Session.LoadAsync();
     var authService = context.RequestServices.GetRequiredService<IAuthService>();
     var usuario = authService.UsuarioActual;
     context.Response.Redirect(usuario is null
         ? "/login"
         : usuario.EsAdministrador ? "/inicio" : "/ventas/nueva");
-    return Task.CompletedTask;
 });
 
 foreach (var (route, file) in htmlRoutes)
