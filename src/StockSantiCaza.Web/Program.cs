@@ -1,7 +1,5 @@
 using EntityFrameworkCore.UseRowNumberForPaging;
-using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Diagnostics;
-using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using StockSantiCaza.Web.Data;
@@ -24,32 +22,15 @@ builder.Services.AddControllers()
     });
 
 builder.Services.AddDistributedMemoryCache();
-
-var keysPath = Path.Combine(builder.Environment.ContentRootPath, "keys");
-Directory.CreateDirectory(keysPath);
-builder.Services.AddDataProtection()
-    .PersistKeysToFileSystem(new DirectoryInfo(keysPath))
-    .SetApplicationName("StockSantiCaza.Web");
-
 builder.Services.AddSession(options =>
 {
     options.Cookie.Name = "StockSanti.Session";
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true;
-    options.Cookie.Path = "/";
-    options.Cookie.SameSite = SameSiteMode.Lax;
-    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
     options.IdleTimeout = TimeSpan.FromHours(8);
 });
 
 builder.Services.AddHttpContextAccessor();
-
-builder.Services.Configure<ForwardedHeadersOptions>(options =>
-{
-    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-    options.KnownNetworks.Clear();
-    options.KnownProxies.Clear();
-});
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("Connection string 'DefaultConnection' was not configured.");
@@ -106,25 +87,15 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
-app.UseForwardedHeaders();
-
-if (app.Environment.IsDevelopment())
-{
-    app.UseHttpsRedirection();
-}
-
+app.UseHttpsRedirection();
+app.UseStaticFiles();
 app.UseRouting();
 app.UseSession();
-
-var publicHtmlRoutes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-{
-    "/login",
-    "/error"
-};
+app.MapControllers();
 
 var htmlRoutes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
 {
-    ["/inicio"] = "index.html",
+    ["/"] = "index.html",
     ["/login"] = "login.html",
     ["/clientes"] = "clientes.html",
     ["/stock"] = "stock.html",
@@ -135,65 +106,6 @@ var htmlRoutes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase
     ["/usuarios"] = "usuarios.html",
     ["/error"] = "error.html"
 };
-
-app.Use(async (context, next) =>
-{
-    var path = context.Request.Path.Value ?? string.Empty;
-    var normalizedPath = path.Length > 1 ? path.TrimEnd('/') : path;
-
-    if (path.StartsWith("/api", StringComparison.OrdinalIgnoreCase)
-        || path.StartsWith("/css", StringComparison.OrdinalIgnoreCase)
-        || path.StartsWith("/js", StringComparison.OrdinalIgnoreCase))
-    {
-        await next();
-        return;
-    }
-
-    var isProtectedHtml = htmlRoutes.ContainsKey(normalizedPath)
-        || (path.EndsWith(".html", StringComparison.OrdinalIgnoreCase)
-            && !path.EndsWith("/login.html", StringComparison.OrdinalIgnoreCase)
-            && !path.EndsWith("/error.html", StringComparison.OrdinalIgnoreCase));
-
-    if (isProtectedHtml && !publicHtmlRoutes.Contains(normalizedPath))
-    {
-        await context.Session.LoadAsync();
-        var authService = context.RequestServices.GetRequiredService<IAuthService>();
-        if (authService.UsuarioActual is null)
-        {
-            context.Response.Redirect("/login");
-            return;
-        }
-    }
-
-    await next();
-});
-
-app.UseStaticFiles(new StaticFileOptions
-{
-    OnPrepareResponse = ctx =>
-    {
-        var fileName = ctx.File.Name;
-        if (fileName.EndsWith(".html", StringComparison.OrdinalIgnoreCase)
-            && !fileName.Equals("login.html", StringComparison.OrdinalIgnoreCase)
-            && !fileName.Equals("error.html", StringComparison.OrdinalIgnoreCase))
-        {
-            ctx.Context.Response.StatusCode = StatusCodes.Status404NotFound;
-            ctx.Context.Response.ContentLength = 0;
-        }
-    }
-});
-
-app.MapControllers();
-
-app.MapGet("/", async context =>
-{
-    await context.Session.LoadAsync();
-    var authService = context.RequestServices.GetRequiredService<IAuthService>();
-    var usuario = authService.UsuarioActual;
-    context.Response.Redirect(usuario is null
-        ? "/login"
-        : usuario.EsAdministrador ? "/inicio" : "/ventas/nueva");
-});
 
 foreach (var (route, file) in htmlRoutes)
 {

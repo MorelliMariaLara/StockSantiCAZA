@@ -52,10 +52,6 @@ const app = {
   },
 
   async loadUser() {
-    if (!window.api) {
-      this.usuario = null;
-      return null;
-    }
     try {
       this.usuario = await api.get('/api/auth/me');
       return this.usuario;
@@ -76,7 +72,7 @@ const app = {
     }
     if (admin && !user.esAdministrador) {
       await dialogs.alert('No tiene permisos para acceder a esta sección. Solo administradores.');
-      window.location.href = user.esAdministrador ? '/inicio' : '/ventas/nueva';
+      window.location.href = user.esAdministrador ? '/' : '/ventas/nueva';
       return null;
     }
     return user;
@@ -88,7 +84,7 @@ const app = {
 
     const items = [];
     if (user.esAdministrador) {
-      items.push({ href: '/inicio', label: 'Dashboard', path: '/inicio' });
+      items.push({ href: '/', label: 'Dashboard', path: '/' });
     }
     items.push(
       { href: '/ventas/nueva', label: 'Nueva venta', path: '/ventas/nueva' },
