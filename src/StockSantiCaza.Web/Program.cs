@@ -88,14 +88,18 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-app.UseStaticFiles();
 app.UseRouting();
 app.UseSession();
-app.MapControllers();
+
+var publicHtmlRoutes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+{
+    "/login",
+    "/error"
+};
 
 var htmlRoutes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
 {
-    ["/"] = "index.html",
+    ["/inicio"] = "index.html",
     ["/login"] = "login.html",
     ["/clientes"] = "clientes.html",
     ["/stock"] = "stock.html",
@@ -106,6 +110,64 @@ var htmlRoutes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase
     ["/usuarios"] = "usuarios.html",
     ["/error"] = "error.html"
 };
+
+app.Use(async (context, next) =>
+{
+    var path = context.Request.Path.Value ?? string.Empty;
+    var normalizedPath = path.Length > 1 ? path.TrimEnd('/') : path;
+
+    if (path.StartsWith("/api", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWith("/css", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWith("/js", StringComparison.OrdinalIgnoreCase))
+    {
+        await next();
+        return;
+    }
+
+    var isProtectedHtml = htmlRoutes.ContainsKey(normalizedPath)
+        || (path.EndsWith(".html", StringComparison.OrdinalIgnoreCase)
+            && !path.EndsWith("/login.html", StringComparison.OrdinalIgnoreCase)
+            && !path.EndsWith("/error.html", StringComparison.OrdinalIgnoreCase));
+
+    if (isProtectedHtml && !publicHtmlRoutes.Contains(normalizedPath))
+    {
+        var authService = context.RequestServices.GetRequiredService<IAuthService>();
+        if (authService.UsuarioActual is null)
+        {
+            context.Response.Redirect("/login");
+            return;
+        }
+    }
+
+    await next();
+});
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    OnPrepareResponse = ctx =>
+    {
+        var fileName = ctx.File.Name;
+        if (fileName.EndsWith(".html", StringComparison.OrdinalIgnoreCase)
+            && !fileName.Equals("login.html", StringComparison.OrdinalIgnoreCase)
+            && !fileName.Equals("error.html", StringComparison.OrdinalIgnoreCase))
+        {
+            ctx.Context.Response.StatusCode = StatusCodes.Status404NotFound;
+            ctx.Context.Response.ContentLength = 0;
+        }
+    }
+});
+
+app.MapControllers();
+
+app.MapGet("/", context =>
+{
+    var authService = context.RequestServices.GetRequiredService<IAuthService>();
+    var usuario = authService.UsuarioActual;
+    context.Response.Redirect(usuario is null
+        ? "/login"
+        : usuario.EsAdministrador ? "/inicio" : "/ventas/nueva");
+    return Task.CompletedTask;
+});
 
 foreach (var (route, file) in htmlRoutes)
 {
