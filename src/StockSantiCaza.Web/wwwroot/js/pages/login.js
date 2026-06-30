@@ -3,6 +3,14 @@ document.addEventListener('DOMContentLoaded', () => {
   const alerts = document.getElementById('login-alerts');
   const btn = document.getElementById('login-btn');
 
+  function showError(message) {
+    if (window.app?.renderAlerts) {
+      app.renderAlerts(alerts, { error: message });
+      return;
+    }
+    alerts.innerHTML = `<div class="alert alert-danger"><strong>No se pudo completar la operación</strong><ul><li>${message}</li></ul></div>`;
+  }
+
   async function loginRequest(login, password) {
     if (window.api) {
       return api.post('/api/auth/login', { login, password });
@@ -52,7 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const message = err.message === 'Failed to fetch'
         ? 'No se pudo conectar con el servidor. Verifique que la aplicación .NET esté publicada y en ejecución.'
         : (err.message || 'Usuario o contraseña incorrectos.');
-      app.renderAlerts(alerts, { error: message });
+      showError(message);
     } finally {
       btn.disabled = false;
       btn.textContent = 'Ingresar';

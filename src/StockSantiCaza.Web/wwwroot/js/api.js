@@ -81,7 +81,7 @@ const api = {
   },
 
   async upload(path, formData) {
-    const response = await fetch(path, {
+    const response = await fetch(this.url(path), {
       method: 'POST',
       credentials: 'same-origin',
       body: formData
@@ -105,7 +105,7 @@ const api = {
   },
 
   async download(path, fileName) {
-    const response = await fetch(path, { credentials: 'same-origin' });
+    const response = await fetch(this.url(path), { credentials: 'same-origin' });
     if (response.status === 401) {
       window.location.href = '/login';
       return;
