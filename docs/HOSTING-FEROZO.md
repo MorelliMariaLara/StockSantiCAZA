@@ -96,13 +96,14 @@ Sin túnel activo, `127.0.0.1,1433` siempre falla con *"conexión denegada"*.
 
 ## Primera ejecución en Ferozo
 
-Si la base está vacía, descomentá en `Program.cs`:
+La app inicializa la base **automáticamente** al arrancar (no hace falta descomentar código):
 
-```csharp
-await DbInitializer.InitializeAsync(app.Services);
-```
+- Base vacía → crea tablas + usuario `admin` / `Admin123!`
+- Base existente → solo aplica migraciones idempotentes
 
-Eso crea tablas y aplica el script de migración automático. Si la base ya tiene datos, dejalo comentado y revisá `scripts/sql/007-migracion-completa.sql`.
+Guía completa: [DONWEB-BASE-DE-DATOS.md](./DONWEB-BASE-DE-DATOS.md)
+
+En `appsettings.Production.json` dejá `"Database": { "SkipInitialization": false }`.
 
 ## Si el login muestra timeout
 
