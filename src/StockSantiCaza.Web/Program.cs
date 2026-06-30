@@ -103,8 +103,9 @@ app.MapControllers();
 
 var htmlRoutes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
 {
-    ["/"] = "index.html",
+    ["/"] = "login.html",
     ["/login"] = "login.html",
+    ["/inicio"] = "index.html",
     ["/clientes"] = "clientes.html",
     ["/stock"] = "stock.html",
     ["/ventas"] = "ventas.html",
@@ -130,5 +131,25 @@ foreach (var (route, file) in htmlRoutes)
         await context.Response.SendFileAsync(filePath);
     });
 }
+
+// Cualquier otra ruta (excepto /api y archivos estáticos) muestra el login.
+app.MapFallback(async context =>
+{
+    if (context.Request.Path.StartsWithSegments("/api"))
+    {
+        context.Response.StatusCode = 404;
+        return;
+    }
+
+    var loginPath = Path.Combine(app.Environment.WebRootPath, "login.html");
+    if (!File.Exists(loginPath))
+    {
+        context.Response.StatusCode = 404;
+        return;
+    }
+
+    context.Response.ContentType = "text/html; charset=utf-8";
+    await context.Response.SendFileAsync(loginPath);
+});
 
 app.Run();

@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', async () => {
-  const user = await app.initShell({ activePath: '/', title: 'Dashboard', requireAdmin: true });
+  const user = await app.initShell({ activePath: '/inicio', title: 'Dashboard', requireAdmin: true });
   if (!user) return;
 
   const container = document.getElementById('dashboard-content');
