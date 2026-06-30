@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="es-ar">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Dashboard - StockSantiCAZA</title>
+  <link rel="stylesheet" href="/css/app.css?v=4" />
+</head>
+<body>
+  <div class="shell" id="app-shell">
+    <button type="button" class="menu-toggle no-print" id="menu-toggle" aria-expanded="false" aria-controls="app-sidebar" aria-label="Abrir menú">☰</button>
+    <button type="button" class="nav-backdrop no-print" id="nav-backdrop" aria-label="Cerrar menú"></button>
+    <aside id="app-sidebar" class="sidebar no-print"></aside>
+    <main class="content">
+      <div class="top-row no-print">
+        <span class="top-row-title">Sistema de stock y ventas — armería</span>
+        <strong class="operation-mode">USD · Sin IVA</strong>
+      </div>
+      <article class="page-body">
+        <h1>Dashboard</h1>
+        <div id="page-alerts"></div>
+        <div id="dashboard-content"><p>Cargando indicadores...</p></div>
+      </article>
+    </main>
+  </div>
+  <script src="/js/download.js?v=4"></script>
+  <script src="/js/api.js?v=4"></script>
+  <script src="/js/dialogs.js?v=4"></script>
+  <script src="/js/app.js?v=4"></script>
+  <script src="/js/pages/home.js?v=4"></script>
+</body>
+</html>

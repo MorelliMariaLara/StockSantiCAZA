@@ -8,15 +8,27 @@ using StockSantiCaza.Web.Services.Reportes;
 using StockSantiCaza.Web.Services.Stock;
 using StockSantiCaza.Web.Services.Usuarios;
 using StockSantiCaza.Web.Services.Ventas;
-using StockSantiCaza.Web.Services.Ui;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Opcional: appsettings.Local.json (gitignored) pisa Development/Production en tu máquina.
 builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
 
-builder.Services.AddRazorPages();
-builder.Services.AddServerSideBlazor();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+    });
+
+builder.Services.AddDistributedMemoryCache();
+builder.Services.AddSession(options =>
+{
+    options.Cookie.Name = "StockSanti.Session";
+    options.Cookie.HttpOnly = true;
+    options.Cookie.IsEssential = true;
+    options.IdleTimeout = TimeSpan.FromHours(8);
+});
+
+builder.Services.AddHttpContextAccessor();
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("Connection string 'DefaultConnection' was not configured.");
@@ -45,8 +57,6 @@ builder.Services.AddScoped<IUsuariosService, UsuariosService>();
 builder.Services.AddScoped<IVentasService, VentasService>();
 builder.Services.AddScoped<IReportesService, ReportesService>();
 builder.Services.AddScoped<IStockImportService, StockImportService>();
-builder.Services.AddScoped<ConfirmDialogService>();
-builder.Services.AddScoped<AlertDialogService>();
 
 var app = builder.Build();
 
@@ -54,15 +64,44 @@ await DbInitializer.InitializeAsync(app.Services);
 
 if (!app.Environment.IsDevelopment())
 {
-    app.UseExceptionHandler("/Error");
+    app.UseExceptionHandler("/error");
     app.UseHsts();
 }
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
+app.UseSession();
+app.MapControllers();
 
-app.MapBlazorHub();
-app.MapFallbackToPage("/_Host");
+var htmlRoutes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+{
+    ["/"] = "index.html",
+    ["/login"] = "login.html",
+    ["/clientes"] = "clientes.html",
+    ["/stock"] = "stock.html",
+    ["/ventas"] = "ventas.html",
+    ["/ventas/nueva"] = "ventas/nueva.html",
+    ["/proveedores"] = "proveedores.html",
+    ["/reportes"] = "reportes.html",
+    ["/usuarios"] = "usuarios.html",
+    ["/error"] = "error.html"
+};
+
+foreach (var (route, file) in htmlRoutes)
+{
+    app.MapGet(route, async context =>
+    {
+        var filePath = Path.Combine(app.Environment.WebRootPath, file);
+        if (!File.Exists(filePath))
+        {
+            context.Response.StatusCode = 404;
+            return;
+        }
+
+        context.Response.ContentType = "text/html; charset=utf-8";
+        await context.Response.SendFileAsync(filePath);
+    });
+}
 
 app.Run();

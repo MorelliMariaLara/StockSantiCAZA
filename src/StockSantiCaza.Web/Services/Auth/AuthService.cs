@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using StockSantiCaza.Web.Data;
@@ -7,18 +8,63 @@ namespace StockSantiCaza.Web.Services.Auth;
 
 public class AuthService : IAuthService
 {
+    private const string SessionKey = "StockSanti.UsuarioSesion";
+
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    };
+
     private readonly IDbContextFactory<ApplicationDbContext> dbContextFactory;
     private readonly PasswordHasher<Usuario> passwordHasher;
+    private readonly IHttpContextAccessor httpContextAccessor;
 
     public AuthService(
         IDbContextFactory<ApplicationDbContext> dbContextFactory,
-        PasswordHasher<Usuario> passwordHasher)
+        PasswordHasher<Usuario> passwordHasher,
+        IHttpContextAccessor httpContextAccessor)
     {
         this.dbContextFactory = dbContextFactory;
         this.passwordHasher = passwordHasher;
+        this.httpContextAccessor = httpContextAccessor;
     }
 
-    public UsuarioSesion? UsuarioActual { get; private set; }
+    public UsuarioSesion? UsuarioActual
+    {
+        get
+        {
+            var session = httpContextAccessor.HttpContext?.Session;
+            if (session is null)
+            {
+                return null;
+            }
+
+            var json = session.GetString(SessionKey);
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                return null;
+            }
+
+            var dto = JsonSerializer.Deserialize<UsuarioSesionDto>(json, JsonOptions);
+            return dto?.ToSesion();
+        }
+        private set
+        {
+            var session = httpContextAccessor.HttpContext?.Session;
+            if (session is null)
+            {
+                return;
+            }
+
+            if (value is null)
+            {
+                session.Remove(SessionKey);
+                return;
+            }
+
+            session.SetString(SessionKey, JsonSerializer.Serialize(UsuarioSesionDto.FromSesion(value), JsonOptions));
+        }
+    }
 
     public event Action? SesionCambiada;
 
@@ -63,4 +109,12 @@ public class AuthService : IAuthService
 
     public Task RestaurarSesionAsync(CancellationToken cancellationToken = default) =>
         Task.CompletedTask;
+
+    private sealed record UsuarioSesionDto(int Id, string Nombre, string Login, RolUsuario Rol)
+    {
+        public static UsuarioSesionDto FromSesion(UsuarioSesion sesion) =>
+            new(sesion.Id, sesion.Nombre, sesion.Login, sesion.Rol);
+
+        public UsuarioSesion ToSesion() => new(Id, Nombre, Login, Rol);
+    }
 }
