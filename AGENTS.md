@@ -23,10 +23,11 @@ There is one app service plus a database:
   It targets `Server=127.0.0.1,1433;User Id=sa;Password=StockSanti123!`.
 - The connection can also be overridden with the `ConnectionStrings__DefaultConnection`
   env var.
-- Schema is created automatically at startup (`DbInitializer` runs `EnsureCreatedAsync` +
-  an embedded `schema-migration.sql`), and an admin user is seeded: **`admin` / `Admin123!`**.
-  No manual migrations needed; the `scripts/sql` and `scripts/mysql` files are hosting
-  helpers, not used by the app.
+- Schema is **not** created at startup in production (DonWeb). Use SQL scripts in
+  `scripts/sql/` for the remote database. For local dev, ensure SQL Server is running and
+  the schema exists (or run the app once with `DbInitializer` enabled locally if needed).
+- Default admin (if seeded manually): **`admin` / `Admin123!`** or see
+  `scripts/sql/003-limpiar-bd-y-admin-santi.sql`.
 
 ### Starting services on a fresh VM (Docker is not auto-started here)
 The update script only refreshes NuGet packages. Before running the app you must bring up

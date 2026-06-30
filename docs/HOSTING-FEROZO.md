@@ -16,7 +16,7 @@ La app **no** se conecta a la BD por FTP. La cadena de conexión va en `appsetti
 | Parámetro | Valor |
 |-----------|-------|
 | Servidor (en el hosting) | `sql2016` |
-| Base de datos | `w400048_santicazaarmeria` |
+| Base de datos | `w400048_santicazarmeria` |
 | Usuario SQL | `w400048_MariAdmin` |
 | Contraseña | *(la del panel)* |
 
@@ -48,7 +48,7 @@ Editá `appsettings.Production.json` y reemplazá `__PASSWORD__` por tu contrase
 Cadena correcta en el servidor:
 
 ```text
-Server=sql2016;Database=w400048_santicazaarmeria;User Id=w400048_MariAdmin;Password=TU_PASSWORD;MultipleActiveResultSets=true;TrustServerCertificate=True;Encrypt=False;Connection Timeout=60
+Server=sql2016;Database=w400048_santicazarmeria;User Id=w400048_MariAdmin;Password=TU_PASSWORD;MultipleActiveResultSets=true;TrustServerCertificate=True;Encrypt=False;Connection Timeout=60
 ```
 
 ### 2. Publicar
@@ -96,24 +96,9 @@ Sin túnel activo, `127.0.0.1,1433` siempre falla con *"conexión denegada"*.
 
 ## Primera ejecución en Ferozo
 
-<<<<<<< HEAD
-Al iniciar, `DbInitializer` crea tablas y aplica el script de migración automático.
+La app **no crea tablas automáticamente**. La base `w400048_santicazarmeria` debe existir en el panel DonWeb con el esquema SQL listo.
 
-Si la base ya tiene datos viejos, revisá `scripts/sql/007-migracion-completa.sql`.
-=======
-La app inicializa la base **automáticamente** al arrancar (no hace falta descomentar código):
-
-- Base vacía → crea tablas + usuario `admin` / `Admin123!`
-- Base existente → solo aplica migraciones idempotentes
-
-Guía completa: [DONWEB-BASE-DE-DATOS.md](./DONWEB-BASE-DE-DATOS.md)
-
-En `appsettings.Production.json` dejá `"Database": { "SkipInitialization": false }`.
-
-## Si el login muestra timeout
-
-Ver [ERROR-TIMEOUT-LOGIN.md](./ERROR-TIMEOUT-LOGIN.md) — casi siempre falta subir el publish completo (no solo HTML) o falta `appsettings.Production.json`.
->>>>>>> 839b9dd8116547e657e799d89825a56acec8b41d
+Ver [DONWEB-BASE-DE-DATOS.md](./DONWEB-BASE-DE-DATOS.md) y los scripts en `scripts/sql/`.
 
 ---
 

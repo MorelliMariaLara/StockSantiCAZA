@@ -60,46 +60,9 @@ builder.Services.AddScoped<IVentasService, VentasService>();
 builder.Services.AddScoped<IReportesService, ReportesService>();
 builder.Services.AddScoped<IStockImportService, StockImportService>();
 
-builder.Services.AddSingleton<DatabaseInitializationState>();
-builder.Services.AddHostedService<DatabaseInitializationHostedService>();
-
 var app = builder.Build();
 
-app.Use(async (context, next) =>
-{
-    if (!context.Request.Path.StartsWithSegments("/api") ||
-        context.Request.Path.StartsWithSegments("/api/health"))
-    {
-        await next();
-        return;
-    }
-
-    var initState = context.RequestServices.GetRequiredService<DatabaseInitializationState>();
-    if (initState.IsReady)
-    {
-        await next();
-        return;
-    }
-
-    if (initState.Status == DatabaseInitStatus.Failed)
-    {
-        context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
-        context.Response.ContentType = "application/json; charset=utf-8";
-        await context.Response.WriteAsJsonAsync(new
-        {
-            error = "No se pudo inicializar la base de datos. Revise la cadena de conexión en appsettings.Production.json.",
-            detail = initState.ErrorMessage
-        });
-        return;
-    }
-
-    context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
-    context.Response.ContentType = "application/json; charset=utf-8";
-    await context.Response.WriteAsJsonAsync(new
-    {
-        error = "La base de datos se está inicializando. Espere unos segundos e intente de nuevo."
-    });
-});
+// La base de datos ya debe existir en DonWeb (sin migración automática al iniciar).
 
 if (!app.Environment.IsDevelopment())
 {
