@@ -29,13 +29,13 @@ Editá y poné tu contraseña SQL real.
 2. Perfil **FolderProfile**
 3. Publicar
 
-**Opción B — Script automático (Windows, publish autocontenido)**
+**Opción B — Script automático (Windows)**
 
 ```powershell
 .\scripts\publicar-donweb.ps1
 ```
 
-Genera `Desktop\Publish` con `StockSantiCaza.Web.exe` (no requiere .NET instalado en Ferozo).
+Genera la carpeta `C:\Users\Maria Lara\Desktop\Publish` lista para FileZilla.
 
 ### 3. Subir TODO por FileZilla
 

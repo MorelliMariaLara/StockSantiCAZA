@@ -28,8 +28,13 @@ if (Test-Path $publishDir) {
     Remove-Item $publishDir -Recurse -Force
 }
 
+<<<<<<< HEAD
 Write-Host "Compilando publish autocontenido 32 bits (win-x86)..." -ForegroundColor Green
 dotnet publish $project -c Release -r win-x86 --self-contained true -o $publishDir
+=======
+Write-Host "Compilando y publicando en Release..." -ForegroundColor Green
+dotnet publish $project -c Release -o $publishDir
+>>>>>>> parent of 5da91d4 (fix: publish autocontenido para Ferozo, diagnóstico en login y guía de alternativas)
 if ($LASTEXITCODE -ne 0) { throw "dotnet publish fallo" }
 
 Copy-Item $productionSettings (Join-Path $publishDir "appsettings.Production.json") -Force
