@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', async () => {
-  const user = await app.initShell({ activePath: '/usuarios', title: 'Usuarios', requireAdmin: true });
+  const user = await app.initShell({ activePath: '/usuarios', title: 'Usuarios', modulo: 'usuarios' });
   if (!user) return;
 
   const contentEl = document.getElementById('page-content');

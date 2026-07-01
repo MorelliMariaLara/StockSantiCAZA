@@ -81,10 +81,14 @@ En producción `Database:SkipInitialization` está en `true` (sin migración aut
 ## Flujo de la aplicación
 
 ```
-/login          → formulario público
-POST /api/auth/login → cookie de sesión
-/               → dashboard (requiere sesión en el cliente)
-/clientes, /stock, etc. → mismas reglas
+/login  →  ingreso con usuario y contraseña
+
+Administrador  →  / (dashboard) + todos los módulos:
+                  Dashboard, Ventas, Clientes, Stock, Proveedores, Reportes, Usuarios
+
+Vendedor       →  /ventas/nueva + módulos operativos:
+                  Nueva venta, Historial, Clientes, Stock, Proveedores
+                  (sin Dashboard, Reportes ni Usuarios)
 ```
 
 La sesión usa cookie `StockSanti.Session` (8 horas).

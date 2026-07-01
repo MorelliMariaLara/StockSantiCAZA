@@ -5,7 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   app.loadUser().then((user) => {
     if (user) {
-      window.location.href = user.esAdministrador ? '/' : '/ventas/nueva';
+      window.location.href = app.homePath(user);
     }
   }).catch(() => {
     // Sin sesión: el formulario ya está listo para usar.
@@ -22,7 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
         login: document.getElementById('login').value,
         password: document.getElementById('password').value
       });
-      window.location.href = user.esAdministrador ? '/' : '/ventas/nueva';
+      window.location.href = app.homePath(user);
     } catch (err) {
       app.renderAlerts(alerts, { error: err.message || 'Usuario o contraseña incorrectos.' });
     } finally {

@@ -1,6 +1,39 @@
 const app = {
   usuario: null,
 
+  MODULOS_VENDEDOR: ['clientes', 'stock', 'ventas', 'proveedores'],
+
+  homePath(user) {
+    return user?.esAdministrador ? '/' : '/ventas/nueva';
+  },
+
+  puedeAccederModulo(user, modulo) {
+    if (!user) return false;
+    if (user.esAdministrador) return true;
+    if (modulo === 'dashboard' || modulo === 'reportes' || modulo === 'usuarios') return false;
+    return this.MODULOS_VENDEDOR.includes(modulo);
+  },
+
+  puedeAccederRuta(user, path) {
+    const normalized = path.length > 1 ? path.replace(/\/$/, '') : path;
+    const map = {
+      '/': 'dashboard',
+      '/clientes': 'clientes',
+      '/stock': 'stock',
+      '/ventas': 'ventas',
+      '/ventas/nueva': 'ventas',
+      '/proveedores': 'proveedores',
+      '/reportes': 'reportes',
+      '/usuarios': 'usuarios'
+    };
+    const modulo = map[normalized];
+    if (!modulo) return !!user;
+    if (modulo === 'dashboard' || modulo === 'reportes' || modulo === 'usuarios') {
+      return user?.esAdministrador === true;
+    }
+    return this.puedeAccederModulo(user, modulo);
+  },
+
   formatUsd(amount) {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount || 0);
   },
@@ -64,17 +97,36 @@ const app = {
     }
   },
 
-  async requireAuth({ admin = false, modulo = null, redirectLogin = true } = {}) {
+  async requireAuth({ admin = false, modulo = null, path = null, redirectLogin = true } = {}) {
     const user = await this.loadUser();
     if (!user) {
       if (redirectLogin) window.location.href = '/login';
       return null;
     }
-    if (admin && !user.esAdministrador) {
-      await dialogs.alert('No tiene permisos para acceder a esta sección. Solo administradores.');
-      window.location.href = user.esAdministrador ? '/' : '/ventas/nueva';
+
+    const ruta = path || window.location.pathname;
+    if (!this.puedeAccederRuta(user, ruta)) {
+      await dialogs.alert(
+        admin || modulo === 'dashboard' || modulo === 'reportes' || modulo === 'usuarios'
+          ? 'No tiene permisos para acceder a esta sección. Solo administradores.'
+          : 'No tiene permisos para acceder a este módulo.'
+      );
+      window.location.href = this.homePath(user);
       return null;
     }
+
+    if (modulo && !this.puedeAccederModulo(user, modulo)) {
+      await dialogs.alert('No tiene permisos para acceder a este módulo.');
+      window.location.href = this.homePath(user);
+      return null;
+    }
+
+    if (admin && !user.esAdministrador) {
+      await dialogs.alert('No tiene permisos para acceder a esta sección. Solo administradores.');
+      window.location.href = this.homePath(user);
+      return null;
+    }
+
     return user;
   },
 
@@ -83,18 +135,19 @@ const app = {
     if (!user) return '';
 
     const items = [];
+
     if (user.esAdministrador) {
       items.push({ href: '/', label: 'Dashboard', path: '/' });
     }
+
     items.push(
       { href: '/ventas/nueva', label: 'Nueva venta', path: '/ventas/nueva' },
       { href: '/ventas', label: 'Historial ventas', path: '/ventas' },
       { href: '/clientes', label: 'Clientes', path: '/clientes' },
-      { href: '/stock', label: 'Stock', path: '/stock' }
+      { href: '/stock', label: 'Stock', path: '/stock' },
+      { href: '/proveedores', label: 'Proveedores', path: '/proveedores' }
     );
-    if (user.esAdministrador || user.rol === 'Vendedor') {
-      items.push({ href: '/proveedores', label: 'Proveedores', path: '/proveedores' });
-    }
+
     if (user.esAdministrador) {
       items.push(
         { href: '/reportes', label: 'Reportes', path: '/reportes' },
@@ -121,11 +174,11 @@ const app = {
     `;
   },
 
-  initShell({ activePath, title, requireAdmin = false } = {}) {
+  initShell({ activePath, title, requireAdmin = false, modulo = null } = {}) {
     const shell = document.getElementById('app-shell');
     if (!shell) return Promise.resolve(null);
 
-    return this.requireAuth({ admin: requireAdmin }).then(user => {
+    return this.requireAuth({ admin: requireAdmin, modulo, path: activePath }).then(user => {
       if (!user) return null;
 
       const sidebar = document.getElementById('app-sidebar');

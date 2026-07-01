@@ -146,10 +146,46 @@ var htmlRoutes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase
     ["/error"] = "error.html"
 };
 
+var publicHtmlRoutes = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "/login", "/error" };
+
+static string HomeRuta(UsuarioSesion usuario) =>
+    usuario.EsAdministrador ? "/" : "/ventas/nueva";
+
+static ModuloSistema? ModuloPorRuta(string route) => route switch
+{
+    "/" => ModuloSistema.Dashboard,
+    "/clientes" => ModuloSistema.Clientes,
+    "/stock" => ModuloSistema.Stock,
+    "/ventas" or "/ventas/nueva" => ModuloSistema.Ventas,
+    "/proveedores" => ModuloSistema.Proveedores,
+    "/reportes" => ModuloSistema.Reportes,
+    "/usuarios" => ModuloSistema.Usuarios,
+    _ => null
+};
+
 foreach (var (route, file) in htmlRoutes)
 {
     app.MapGet(route, async context =>
     {
+        if (!publicHtmlRoutes.Contains(route))
+        {
+            await context.Session.LoadAsync();
+            var authService = context.RequestServices.GetRequiredService<IAuthService>();
+            var usuario = authService.UsuarioActual;
+            if (usuario is null)
+            {
+                context.Response.Redirect("/login");
+                return;
+            }
+
+            var modulo = ModuloPorRuta(route);
+            if (modulo is not null && !usuario.PuedeAcceder(modulo.Value))
+            {
+                context.Response.Redirect(HomeRuta(usuario));
+                return;
+            }
+        }
+
         var filePath = Path.Combine(app.Environment.WebRootPath, file);
         if (!File.Exists(filePath))
         {
