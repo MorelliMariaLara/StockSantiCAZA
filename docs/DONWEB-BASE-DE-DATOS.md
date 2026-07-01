@@ -26,15 +26,23 @@ Equivalente: `Trusted_Connection=True` en lugar de `Integrated Security=True`.
 
 ### Opción B — Usuario SQL (`w400048_MariAdmin`)
 
-Solo si Ferozo te dio o reseteaste la contraseña (correo de alta, “Cambiar clave” en el usuario, o ticket a soporte):
+Si la contraseña tiene caracteres especiales (`@`, `;`, etc.), **no la pongas en la cadena**. Usá el campo `Database.SqlPassword`:
 
 ```json
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Server=sql2016;Database=w400048_santicazarmeria;User Id=w400048_MariAdmin;Password=TU_PASSWORD;MultipleActiveResultSets=true;TrustServerCertificate=True;Encrypt=False;Connection Timeout=60"
+    "DefaultConnection": "Server=sql2016;Database=w400048_santicazarmeria;User Id=w400048_MariAdmin;Integrated Security=False;TrustServerCertificate=True;Encrypt=False;Connection Timeout=30"
+  },
+  "Database": {
+    "SkipInitialization": true,
+    "SqlPassword": "TU_PASSWORD"
   }
 }
 ```
+
+Ejemplo: si la contraseña es `SantiMariOli@22`, el `@` rompe la cadena si va en `Password=...`. Con `SqlPassword` funciona bien.
+
+Alternativa: `Password=\"SantiMariOli@22\"` dentro de la cadena (entre comillas dobles).
 
 | Parámetro | Valor |
 |-----------|-------|

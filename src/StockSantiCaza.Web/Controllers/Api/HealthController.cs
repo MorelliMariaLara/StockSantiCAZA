@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
+using StockSantiCaza.Web.Configuration;
 
 namespace StockSantiCaza.Web.Controllers.Api;
 
@@ -18,7 +19,7 @@ public class HealthController : ControllerBase
     [HttpGet]
     public IActionResult Get()
     {
-        var connectionString = configuration.GetConnectionString("DefaultConnection") ?? string.Empty;
+        var connectionString = ConnectionStringResolver.Resolve(configuration);
         var sqlServer = ExtraerValor(connectionString, "Server");
         var authMode = DetectarModoAuth(connectionString);
 
@@ -41,7 +42,7 @@ public class HealthController : ControllerBase
     [HttpGet("db")]
     public async Task<IActionResult> Database(CancellationToken ct)
     {
-        var connectionString = configuration.GetConnectionString("DefaultConnection");
+        var connectionString = ConnectionStringResolver.Resolve(configuration);
         if (string.IsNullOrWhiteSpace(connectionString))
         {
             return StatusCode(503, new

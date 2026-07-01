@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using StockSantiCaza.Web.Configuration;
 using StockSantiCaza.Web.Data;
 using StockSantiCaza.Web.Helpers;
 using StockSantiCaza.Web.Models;
@@ -53,8 +54,7 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
     options.KnownProxies.Clear();
 });
 
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? throw new InvalidOperationException("Connection string 'DefaultConnection' was not configured.");
+var connectionString = ConnectionStringResolver.Resolve(builder.Configuration);
 
 var sqlServer = connectionString.Split(';', StringSplitOptions.RemoveEmptyEntries)
     .Select(part => part.Trim())
