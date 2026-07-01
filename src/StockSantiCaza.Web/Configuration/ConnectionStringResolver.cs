@@ -10,16 +10,39 @@ public static class ConnectionStringResolver
             ?? throw new InvalidOperationException("Connection string 'DefaultConnection' was not configured.");
 
         var sqlPassword = configuration["Database:SqlPassword"];
-        if (string.IsNullOrWhiteSpace(sqlPassword))
+        var plantillaLimpia = string.IsNullOrWhiteSpace(sqlPassword)
+            ? plantilla
+            : QuitarClave(plantilla, "Password");
+
+        try
         {
-            return plantilla;
+            var builder = new SqlConnectionStringBuilder(plantillaLimpia);
+            if (!string.IsNullOrWhiteSpace(sqlPassword))
+            {
+                builder.Password = sqlPassword;
+            }
+
+            builder.MultipleActiveResultSets = false;
+            return builder.ConnectionString;
         }
-
-        var builder = new SqlConnectionStringBuilder(plantilla)
+        catch (ArgumentException ex)
         {
-            Password = sqlPassword
-        };
+            throw new InvalidOperationException(
+                "Cadena SQL inválida. Si la contraseña tiene '@', configurá Database.SqlPassword en appsettings.Production.json " +
+                "y quitá Password= de la cadena y de variables en web.config.",
+                ex);
+        }
+    }
 
-        return builder.ConnectionString;
+    public static bool TieneSqlPassword(IConfiguration configuration) =>
+        !string.IsNullOrWhiteSpace(configuration["Database:SqlPassword"]);
+
+    private static string QuitarClave(string connectionString, string clave)
+    {
+        var partes = connectionString
+            .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(parte => !parte.StartsWith(clave + "=", StringComparison.OrdinalIgnoreCase));
+
+        return string.Join(';', partes);
     }
 }

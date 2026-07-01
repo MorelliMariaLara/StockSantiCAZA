@@ -32,6 +32,7 @@ public class HealthController : ControllerBase
             sqlServer,
             authMode,
             sqlUser = authMode == "sql" ? ExtraerValor(connectionString, "User Id", "UID", "User ID") : null,
+            tieneSqlPassword = ConnectionStringResolver.TieneSqlPassword(configuration),
             tieneProductionJson = System.IO.File.Exists(
                 Path.Combine(AppContext.BaseDirectory, "appsettings.Production.json")),
             usaVariableEntorno = !string.IsNullOrWhiteSpace(
@@ -160,6 +161,11 @@ public class HealthController : ControllerBase
             && mensaje.Contains("not supported", StringComparison.OrdinalIgnoreCase))
         {
             return "Integrated Security no funciona en este servidor. Use User Id + Password con Integrated Security=False.";
+        }
+
+        if (mensaje.Contains("Keyword not supported", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Contraseña SQL mal configurada (carácter @). Use Database.SqlPassword en appsettings.Production.json y quite Password= de la cadena y de web.config en el servidor.";
         }
 
         return mensaje;
