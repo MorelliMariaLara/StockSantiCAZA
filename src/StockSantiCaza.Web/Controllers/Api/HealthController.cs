@@ -23,13 +23,16 @@ public class HealthController : ControllerBase
     public IActionResult Get()
     {
         var connectionString = configuration.GetConnectionString("DefaultConnection") ?? string.Empty;
-        var sqlServer = ExtraerSqlServer(connectionString);
+        var sqlServer = ExtraerValor(connectionString, "Server");
+        var authMode = DetectarModoAuth(connectionString);
 
         return Ok(new
         {
             status = "ok",
             environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production",
             sqlServer,
+            authMode,
+            sqlUser = authMode == "sql" ? ExtraerValor(connectionString, "User Id", "UID") : null,
             tieneProductionJson = System.IO.File.Exists(
                 Path.Combine(AppContext.BaseDirectory, "appsettings.Production.json"))
         });
@@ -44,10 +47,11 @@ public class HealthController : ControllerBase
         try
         {
             await using var db = await dbContextFactory.CreateDbContextAsync(timeout.Token);
-            var ok = await db.Database.CanConnectAsync(timeout.Token);
-            return ok
-                ? Ok(new { status = "ok", database = "connected" })
-                : StatusCode(503, new { status = "error", database = "unreachable" });
+            var conexion = db.Database.GetDbConnection();
+            await conexion.OpenAsync(timeout.Token);
+            await conexion.CloseAsync();
+
+            return Ok(new { status = "ok", database = "connected" });
         }
         catch (OperationCanceledException)
         {
@@ -60,15 +64,71 @@ public class HealthController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(503, new { status = "error", database = ex.Message });
+            var mensaje = ex.InnerException?.Message ?? ex.Message;
+            return StatusCode(503, new
+            {
+                status = "error",
+                database = "error",
+                mensaje = SanitizarMensajeSql(mensaje)
+            });
         }
     }
 
-    private static string ExtraerSqlServer(string connectionString)
+    private static string DetectarModoAuth(string connectionString)
     {
-        var server = connectionString.Split(';', StringSplitOptions.RemoveEmptyEntries)
-            .Select(part => part.Trim())
-            .FirstOrDefault(part => part.StartsWith("Server=", StringComparison.OrdinalIgnoreCase));
-        return server is null ? "?" : server["Server=".Length..];
+        var partes = connectionString.Split(';', StringSplitOptions.RemoveEmptyEntries)
+            .Select(part => part.Trim());
+
+        foreach (var parte in partes)
+        {
+            if (parte.StartsWith("Integrated Security=", StringComparison.OrdinalIgnoreCase)
+                && parte.EndsWith("True", StringComparison.OrdinalIgnoreCase))
+            {
+                return "integrated";
+            }
+
+            if (parte.StartsWith("Trusted_Connection=", StringComparison.OrdinalIgnoreCase)
+                && parte.EndsWith("True", StringComparison.OrdinalIgnoreCase))
+            {
+                return "integrated";
+            }
+        }
+
+        return string.IsNullOrWhiteSpace(ExtraerValor(connectionString, "User Id", "UID"))
+            ? "integrated"
+            : "sql";
+    }
+
+    private static string ExtraerValor(string connectionString, params string[] claves)
+    {
+        foreach (var parte in connectionString.Split(';', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var texto = parte.Trim();
+            foreach (var clave in claves)
+            {
+                var prefijo = clave + "=";
+                if (texto.StartsWith(prefijo, StringComparison.OrdinalIgnoreCase))
+                {
+                    return texto[prefijo.Length..];
+                }
+            }
+        }
+
+        return string.Empty;
+    }
+
+    private static string SanitizarMensajeSql(string mensaje)
+    {
+        if (mensaje.Contains("Login failed", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Login failed: usuario o contraseña SQL incorrectos en appsettings.Production.json.";
+        }
+
+        if (mensaje.Contains("Cannot open database", StringComparison.OrdinalIgnoreCase))
+        {
+            return "No se puede abrir la base w400048_santicazarmeria. Verifique que el usuario tenga permisos en el panel Ferozo.";
+        }
+
+        return mensaje;
     }
 }

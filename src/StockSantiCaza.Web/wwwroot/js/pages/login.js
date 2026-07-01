@@ -28,10 +28,13 @@ document.addEventListener('DOMContentLoaded', () => {
         app.renderAlerts(alerts, {
           error: body.mensaje || body.database || 'La base de datos no responde. Revise appsettings.Production.json en Ferozo (sql2016, contraseña SQL).'
         });
+        return;
       }
-    } catch {
+    } catch (err) {
       app.renderAlerts(alerts, {
-        error: 'La API responde pero la base de datos no. Verifique appsettings.Production.json en public_html con Server=sql2016.'
+        error: err.name === 'TimeoutError' || err.name === 'AbortError'
+          ? 'La base de datos no respondió a tiempo. Revise appsettings.Production.json en public_html con Server=sql2016.'
+          : 'No se pudo verificar la base de datos. Probá /api/health/db en el navegador.'
       });
     }
   }
