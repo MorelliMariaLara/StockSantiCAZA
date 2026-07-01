@@ -59,6 +59,22 @@ public class StockImportService : IStockImportService
 
         await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken);
         var ultimaFila = hoja.LastRowUsed()?.RowNumber() ?? 1;
+        var productosPorSku = await db.Productos
+            .Where(x => x.Sku != null && x.Sku != string.Empty)
+            .ToDictionaryAsync(x => x.Sku!, cancellationToken);
+
+        const int tamanoLote = 50;
+        var filasEnLote = 0;
+
+        async Task GuardarLoteAsync()
+        {
+            await db.SaveChangesAsync(cancellationToken);
+            db.ChangeTracker.Clear();
+            productosPorSku = await db.Productos
+                .Where(x => x.Sku != null && x.Sku != string.Empty)
+                .ToDictionaryAsync(x => x.Sku!, cancellationToken);
+            filasEnLote = 0;
+        }
 
         for (var fila = 2; fila <= ultimaFila; fila++)
         {
@@ -86,7 +102,7 @@ public class StockImportService : IStockImportService
             Producto? producto = null;
             if (!string.IsNullOrWhiteSpace(sku))
             {
-                producto = await db.Productos.SingleOrDefaultAsync(x => x.Sku == sku, cancellationToken);
+                productosPorSku.TryGetValue(sku, out producto);
             }
 
             var esNuevo = producto is null;
@@ -107,6 +123,11 @@ public class StockImportService : IStockImportService
             if (esNuevo)
             {
                 db.Productos.Add(producto);
+                if (!string.IsNullOrWhiteSpace(producto.Sku))
+                {
+                    productosPorSku[producto.Sku] = producto;
+                }
+
                 creados++;
             }
             else
@@ -126,9 +147,18 @@ public class StockImportService : IStockImportService
                     Observacion = esNuevo ? "Ingreso inicial por importación Excel" : "Ajuste por importación Excel"
                 });
             }
+
+            filasEnLote++;
+            if (filasEnLote >= tamanoLote)
+            {
+                await GuardarLoteAsync();
+            }
         }
 
-        await db.SaveChangesAsync(cancellationToken);
+        if (filasEnLote > 0)
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
         return new StockImportResult(creados, actualizados, errores);
     }
 

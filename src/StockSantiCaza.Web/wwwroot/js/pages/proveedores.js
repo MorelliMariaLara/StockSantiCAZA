@@ -441,6 +441,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     state.proveedorSeleccionadoId = proveedor.id;
     state.formDeuda = createEmptyMovimientoForm();
     state.formPago = createEmptyMovimientoForm();
+    try {
+      const movimientos = await api.get(`/api/proveedores/${proveedor.id}/movimientos`);
+      const idx = state.proveedores.findIndex((p) => p.id === proveedor.id);
+      if (idx >= 0) {
+        state.proveedores[idx] = { ...state.proveedores[idx], movimientos };
+      }
+    } catch (err) {
+      app.renderAlerts(alertsEl, { error: err.message });
+      return;
+    }
     renderCuentaSection();
     renderTableBody();
     stockSanti.scrollToElement('proveedor-cuenta');
@@ -523,6 +533,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         buildMovimientoPayload(form, tipo)
       );
       await loadProveedores(false);
+      const idx = state.proveedores.findIndex((p) => p.id === saved.id);
+      if (idx >= 0) {
+        state.proveedores[idx] = saved;
+      }
       state.proveedorSeleccionadoId = saved.id;
       state.formDeuda = createEmptyMovimientoForm();
       state.formPago = createEmptyMovimientoForm();

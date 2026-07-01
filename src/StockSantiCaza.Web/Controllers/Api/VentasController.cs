@@ -41,7 +41,6 @@ public class VentasController : ApiControllerBase
 
             var clientes = await db.Clientes
                 .AsNoTracking()
-                .Include(x => x.CredencialCLU)
                 .Where(x => x.Activo)
                 .OrderBy(x => x.NombreRazonSocial)
                 .Select(x => new ClienteVentaDto(
@@ -92,6 +91,7 @@ public class VentasController : ApiControllerBase
 
             var query = db.Ventas
                 .AsNoTracking()
+                .AsSplitQuery()
                 .Include(x => x.Cliente)
                 .Include(x => x.Detalles).ThenInclude(x => x.Producto)
                 .Include(x => x.Detalles).ThenInclude(x => x.Arma)
@@ -122,7 +122,7 @@ public class VentasController : ApiControllerBase
 
             var ventas = await query
                 .OrderByDescending(x => x.Fecha)
-                .Take(500)
+                .Take(200)
                 .ToListAsync(ct);
 
             return Ok(ventas.Select(VentaDto.From).ToList());
@@ -320,6 +320,11 @@ public class ReportesController : ApiControllerBase
             if (desdeFecha > hastaFecha)
             {
                 return BadRequest(new { error = "La fecha desde no puede ser posterior a la fecha hasta." });
+            }
+
+            if ((hastaFecha.DayNumber - desdeFecha.DayNumber) > 90)
+            {
+                return BadRequest(new { error = "El export máximo es de 90 días." });
             }
 
             var bytes = await reportesService.ExportarVentasExcelAsync(desdeFecha, hastaFecha, ct);

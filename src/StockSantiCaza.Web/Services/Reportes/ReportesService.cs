@@ -38,15 +38,14 @@ public class ReportesService : IReportesService
         var desdeDate = desde.ToDateTime(TimeOnly.MinValue);
         var hastaDate = hasta.ToDateTime(TimeOnly.MaxValue);
 
-        var ventas = await db.Ventas.AsNoTracking()
-            .Include(x => x.Detalles)
-                .ThenInclude(x => x.Producto)
-            .Where(x => x.Fecha >= desdeDate && x.Fecha <= hastaDate && x.Estado != EstadoVenta.Anulada)
-            .ToListAsync(cancellationToken);
+        var ventasQuery = db.Ventas.AsNoTracking()
+            .Where(x => x.Fecha >= desdeDate && x.Fecha <= hastaDate && x.Estado != EstadoVenta.Anulada);
 
-        var cantidadVentas = ventas.Count;
-        var totalVentas = ventas.Sum(x => x.Total);
-        var gananciaTotal = ventas.Sum(CalcularGananciaVenta);
+        var cantidadVentas = await ventasQuery.CountAsync(cancellationToken);
+        var totalVentas = await ventasQuery.SumAsync(x => x.Total, cancellationToken);
+        var gananciaTotal = await ventasQuery.SumAsync(
+            x => x.Detalles.Sum(d => d.Total) - x.DescuentoTotal,
+            cancellationToken);
 
         var movimientos = await db.MovimientosStock.AsNoTracking()
             .CountAsync(x => x.Fecha >= desdeDate && x.Fecha <= hastaDate, cancellationToken);
@@ -73,18 +72,21 @@ public class ReportesService : IReportesService
         DateOnly hasta,
         CancellationToken cancellationToken = default)
     {
+        if ((hasta.DayNumber - desde.DayNumber) > 90)
+        {
+            throw new InvalidOperationException("El export máximo es de 90 días para evitar consumo excesivo de memoria.");
+        }
+
         await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken);
         var desdeDate = desde.ToDateTime(TimeOnly.MinValue);
         var hastaDate = hasta.ToDateTime(TimeOnly.MaxValue);
 
         var ventas = await db.Ventas.AsNoTracking()
+            .AsSplitQuery()
             .Include(x => x.Cliente)
-            .Include(x => x.Detalles)
-                .ThenInclude(x => x.Producto)
-            .Include(x => x.Detalles)
-                .ThenInclude(x => x.Arma)
-            .Include(x => x.Detalles)
-                .ThenInclude(x => x.MunicionLote)
+            .Include(x => x.Detalles).ThenInclude(x => x.Producto)
+            .Include(x => x.Detalles).ThenInclude(x => x.Arma)
+            .Include(x => x.Detalles).ThenInclude(x => x.MunicionLote)
             .Where(x => x.Fecha >= desdeDate && x.Fecha <= hastaDate)
             .OrderBy(x => x.Fecha)
             .ToListAsync(cancellationToken);
@@ -231,7 +233,6 @@ public class ReportesService : IReportesService
         ws.Row(1).Style.Font.Bold = true;
         ws.Row(1).Style.Fill.BackgroundColor = XLColor.FromHtml("#1f3a5f");
         ws.Row(1).Style.Font.FontColor = XLColor.White;
-        ws.Columns().AdjustToContents();
     }
 
     private sealed record StockExportRow(
