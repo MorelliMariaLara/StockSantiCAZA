@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project>
+  <PropertyGroup>
+    <_PublishTargetUrl>ftp://w400048.ferozo.com/stock.santicazaarmeria.com.ar/public_html</_PublishTargetUrl>
+    <_DestinationType>FTP</_DestinationType>
+    <UserName>w400048@w400048.ferozo.com</UserName>
+    <_SavePWD>true</_SavePWD>
+    <Password>__PASSWORD__</Password>
+  </PropertyGroup>
+</Project>
