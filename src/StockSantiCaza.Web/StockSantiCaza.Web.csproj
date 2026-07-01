@@ -27,6 +27,9 @@
     <Content Update="appsettings.Local.json">
       <CopyToPublishDirectory>Never</CopyToPublishDirectory>
     </Content>
+    <Content Update="appsettings.Production.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
     <Content Update="web.config">
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
