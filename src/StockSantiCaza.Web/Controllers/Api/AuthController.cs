@@ -15,8 +15,9 @@ public class AuthController : ControllerBase
     }
 
     [HttpGet("me")]
-    public ActionResult<UsuarioSesionDto> Me()
+    public async Task<ActionResult<UsuarioSesionDto>> Me(CancellationToken ct)
     {
+        await HttpContext.Session.LoadAsync(ct);
         var usuario = authService.UsuarioActual;
         if (usuario is null)
         {
@@ -29,25 +30,23 @@ public class AuthController : ControllerBase
     [HttpPost("login")]
     public async Task<ActionResult<UsuarioSesionDto>> Login([FromBody] LoginRequest request, CancellationToken ct)
     {
+        await HttpContext.Session.LoadAsync(ct);
         var ok = await authService.IniciarSesionAsync(request.Login, request.Password, ct);
         if (!ok)
         {
             return Unauthorized(new { error = "Usuario o contraseña incorrectos." });
         }
 
-        var usuario = authService.UsuarioActual;
-        if (usuario is null)
-        {
-            return StatusCode(StatusCodes.Status500InternalServerError, new { error = "No se pudo iniciar la sesión." });
-        }
-
-        return Ok(UsuarioSesionDto.From(usuario));
+        await HttpContext.Session.CommitAsync(ct);
+        return Ok(UsuarioSesionDto.From(authService.UsuarioActual!));
     }
 
     [HttpPost("logout")]
-    public async Task<IActionResult> Logout()
+    public async Task<IActionResult> Logout(CancellationToken ct)
     {
+        await HttpContext.Session.LoadAsync(ct);
         await authService.CerrarSesionAsync();
+        await HttpContext.Session.CommitAsync(ct);
         return Ok();
     }
 

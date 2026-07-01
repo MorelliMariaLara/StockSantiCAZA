@@ -24,16 +24,26 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
     });
 
-if (builder.Environment.IsDevelopment())
-{
-    builder.Services.AddResponseCompression(options => options.EnableForHttps = true);
-}
+builder.Services.AddResponseCompression(options => options.EnableForHttps = true);
+
+builder.Services.AddDistributedMemoryCache();
 
 var keysPath = Path.Combine(builder.Environment.ContentRootPath, "keys");
 Directory.CreateDirectory(keysPath);
 builder.Services.AddDataProtection()
     .PersistKeysToFileSystem(new DirectoryInfo(keysPath))
     .SetApplicationName("StockSantiCaza.Web");
+
+builder.Services.AddSession(options =>
+{
+    options.Cookie.Name = "StockSanti.Session";
+    options.Cookie.HttpOnly = true;
+    options.Cookie.IsEssential = true;
+    options.Cookie.Path = "/";
+    options.Cookie.SameSite = SameSiteMode.Lax;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+    options.IdleTimeout = TimeSpan.FromHours(2);
+});
 
 builder.Services.AddHttpContextAccessor();
 
@@ -63,8 +73,8 @@ if (!builder.Environment.IsDevelopment()
     Console.WriteLine("[StockSantiCAZA] Suba appsettings.Production.json con Server=sql2016 a public_html.");
 }
 
-builder.Services.AddPooledDbContextFactory<ApplicationDbContext>(
-    options => options.UseSqlServer(
+builder.Services.AddPooledDbContextFactory<ApplicationDbContext>(options =>
+    options.UseSqlServer(
         connectionString,
         providerOptions =>
         {
@@ -74,8 +84,7 @@ builder.Services.AddPooledDbContextFactory<ApplicationDbContext>(
             {
                 providerOptions.EnableRetryOnFailure();
             }
-        }),
-    poolSize: builder.Environment.IsDevelopment() ? 32 : 8);
+        }));
 
 builder.Services.AddSingleton<PasswordHasher<Usuario>>();
 builder.Services.AddScoped<IAuthService, AuthService>();
@@ -126,15 +135,16 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseForwardedHeaders();
+app.UseResponseCompression();
 
 if (app.Environment.IsDevelopment())
 {
-    app.UseResponseCompression();
     app.UseHttpsRedirection();
 }
 
 app.UseStaticFiles();
 app.UseRouting();
+app.UseSession();
 app.MapControllers();
 
 var htmlRoutes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -174,6 +184,7 @@ foreach (var (route, file) in htmlRoutes)
     {
         if (!publicHtmlRoutes.Contains(route))
         {
+            await context.Session.LoadAsync();
             var authService = context.RequestServices.GetRequiredService<IAuthService>();
             var usuario = authService.UsuarioActual;
             if (usuario is null)
