@@ -35,13 +35,7 @@ public class AuthController : ControllerBase
             return Unauthorized(new { error = "Usuario o contraseña incorrectos." });
         }
 
-        var usuario = authService.UsuarioActual;
-        if (usuario is null)
-        {
-            return StatusCode(StatusCodes.Status500InternalServerError, new { error = "No se pudo iniciar la sesión." });
-        }
-
-        return Ok(UsuarioSesionDto.From(usuario));
+        return Ok(UsuarioSesionDto.From(authService.UsuarioActual!));
     }
 
     [HttpPost("logout")]

@@ -21,7 +21,6 @@ public class AuthService : IAuthService
     private readonly PasswordHasher<Usuario> passwordHasher;
     private readonly IHttpContextAccessor httpContextAccessor;
     private readonly IDataProtectionProvider dataProtectionProvider;
-    private UsuarioSesion? usuarioActualEnRequest;
 
     public AuthService(
         IDbContextFactory<ApplicationDbContext> dbContextFactory,
@@ -39,11 +38,6 @@ public class AuthService : IAuthService
     {
         get
         {
-            if (usuarioActualEnRequest is not null)
-            {
-                return usuarioActualEnRequest;
-            }
-
             var context = httpContextAccessor.HttpContext;
             if (context is null || !context.Request.Cookies.TryGetValue(CookieName, out var valor))
             {
@@ -65,8 +59,6 @@ public class AuthService : IAuthService
         }
         private set
         {
-            usuarioActualEnRequest = value;
-
             var context = httpContextAccessor.HttpContext;
             if (context is null)
             {
