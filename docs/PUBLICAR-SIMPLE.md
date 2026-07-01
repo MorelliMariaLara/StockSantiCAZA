@@ -1,89 +1,101 @@
-# Publicar en DonWeb — un solo paso
+# Publicar StockSantiCAZA
 
-## Importante: no alcanza con subir solo el login
+Guía unificada para **desarrollo local** y **Ferozo/DonWeb**.
 
-El formulario de login **ya usa la API** (`/api/auth/login`). Si subís solo `login.html` y `js/`:
+## Desarrollo local
 
-- La pantalla de login **se ve**
-- Al presionar Ingresar **falla** (timeout) porque no hay backend .NET
+### Requisitos
 
-**HTML + API van juntos** en el mismo publish. No hay forma de evitar subir las `.dll` en Ferozo.
+- .NET 6 SDK
+- SQL Server (local o Docker)
+
+### Configuración
+
+1. Copiá `appsettings.Local.json.example` → `appsettings.Local.json` si necesitás otra conexión.
+2. Por defecto, `appsettings.Development.json` usa `LARA-NB\SQLEXPRESS02`.
+3. En Development, la app **crea el esquema y usuario admin** automáticamente (`admin` / `Admin123!`).
+
+### Ejecutar
+
+```bash
+cd src/StockSantiCaza.Web
+dotnet run
+```
+
+Abrí: `https://localhost:53095/login`
+
+### Verificar
+
+- `GET /api/health` → `{ "status": "ok" }`
+- `GET /api/health/db` → base conectada
+- Login → dashboard en `/` → navegá por Clientes, Stock, Ventas
 
 ---
 
-## Publicación en 3 pasos
+## Publicar en Ferozo
 
-### 1. Crear `appsettings.Production.json` (una sola vez)
+### 1. Crear configuración de producción
 
-```bash
-copy src\StockSantiCaza.Web\appsettings.Production.example.json src\StockSantiCaza.Web\appsettings.Production.json
-```
+Copiá `appsettings.Production.example.json` → `appsettings.Production.json`  
+y poné la contraseña real de SQL.
 
-Editá y poné tu contraseña SQL real.
+### 2. Publicar
 
-### 2. Publicar (Visual Studio o script)
+**Visual Studio:** clic derecho en el proyecto → Publicar → **FolderProfile**  
+(salida en carpeta `publish/` del repo)
 
-**Opción A — Visual Studio**
-
-1. Clic derecho en **StockSantiCaza.Web** → **Publicar**
-2. Perfil **FolderProfile**
-3. Publicar
-
-**Opción B — Script automático (Windows)**
+**O PowerShell:**
 
 ```powershell
 .\scripts\publicar-donweb.ps1
 ```
 
-Genera la carpeta `C:\Users\Maria Lara\Desktop\Publish` lista para FileZilla.
+### 3. Subir por FTP
 
-### 3. Subir TODO por FileZilla
+Subí **todo** el contenido de `publish/` a `public_html`:
 
-| Origen (tu PC) | Destino (Ferozo) |
-|----------------|------------------|
-| Todo el contenido de `Publish\` | `public_html\` |
+- `StockSantiCaza.Web.dll` y demás DLLs
+- `web.config`
+- `wwwroot/` completo
+- `appsettings.Production.json`
+- Carpetas vacías `logs/` y `keys/` (se llenan en el servidor)
 
-**Checklist en `public_html`:**
+**No subas solo HTML.** La API .NET debe estar en ejecución.
 
-- [ ] `web.config`
-- [ ] `StockSantiCaza.Web.dll`
-- [ ] Todas las `.dll`
-- [ ] `appsettings.Production.json`
-- [ ] Carpeta `wwwroot\` (login, css, js)
-- [ ] Carpeta `logs\`
+### 4. Base de datos en DonWeb
+
+La BD en `sql2016` debe existir con scripts en `scripts/sql/`.  
+En producción `Database:SkipInitialization` está en `true` (sin migración automática).
+
+### 5. Verificar en el servidor
+
+| URL | Esperado |
+|-----|----------|
+| `/api/health` | JSON `status: ok` |
+| `/api/health/db` | JSON `database: connected` |
+| `/login` | Formulario de login |
+| Login admin | Dashboard en `/` |
 
 ---
 
-## Probar que funciona (en este orden)
+## Flujo de la aplicación
 
-```text
-1. https://TU-DOMINIO/api/health          → JSON status ok
-2. https://TU-DOMINIO/api/health/db       → database connected
-3. https://TU-DOMINIO/login               → formulario de login
-4. Ingresar usuario y contraseña            → entra al sistema
+```
+/login          → formulario público
+POST /api/auth/login → cookie de sesión
+/               → dashboard (requiere sesión en el cliente)
+/clientes, /stock, etc. → mismas reglas
 ```
 
-Si el paso 1 falla, el problema **no es el login**: es que falta el backend .NET en el servidor.
+La sesión usa cookie `StockSanti.Session` (8 horas).
 
 ---
 
-## ¿Por qué Chrome dice "Sitio peligroso"?
+## Problemas frecuentes
 
-Eso es independiente de la app. El dominio `santicazastock.com.ar` está marcado por Google Safe Browsing.
-
-La API puede funcionar (comprobamos `/api/health`) pero Chrome bloquea la página antes de mostrarla.
-
-**Solución:** limpiar archivos raros en `public_html`, verificar SSL en DonWeb y pedir revisión en Google Search Console.
-
-Ver [DIAGNOSTICO-HOSTING.md](./DIAGNOSTICO-HOSTING.md).
-
----
-
-## Resumen
-
-| Lo que querés | Lo que hay que hacer |
-|---------------|----------------------|
-| "Publicar como el login" | Subir **todo** el publish (HTML + API juntos) |
-| Solo HTML | ❌ No funciona el login ni ningún módulo |
-| Todo por API | ✅ Ya está: login, stock, ventas, etc. usan `/api/*` |
-| Un solo paso | Usar `scripts/publicar-donweb.ps1` + FileZilla |
+| Síntoma | Causa | Solución |
+|---------|-------|----------|
+| Login no responde / timeout | Solo se subió wwwroot | Publicar y subir la app .NET completa |
+| Vuelve al login tras entrar | Cookie de sesión no persiste | Subir carpeta `keys/`, no borrarla en republicaciones |
+| Error 500 al iniciar | Connection string incorrecta | Revisar `appsettings.Production.json` |
+| `api is not defined` | Falta `wwwroot/js/api.js` | Subir `wwwroot/js/` completo |

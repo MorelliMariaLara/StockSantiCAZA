@@ -10,3 +10,8 @@ artifacts/
 TestResults/
 appsettings.Local.json
 appsettings.Production.json
+**/keys/*
+!**/keys/.gitkeep
+**/logs/*
+!**/logs/.gitkeep
+publish/

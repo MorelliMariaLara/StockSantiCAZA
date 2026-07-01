@@ -1,5 +1,7 @@
 using EntityFrameworkCore.UseRowNumberForPaging;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using StockSantiCaza.Web.Data;
@@ -22,15 +24,32 @@ builder.Services.AddControllers()
     });
 
 builder.Services.AddDistributedMemoryCache();
+
+var keysPath = Path.Combine(builder.Environment.ContentRootPath, "keys");
+Directory.CreateDirectory(keysPath);
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(keysPath))
+    .SetApplicationName("StockSantiCaza.Web");
+
 builder.Services.AddSession(options =>
 {
     options.Cookie.Name = "StockSanti.Session";
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true;
+    options.Cookie.Path = "/";
+    options.Cookie.SameSite = SameSiteMode.Lax;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
     options.IdleTimeout = TimeSpan.FromHours(8);
 });
 
 builder.Services.AddHttpContextAccessor();
+
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("Connection string 'DefaultConnection' was not configured.");
@@ -62,7 +81,21 @@ builder.Services.AddScoped<IStockImportService, StockImportService>();
 
 var app = builder.Build();
 
-// La base de datos ya debe existir en DonWeb (sin migración automática al iniciar).
+if (app.Environment.IsDevelopment()
+    && !builder.Configuration.GetValue<bool>("Database:SkipInitialization"))
+{
+    try
+    {
+        await DbInitializer.InitializeAsync(
+            app.Services,
+            builder.Configuration,
+            app.Logger);
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogWarning(ex, "[StockSantiCAZA] DbInitializer omitido (revise la conexión local).");
+    }
+}
 
 if (!app.Environment.IsDevelopment())
 {
@@ -87,7 +120,13 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
-app.UseHttpsRedirection();
+app.UseForwardedHeaders();
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
+
 app.UseStaticFiles();
 app.UseRouting();
 app.UseSession();
