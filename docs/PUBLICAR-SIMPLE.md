@@ -99,7 +99,8 @@ La sesión usa cookie `StockSanti.Session` (8 horas).
 
 | Síntoma | Causa | Solución |
 |---------|-------|----------|
-| Login no responde / timeout | Solo se subió wwwroot | Publicar y subir la app .NET completa |
+| Login timeout / no responde | **Base de datos no conecta** en Ferozo | Subir `appsettings.Production.json` con `Server=sql2016` y contraseña real. Probar `/api/health/db` |
+| Login no responde / timeout (solo HTML) | Solo se subió wwwroot | Publicar y subir la app .NET completa |
 | Vuelve al login tras entrar | Cookie de sesión no persiste | Subir carpeta `keys/`, no borrarla en republicaciones |
 | Error 500 al iniciar | Connection string incorrecta | Revisar `appsettings.Production.json` |
 | `api is not defined` | Falta `wwwroot/js/api.js` | Subir `wwwroot/js/` completo |

@@ -60,7 +60,16 @@ var sqlServer = connectionString.Split(';', StringSplitOptions.RemoveEmptyEntrie
     ?? "Server=?";
 
 Console.WriteLine($"[StockSantiCAZA] Entorno: {builder.Environment.EnvironmentName}");
-Console.WriteLine($"[StockSantiCAZA] {sqlServer}");
+Console.WriteLine($"[StockSantiCAZA] SQL: {sqlServer}");
+
+if (!builder.Environment.IsDevelopment()
+    && (sqlServer.Contains("LARA-NB", StringComparison.OrdinalIgnoreCase)
+        || sqlServer.Contains("localhost", StringComparison.OrdinalIgnoreCase)
+        || sqlServer.Contains("127.0.0.1", StringComparison.OrdinalIgnoreCase)))
+{
+    Console.WriteLine("[StockSantiCAZA] ADVERTENCIA: en producción está usando un servidor SQL local.");
+    Console.WriteLine("[StockSantiCAZA] Suba appsettings.Production.json con Server=sql2016 a public_html.");
+}
 
 builder.Services.AddDbContextFactory<ApplicationDbContext>(options =>
     options.UseSqlServer(

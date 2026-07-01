@@ -17,7 +17,10 @@ const api = {
       });
     } catch (err) {
       if (err.name === 'AbortError') {
-        throw new Error('El servidor no respondió a tiempo. Verifique que la aplicación .NET esté en ejecución.');
+        const esLogin = path.includes('/api/auth/login');
+        throw new Error(esLogin
+          ? 'La base de datos no respondió a tiempo. Revise appsettings.Production.json en Ferozo (Server=sql2016).'
+          : 'El servidor no respondió a tiempo. Verifique que la aplicación .NET esté en ejecución.');
       }
       throw new Error('No se pudo conectar con el servidor. Verifique que la aplicación esté publicada y en ejecución.');
     } finally {
@@ -62,10 +65,11 @@ const api = {
     return this.request(path);
   },
 
-  post(path, data) {
+  post(path, data, options = {}) {
     return this.request(path, {
       method: 'POST',
-      body: data === undefined ? undefined : JSON.stringify(data)
+      body: data === undefined ? undefined : JSON.stringify(data),
+      ...options
     });
   },
 
