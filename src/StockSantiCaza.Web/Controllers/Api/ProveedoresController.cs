@@ -28,11 +28,28 @@ public class ProveedoresController : ApiControllerBase
             await using var db = await dbContextFactory.CreateDbContextAsync(ct);
             var proveedores = await db.Proveedores
                 .AsNoTracking()
-                .Include(x => x.Movimientos)
+                .Select(p => new
+                {
+                    p.Id,
+                    p.NombreRazonSocial,
+                    p.Telefono,
+                    p.Email,
+                    p.Domicilio,
+                    p.Observaciones,
+                    Saldo = p.Movimientos.Sum(m => m.Tipo == TipoMovimientoProveedor.Deuda ? m.Monto : -m.Monto)
+                })
                 .OrderBy(x => x.NombreRazonSocial)
                 .ToListAsync(ct);
 
-            return Ok(proveedores.Select(ProveedorDto.From).ToList());
+            return Ok(proveedores.Select(p => new ProveedorDto(
+                p.Id,
+                p.NombreRazonSocial,
+                p.Telefono,
+                p.Email,
+                p.Domicilio,
+                p.Observaciones,
+                p.Saldo,
+                new List<MovimientoDto>())).ToList());
         }
         catch (Exception ex)
         {
@@ -111,6 +128,34 @@ public class ProveedoresController : ApiControllerBase
 
                 return Ok(ProveedorDto.From(actualizado));
             }
+        }
+        catch (Exception ex)
+        {
+            return HandleError(ex);
+        }
+    }
+
+    [HttpGet("{id:int}/movimientos")]
+    public async Task<ActionResult<List<MovimientoDto>>> ListarMovimientos(int id, CancellationToken ct)
+    {
+        try
+        {
+            RequireModulo(ModuloSistema.Proveedores);
+            await using var db = await dbContextFactory.CreateDbContextAsync(ct);
+            var movimientos = await db.MovimientosProveedor
+                .AsNoTracking()
+                .Where(x => x.ProveedorId == id)
+                .OrderBy(x => x.Fecha)
+                .ThenBy(x => x.Id)
+                .Select(x => new MovimientoDto(
+                    x.Id,
+                    x.Fecha,
+                    x.Tipo.ToString(),
+                    x.Monto,
+                    x.Observaciones))
+                .ToListAsync(ct);
+
+            return Ok(movimientos);
         }
         catch (Exception ex)
         {

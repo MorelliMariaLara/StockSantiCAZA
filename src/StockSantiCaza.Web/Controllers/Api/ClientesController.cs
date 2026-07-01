@@ -26,15 +26,11 @@ public class ClientesController : ApiControllerBase
         {
             RequireModulo(ModuloSistema.Clientes);
             await using var db = await dbContextFactory.CreateDbContextAsync(ct);
-            var clientes = await db.Clientes
-                .AsNoTracking()
-                .Include(x => x.CredencialCLU)
-                .Include(x => x.Ventas)
-                .Include(x => x.ArmasRegistradas)
+            var clientes = await ConsultaClientesDto(db)
                 .OrderBy(x => x.NombreRazonSocial)
                 .ToListAsync(ct);
 
-            return Ok(clientes.Select(ClienteDto.From).ToList());
+            return Ok(clientes);
         }
         catch (Exception ex)
         {
@@ -125,14 +121,10 @@ public class ClientesController : ApiControllerBase
 
             await db.SaveChangesAsync(ct);
 
-            var guardado = await db.Clientes
-                .AsNoTracking()
-                .Include(x => x.CredencialCLU)
-                .Include(x => x.Ventas)
-                .Include(x => x.ArmasRegistradas)
+            var guardado = await ConsultaClientesDto(db)
                 .SingleAsync(x => x.Id == cliente.Id, ct);
 
-            return Ok(ClienteDto.From(guardado));
+            return Ok(guardado);
         }
         catch (Exception ex)
         {
@@ -190,20 +182,36 @@ public class ClientesController : ApiControllerBase
                 await db.SaveChangesAsync(ct);
             }
 
-            var guardado = await db.Clientes
-                .AsNoTracking()
-                .Include(x => x.CredencialCLU)
-                .Include(x => x.Ventas)
-                .Include(x => x.ArmasRegistradas)
+            var guardado = await ConsultaClientesDto(db)
                 .SingleAsync(x => x.Id == cliente.Id, ct);
 
-            return Ok(ClienteDto.From(guardado));
+            return Ok(guardado);
         }
         catch (Exception ex)
         {
             return HandleError(ex);
         }
     }
+
+    private static IQueryable<ClienteDto> ConsultaClientesDto(ApplicationDbContext db) =>
+        db.Clientes.AsNoTracking()
+            .Select(c => new ClienteDto(
+                c.Id,
+                c.NombreRazonSocial,
+                c.DniCuit,
+                c.Email,
+                c.Telefono,
+                c.Domicilio,
+                c.CredencialCLU == null
+                    ? null
+                    : new CredencialCluDto(
+                        c.CredencialCLU.NumeroLegajo ?? string.Empty,
+                        c.CredencialCLU.FechaEmision,
+                        c.CredencialCLU.FechaVencimiento,
+                        c.CredencialCLU.FechaVencimiento.HasValue
+                            && c.CredencialCLU.FechaVencimiento.Value >= DateOnly.FromDateTime(DateTime.Today)),
+                c.Ventas.Count,
+                c.ArmasRegistradas.Count));
 
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Eliminar(int id, CancellationToken ct)

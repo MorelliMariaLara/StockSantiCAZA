@@ -23,6 +23,8 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
     });
 
+builder.Services.AddResponseCompression(options => options.EnableForHttps = true);
+
 builder.Services.AddDistributedMemoryCache();
 
 var keysPath = Path.Combine(builder.Environment.ContentRootPath, "keys");
@@ -39,7 +41,7 @@ builder.Services.AddSession(options =>
     options.Cookie.Path = "/";
     options.Cookie.SameSite = SameSiteMode.Lax;
     options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
-    options.IdleTimeout = TimeSpan.FromHours(8);
+    options.IdleTimeout = TimeSpan.FromHours(2);
 });
 
 builder.Services.AddHttpContextAccessor();
@@ -71,14 +73,21 @@ if (!builder.Environment.IsDevelopment()
     Console.WriteLine("[StockSantiCAZA] Suba appsettings.Production.json con Server=sql2016 a public_html.");
 }
 
-builder.Services.AddDbContextFactory<ApplicationDbContext>(options =>
+builder.Services.AddPooledDbContextFactory<ApplicationDbContext>(options =>
     options.UseSqlServer(
         connectionString,
         providerOptions =>
         {
             providerOptions.UseRowNumberForPaging();
-            providerOptions.EnableRetryOnFailure();
             providerOptions.CommandTimeout(60);
+            if (!builder.Environment.IsDevelopment())
+            {
+                providerOptions.EnableRetryOnFailure(maxRetryCount: 2, maxRetryDelay: TimeSpan.FromSeconds(5), errorNumbersToAdd: null);
+            }
+            else
+            {
+                providerOptions.EnableRetryOnFailure();
+            }
         }));
 
 builder.Services.AddSingleton<PasswordHasher<Usuario>>();
@@ -130,6 +139,7 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseForwardedHeaders();
+app.UseResponseCompression();
 
 if (app.Environment.IsDevelopment())
 {
