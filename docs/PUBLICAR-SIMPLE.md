@@ -32,33 +32,43 @@ Abrí: `https://localhost:53095/login`
 
 ---
 
-## Publicar en Ferozo
+## Publicar en Ferozo (carpeta local + FileZilla)
 
-### 1. Crear configuración de producción
+La configuración de producción ya está en `src/StockSantiCaza.Web/appsettings.Production.json`.
 
-Copiá `appsettings.Production.example.json` → `appsettings.Production.json`  
-y poné la contraseña real de SQL.
+### 1. Publicar en carpeta local
 
-### 2. Publicar
-
-**Visual Studio:** clic derecho en el proyecto → Publicar → **FolderProfile**  
-(salida en carpeta `publish/` del repo)
-
-**O PowerShell:**
+**PowerShell (Windows):**
 
 ```powershell
 .\scripts\publicar-donweb.ps1
 ```
 
-### 3. Subir por FTP
+**O Visual Studio:** clic derecho en el proyecto → Publicar → **FolderProfile**  
+(salida en carpeta `publish/` del repo)
 
-Subí **todo** el contenido de `publish/` a `public_html`:
+**O consola:**
+
+```bash
+./scripts/publicar-donweb.sh
+```
+
+### 2. Subir con FileZilla
+
+| Campo | Valor |
+|-------|-------|
+| Servidor | `w400048.ferozo.com` |
+| Usuario | `w400048@w400048.ferozo.com` |
+| Ruta destino | `stock.santicazaarmeria.com.ar/public_html` |
+| Modo | Pasivo |
+
+Subí **todo el contenido** de `publish/` (no la carpeta `publish` en sí):
 
 - `StockSantiCaza.Web.dll` y demás DLLs
 - `web.config`
 - `wwwroot/` completo
 - `appsettings.Production.json`
-- Carpetas vacías `logs/` y `keys/` (se llenan en el servidor)
+- Carpetas `logs/` y `keys/` (vacías; se llenan en el servidor)
 
 **No subas solo HTML.** La API .NET debe estar en ejecución.
 

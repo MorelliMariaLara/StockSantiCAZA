@@ -17,16 +17,16 @@
     <None Include="Components\**\*" />
     <None Include="Pages\**\*" />
   </ItemGroup>
-  <ItemGroup>
-    <Content Remove="appsettings.Production.json" />
-  </ItemGroup>
 
   <ItemGroup>
     <EmbeddedResource Include="Data\schema-migration.sql" />
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="appsettings.Production.json" />
+    <None Update="appsettings.Production.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </None>
   </ItemGroup>
 
   <ItemGroup>
