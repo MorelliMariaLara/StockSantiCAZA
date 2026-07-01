@@ -21,6 +21,8 @@ Si la app supera el límite, IIS recicla el proceso → errores 503 y fallos de 
 - **Excel**: export máximo 90 días
 - **Import stock**: guardado en lotes de 50 filas
 - **Sesión**: timeout 2 h (antes 8 h)
+- **Sin** `DOTNET_GCHeapHardLimit` (provocaba timeouts al conectar SQL en Ferozo)
+- **Sin** reintentos EF en producción (evita esperas largas si SQL falla)
 
 ## Recomendaciones de uso
 

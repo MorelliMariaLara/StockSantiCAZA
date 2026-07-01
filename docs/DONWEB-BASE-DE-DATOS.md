@@ -54,10 +54,11 @@ Ejecutá los scripts en el panel SQL de DonWeb o en SSMS conectado a la base:
 
 ## Publicar
 
-1. `dotnet publish -c Release` o Visual Studio → FolderProfile.
-2. Copiá `appsettings.Production.json` a la carpeta publish.
-3. Subí todo a `public_html` por FileZilla.
-4. Variable en panel: `ASPNETCORE_ENVIRONMENT` = `Production`.
+1. Copiá `appsettings.Production.example.json` → `appsettings.Production.json` y poné la contraseña SQL real.
+2. `dotnet publish -c Release` o ejecutá `scripts/publicar-donweb.ps1` (copia el JSON a `publish/`).
+3. Subí **todo** `publish/` a `public_html` (incl. `appsettings.Production.json`, `web.config`, `logs/`, `keys/`).
+4. **No pongas la contraseña SQL en `web.config` del repo.** Va en `appsettings.Production.json` solo en el servidor.
+5. Probá `https://tudominio.com/api/health` y `/api/health/db`.
 
 ## Si el login falla
 

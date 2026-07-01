@@ -79,12 +79,8 @@ builder.Services.AddPooledDbContextFactory<ApplicationDbContext>(options =>
         providerOptions =>
         {
             providerOptions.UseRowNumberForPaging();
-            providerOptions.CommandTimeout(60);
-            if (!builder.Environment.IsDevelopment())
-            {
-                providerOptions.EnableRetryOnFailure(maxRetryCount: 2, maxRetryDelay: TimeSpan.FromSeconds(5), errorNumbersToAdd: null);
-            }
-            else
+            providerOptions.CommandTimeout(30);
+            if (builder.Environment.IsDevelopment())
             {
                 providerOptions.EnableRetryOnFailure();
             }

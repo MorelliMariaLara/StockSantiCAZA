@@ -21,21 +21,21 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       const dbCheck = await fetch('/api/health/db', {
         credentials: 'same-origin',
-        signal: AbortSignal.timeout(12000)
+        signal: AbortSignal.timeout(30000)
       });
       if (!dbCheck.ok) {
         const body = await dbCheck.json().catch(() => ({}));
         app.renderAlerts(alerts, {
-          error: body.mensaje || body.database || 'La base de datos no responde. Revise appsettings.Production.json en Ferozo (sql2016, contraseña SQL).'
+          info: body.mensaje || 'La base de datos no responde todavía. Podés intentar ingresar igual; si falla, revise appsettings.Production.json en el servidor.'
         });
         return;
       }
     } catch (err) {
-      app.renderAlerts(alerts, {
-        error: err.name === 'TimeoutError' || err.name === 'AbortError'
-          ? 'La base de datos no respondió a tiempo. Revise appsettings.Production.json en public_html con Server=sql2016.'
-          : 'No se pudo verificar la base de datos. Probá /api/health/db en el navegador.'
-      });
+      if (err.name === 'TimeoutError' || err.name === 'AbortError') {
+        app.renderAlerts(alerts, {
+          info: 'La base de datos tarda en responder (Ferozo). Intentá ingresar; si no funciona, revise appsettings.Production.json con Server=sql2016.'
+        });
+      }
     }
   }
 
