@@ -43,9 +43,7 @@ public class ReportesService : IReportesService
 
         var cantidadVentas = await ventasQuery.CountAsync(cancellationToken);
         var totalVentas = await ventasQuery.SumAsync(x => x.Total, cancellationToken);
-        var gananciaTotal = await ventasQuery.SumAsync(
-            x => x.Detalles.Sum(d => d.Total) - x.DescuentoTotal,
-            cancellationToken);
+        var gananciaTotal = totalVentas;
 
         var movimientos = await db.MovimientosStock.AsNoTracking()
             .CountAsync(x => x.Fecha >= desdeDate && x.Fecha <= hastaDate, cancellationToken);
