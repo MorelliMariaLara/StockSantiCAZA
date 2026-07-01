@@ -35,3 +35,16 @@ ASP.NET Core 6 + SQL Server en **154 MB** va muy justo. Si después de republica
 - Usuario app: `Santi.F` / `Santicaza`
 - Si la página carga pero login falla → problema de SQL (cadena o red)
 - Si la página **no carga nada** → App Pool reciclado por memoria (esperar 1 min o CloudServer)
+
+## Error 502.5 (ANCM Startup Failure)
+
+Si el navegador muestra **HTTP Error 502.5**, la app .NET **no llegó a arrancar** (no es un error de login).
+
+1. En el panel Ferozo → **Administrador de archivos** → `public_html/logs/` → abrir el último `stdout_*.log`
+2. Buscar líneas `[StockSantiCAZA] ERROR` al inicio del archivo
+3. Verificar que existan en `public_html`:
+   - `StockSantiCaza.Web.dll`
+   - `web.config` (sin `ConnectionStrings__DefaultConnection` vieja)
+   - `appsettings.Production.json` con `Database.SqlPassword`
+   - carpetas `keys/` y `logs/` con permiso de escritura
+4. Si el log no muestra nada o el archivo está vacío → el App Pool se cayó por **memoria (154 MB)** antes de escribir; esperar 1 minuto y reintentar, o migrar a CloudServer

@@ -98,7 +98,7 @@ public class AuthService : IAuthService
 
     public event Action? SesionCambiada;
 
-    public async Task<bool> IniciarSesionAsync(
+    public async Task<UsuarioSesion?> IniciarSesionAsync(
         string login,
         string password,
         CancellationToken cancellationToken = default)
@@ -106,7 +106,7 @@ public class AuthService : IAuthService
         var loginNormalizado = login.Trim();
         if (string.IsNullOrWhiteSpace(loginNormalizado) || string.IsNullOrWhiteSpace(password))
         {
-            return false;
+            return null;
         }
 
         await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken);
@@ -116,18 +116,23 @@ public class AuthService : IAuthService
 
         if (usuario is null)
         {
-            return false;
+            return null;
         }
 
         var resultado = passwordHasher.VerifyHashedPassword(usuario, usuario.PasswordHash, password);
         if (resultado == PasswordVerificationResult.Failed)
         {
-            return false;
+            return null;
         }
 
-        UsuarioActual = new UsuarioSesion(usuario.Id, usuario.Nombre ?? string.Empty, usuario.Login ?? string.Empty, usuario.Rol);
+        var sesion = new UsuarioSesion(
+            usuario.Id,
+            usuario.Nombre ?? string.Empty,
+            usuario.Login ?? string.Empty,
+            usuario.Rol);
+        UsuarioActual = sesion;
         SesionCambiada?.Invoke();
-        return true;
+        return sesion;
     }
 
     public Task CerrarSesionAsync()

@@ -6,7 +6,7 @@ public interface IAuthService
 
     event Action? SesionCambiada;
 
-    Task<bool> IniciarSesionAsync(string login, string password, CancellationToken cancellationToken = default);
+    Task<UsuarioSesion?> IniciarSesionAsync(string login, string password, CancellationToken cancellationToken = default);
 
     Task CerrarSesionAsync();
 

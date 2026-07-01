@@ -1,5 +1,4 @@
 using EntityFrameworkCore.UseRowNumberForPaging;
-using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
@@ -29,11 +28,7 @@ if (builder.Environment.IsDevelopment())
     builder.Services.AddResponseCompression(options => options.EnableForHttps = true);
 }
 
-var keysPath = Path.Combine(builder.Environment.ContentRootPath, "keys");
-Directory.CreateDirectory(keysPath);
-builder.Services.AddDataProtection()
-    .PersistKeysToFileSystem(new DirectoryInfo(keysPath))
-    .SetApplicationName("StockSantiCaza.Web");
+DataProtectionConfigurator.Configure(builder);
 
 builder.Services.AddHttpContextAccessor();
 
@@ -44,7 +39,16 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
     options.KnownProxies.Clear();
 });
 
-var connectionString = ConnectionStringResolver.Resolve(builder.Configuration);
+string connectionString;
+try
+{
+    connectionString = ConnectionStringResolver.Resolve(builder.Configuration);
+}
+catch (Exception ex)
+{
+    Console.Error.WriteLine($"[StockSantiCAZA] ERROR al leer la cadena SQL: {ex.Message}");
+    throw;
+}
 
 var sqlServer = connectionString.Split(';', StringSplitOptions.RemoveEmptyEntries)
     .Select(part => part.Trim())
