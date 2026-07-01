@@ -4,7 +4,29 @@ La aplicación **no migra ni crea tablas al iniciar**. La base `w400048_santicaz
 
 ## Conexión (producción)
 
-En `appsettings.Production.json` (no se sube a Git):
+En `appsettings.Production.json` (no se sube a Git), en la **misma carpeta** que `StockSantiCaza.Web.dll` dentro de `public_html`.
+
+### Opción A — Ferozo (recomendada, sin contraseña)
+
+El panel suele mostrar cadenas con `Integrated Security` / `Trusted_Connection`. Eso es para la **app publicada en el mismo hosting**: no usa usuario ni contraseña SQL.
+
+```json
+{
+  "ConnectionStrings": {
+    "DefaultConnection": "Server=sql2016;Database=w400048_santicazarmeria;Integrated Security=True;MultipleActiveResultSets=true;TrustServerCertificate=True;Encrypt=False;Connection Timeout=60"
+  },
+  "Database": {
+    "SkipInitialization": true
+  },
+  "AllowedHosts": "*"
+}
+```
+
+Equivalente: `Trusted_Connection=True` en lugar de `Integrated Security=True`.
+
+### Opción B — Usuario SQL (`w400048_MariAdmin`)
+
+Solo si Ferozo te dio o reseteaste la contraseña (correo de alta, “Cambiar clave” en el usuario, o ticket a soporte):
 
 ```json
 {
@@ -14,13 +36,13 @@ En `appsettings.Production.json` (no se sube a Git):
 }
 ```
 
-Copiá desde `appsettings.Production.example.json` y reemplazá `__PASSWORD__`.
-
 | Parámetro | Valor |
 |-----------|-------|
 | Servidor | `sql2016` |
 | Base | `w400048_santicazarmeria` |
-| Usuario | `w400048_MariAdmin` |
+| Usuario SQL (opción B) | `w400048_MariAdmin` |
+
+Si el panel **no deja generar contraseña**, usá la **opción A**. La contraseña de `w400048_MariAdmin` suele servir para conectar **desde tu PC** (con túnel), no para la app en Ferozo.
 
 ## Crear o actualizar tablas manualmente
 
