@@ -23,6 +23,7 @@ public static class ConnectionStringResolver
             }
 
             builder.MultipleActiveResultSets = false;
+            AplicarFormatoFerozo(builder);
             return builder.ConnectionString;
         }
         catch (ArgumentException ex)
@@ -36,6 +37,15 @@ public static class ConnectionStringResolver
 
     public static bool TieneSqlPassword(IConfiguration configuration) =>
         !string.IsNullOrWhiteSpace(configuration["Database:SqlPassword"]);
+
+    private static void AplicarFormatoFerozo(SqlConnectionStringBuilder builder)
+    {
+        var servidor = builder.DataSource.Trim();
+        if (servidor.Equals("sql2016", StringComparison.OrdinalIgnoreCase))
+        {
+            builder.DataSource = "tcp:sql2016,1433";
+        }
+    }
 
     private static string QuitarClave(string connectionString, string clave)
     {

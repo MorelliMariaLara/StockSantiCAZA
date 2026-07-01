@@ -151,10 +151,11 @@ public class HealthController : ControllerBase
             return "No se puede abrir la base w400048_santicazarmeria. Verifique que el usuario tenga permisos en el panel Ferozo.";
         }
 
-        if (mensaje.Contains("network-related", StringComparison.OrdinalIgnoreCase)
+        if (mensaje.Contains("network path was not found", StringComparison.OrdinalIgnoreCase)
+            || mensaje.Contains("network-related", StringComparison.OrdinalIgnoreCase)
             || mensaje.Contains("server was not found", StringComparison.OrdinalIgnoreCase))
         {
-            return "No se encuentra el servidor sql2016 desde el hosting. Verifique que el plan sea Windows Hosting y que el sitio esté en la misma cuenta Ferozo que la base.";
+            return "No se encuentra sql2016 desde el servidor web. En Ferozo use tcp:sql2016,1433. sql2016 no funciona desde su PC en local, solo en el hosting publicado.";
         }
 
         if (mensaje.Contains("Integrated", StringComparison.OrdinalIgnoreCase)
