@@ -1,5 +1,4 @@
 using System.Text.Json;
-using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using StockSantiCaza.Web.Data;
@@ -9,8 +8,7 @@ namespace StockSantiCaza.Web.Services.Auth;
 
 public class AuthService : IAuthService
 {
-    private const string CookieName = "StockSanti.Auth";
-    private const string ProtectorPurpose = "StockSanti.Auth.v1";
+    private const string SessionKey = "StockSanti.UsuarioSesion";
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -20,71 +18,51 @@ public class AuthService : IAuthService
     private readonly IDbContextFactory<ApplicationDbContext> dbContextFactory;
     private readonly PasswordHasher<Usuario> passwordHasher;
     private readonly IHttpContextAccessor httpContextAccessor;
-    private readonly IDataProtectionProvider dataProtectionProvider;
 
     public AuthService(
         IDbContextFactory<ApplicationDbContext> dbContextFactory,
         PasswordHasher<Usuario> passwordHasher,
-        IHttpContextAccessor httpContextAccessor,
-        IDataProtectionProvider dataProtectionProvider)
+        IHttpContextAccessor httpContextAccessor)
     {
         this.dbContextFactory = dbContextFactory;
         this.passwordHasher = passwordHasher;
         this.httpContextAccessor = httpContextAccessor;
-        this.dataProtectionProvider = dataProtectionProvider;
     }
 
     public UsuarioSesion? UsuarioActual
     {
         get
         {
-            var context = httpContextAccessor.HttpContext;
-            if (context is null || !context.Request.Cookies.TryGetValue(CookieName, out var valor))
+            var session = httpContextAccessor.HttpContext?.Session;
+            if (session is null)
             {
                 return null;
             }
 
-            try
-            {
-                var json = dataProtectionProvider
-                    .CreateProtector(ProtectorPurpose)
-                    .Unprotect(valor);
-                var dto = JsonSerializer.Deserialize<UsuarioSesionDto>(json, JsonOptions);
-                return dto?.ToSesion();
-            }
-            catch
+            var json = session.GetString(SessionKey);
+            if (string.IsNullOrWhiteSpace(json))
             {
                 return null;
             }
+
+            var dto = JsonSerializer.Deserialize<UsuarioSesionDto>(json, JsonOptions);
+            return dto?.ToSesion();
         }
         private set
         {
-            var context = httpContextAccessor.HttpContext;
-            if (context is null)
+            var session = httpContextAccessor.HttpContext?.Session;
+            if (session is null)
             {
                 return;
             }
 
             if (value is null)
             {
-                context.Response.Cookies.Delete(CookieName);
+                session.Remove(SessionKey);
                 return;
             }
 
-            var json = JsonSerializer.Serialize(UsuarioSesionDto.FromSesion(value), JsonOptions);
-            var protegido = dataProtectionProvider
-                .CreateProtector(ProtectorPurpose)
-                .Protect(json);
-
-            context.Response.Cookies.Append(CookieName, protegido, new CookieOptions
-            {
-                HttpOnly = true,
-                IsEssential = true,
-                Path = "/",
-                SameSite = SameSiteMode.Lax,
-                Secure = context.Request.IsHttps,
-                Expires = DateTimeOffset.UtcNow.AddHours(8)
-            });
+            session.SetString(SessionKey, JsonSerializer.Serialize(UsuarioSesionDto.FromSesion(value), JsonOptions));
         }
     }
 
@@ -117,7 +95,7 @@ public class AuthService : IAuthService
             return false;
         }
 
-        UsuarioActual = new UsuarioSesion(usuario.Id, usuario.Nombre ?? string.Empty, usuario.Login ?? string.Empty, usuario.Rol);
+        UsuarioActual = new UsuarioSesion(usuario.Id, usuario.Nombre, usuario.Login, usuario.Rol);
         SesionCambiada?.Invoke();
         return true;
     }
