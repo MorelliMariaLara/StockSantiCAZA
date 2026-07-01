@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using StockSantiCaza.Web.Data;
@@ -8,7 +9,8 @@ namespace StockSantiCaza.Web.Services.Auth;
 
 public class AuthService : IAuthService
 {
-    private const string SessionKey = "StockSanti.UsuarioSesion";
+    private const string CookieName = "StockSanti.Auth";
+    private const string ProtectorPurpose = "StockSanti.Auth.v1";
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -18,51 +20,79 @@ public class AuthService : IAuthService
     private readonly IDbContextFactory<ApplicationDbContext> dbContextFactory;
     private readonly PasswordHasher<Usuario> passwordHasher;
     private readonly IHttpContextAccessor httpContextAccessor;
+    private readonly IDataProtectionProvider dataProtectionProvider;
+    private UsuarioSesion? usuarioActualEnRequest;
 
     public AuthService(
         IDbContextFactory<ApplicationDbContext> dbContextFactory,
         PasswordHasher<Usuario> passwordHasher,
-        IHttpContextAccessor httpContextAccessor)
+        IHttpContextAccessor httpContextAccessor,
+        IDataProtectionProvider dataProtectionProvider)
     {
         this.dbContextFactory = dbContextFactory;
         this.passwordHasher = passwordHasher;
         this.httpContextAccessor = httpContextAccessor;
+        this.dataProtectionProvider = dataProtectionProvider;
     }
 
     public UsuarioSesion? UsuarioActual
     {
         get
         {
-            var session = httpContextAccessor.HttpContext?.Session;
-            if (session is null)
+            if (usuarioActualEnRequest is not null)
+            {
+                return usuarioActualEnRequest;
+            }
+
+            var context = httpContextAccessor.HttpContext;
+            if (context is null || !context.Request.Cookies.TryGetValue(CookieName, out var valor))
             {
                 return null;
             }
 
-            var json = session.GetString(SessionKey);
-            if (string.IsNullOrWhiteSpace(json))
+            try
+            {
+                var json = dataProtectionProvider
+                    .CreateProtector(ProtectorPurpose)
+                    .Unprotect(valor);
+                var dto = JsonSerializer.Deserialize<UsuarioSesionDto>(json, JsonOptions);
+                return dto?.ToSesion();
+            }
+            catch
             {
                 return null;
             }
-
-            var dto = JsonSerializer.Deserialize<UsuarioSesionDto>(json, JsonOptions);
-            return dto?.ToSesion();
         }
         private set
         {
-            var session = httpContextAccessor.HttpContext?.Session;
-            if (session is null)
+            usuarioActualEnRequest = value;
+
+            var context = httpContextAccessor.HttpContext;
+            if (context is null)
             {
                 return;
             }
 
             if (value is null)
             {
-                session.Remove(SessionKey);
+                context.Response.Cookies.Delete(CookieName);
                 return;
             }
 
-            session.SetString(SessionKey, JsonSerializer.Serialize(UsuarioSesionDto.FromSesion(value), JsonOptions));
+            var json = JsonSerializer.Serialize(UsuarioSesionDto.FromSesion(value), JsonOptions);
+            var protegido = dataProtectionProvider
+                .CreateProtector(ProtectorPurpose)
+                .Protect(json);
+
+            context.Response.Cookies.Append(CookieName, protegido, new CookieOptions
+            {
+                HttpOnly = true,
+                IsEssential = true,
+                Path = "/",
+                SameSite = SameSiteMode.Lax,
+                Secure = context.Request.IsHttps,
+                Expires = DateTimeOffset.UtcNow.AddHours(8)
+            });
         }
     }
 
@@ -95,7 +125,7 @@ public class AuthService : IAuthService
             return false;
         }
 
-        UsuarioActual = new UsuarioSesion(usuario.Id, usuario.Nombre, usuario.Login, usuario.Rol);
+        UsuarioActual = new UsuarioSesion(usuario.Id, usuario.Nombre ?? string.Empty, usuario.Login ?? string.Empty, usuario.Rol);
         SesionCambiada?.Invoke();
         return true;
     }
