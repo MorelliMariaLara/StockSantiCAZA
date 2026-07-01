@@ -53,8 +53,8 @@
 
         try
         {
-            var ok = await AuthService.IniciarSesionAsync(form.Login, form.Password);
-            if (!ok)
+            var sesion = await AuthService.IniciarSesionAsync(form.Login, form.Password);
+            if (sesion is null)
             {
                 error = "Usuario o contraseña incorrectos.";
                 return;

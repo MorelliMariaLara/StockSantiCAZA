@@ -27,21 +27,37 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("login")]
-    public async Task<ActionResult<UsuarioSesionDto>> Login([FromBody] LoginRequest request, CancellationToken ct)
+    public async Task<ActionResult<UsuarioSesionDto>> Login([FromBody] LoginRequest? request, CancellationToken ct)
     {
-        var ok = await authService.IniciarSesionAsync(request.Login, request.Password, ct);
-        if (!ok)
+        if (request is null
+            || string.IsNullOrWhiteSpace(request.Login)
+            || string.IsNullOrWhiteSpace(request.Password))
         {
-            return Unauthorized(new { error = "Usuario o contraseña incorrectos." });
+            return BadRequest(new { error = "Ingrese usuario y contraseña." });
         }
 
-        var usuario = authService.UsuarioActual;
-        if (usuario is null)
+        try
         {
-            return StatusCode(StatusCodes.Status500InternalServerError, new { error = "No se pudo iniciar la sesión." });
-        }
+            var usuario = await authService.IniciarSesionAsync(request.Login, request.Password, ct);
+            if (usuario is null)
+            {
+                return Unauthorized(new { error = "Usuario o contraseña incorrectos." });
+            }
 
-        return Ok(UsuarioSesionDto.From(usuario));
+            return Ok(UsuarioSesionDto.From(usuario));
+        }
+        catch (Microsoft.Data.SqlClient.SqlException)
+        {
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, new
+            {
+                error = "No se pudo conectar con la base de datos. Revise appsettings.Production.json (Server=sql2016 y Database.SqlPassword)."
+            });
+        }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("Connection string", StringComparison.OrdinalIgnoreCase)
+            || ex.Message.Contains("Cadena SQL", StringComparison.OrdinalIgnoreCase))
+        {
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, new { error = ex.Message });
+        }
     }
 
     [HttpPost("logout")]
