@@ -1,6 +1,6 @@
+using System.Runtime.InteropServices;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using StockSantiCaza.Web.Data;
+using Microsoft.Data.SqlClient;
 
 namespace StockSantiCaza.Web.Controllers.Api;
 
@@ -8,14 +8,10 @@ namespace StockSantiCaza.Web.Controllers.Api;
 [Route("api/health")]
 public class HealthController : ControllerBase
 {
-    private readonly IDbContextFactory<ApplicationDbContext> dbContextFactory;
     private readonly IConfiguration configuration;
 
-    public HealthController(
-        IDbContextFactory<ApplicationDbContext> dbContextFactory,
-        IConfiguration configuration)
+    public HealthController(IConfiguration configuration)
     {
-        this.dbContextFactory = dbContextFactory;
         this.configuration = configuration;
     }
 
@@ -30,24 +26,38 @@ public class HealthController : ControllerBase
         {
             status = "ok",
             environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production",
+            os = RuntimeInformation.OSDescription,
+            isWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows),
             sqlServer,
             authMode,
-            sqlUser = authMode == "sql" ? ExtraerValor(connectionString, "User Id", "UID") : null,
+            sqlUser = authMode == "sql" ? ExtraerValor(connectionString, "User Id", "UID", "User ID") : null,
             tieneProductionJson = System.IO.File.Exists(
-                Path.Combine(AppContext.BaseDirectory, "appsettings.Production.json"))
+                Path.Combine(AppContext.BaseDirectory, "appsettings.Production.json")),
+            usaVariableEntorno = !string.IsNullOrWhiteSpace(
+                Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection"))
         });
     }
 
     [HttpGet("db")]
     public async Task<IActionResult> Database(CancellationToken ct)
     {
+        var connectionString = configuration.GetConnectionString("DefaultConnection");
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            return StatusCode(503, new
+            {
+                status = "error",
+                database = "error",
+                mensaje = "No hay cadena DefaultConnection configurada."
+            });
+        }
+
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
         timeout.CancelAfter(TimeSpan.FromSeconds(12));
 
         try
         {
-            await using var db = await dbContextFactory.CreateDbContextAsync(timeout.Token);
-            var conexion = db.Database.GetDbConnection();
+            await using var conexion = new SqlConnection(connectionString);
             await conexion.OpenAsync(timeout.Token);
             await conexion.CloseAsync();
 
@@ -59,7 +69,17 @@ public class HealthController : ControllerBase
             {
                 status = "error",
                 database = "timeout",
-                mensaje = "La base SQL no respondió a tiempo. Revise appsettings.Production.json en el servidor (Server=sql2016, contraseña correcta)."
+                mensaje = "La base SQL no respondió a tiempo. En Ferozo el servidor sql2016 solo funciona desde el hosting Windows del mismo plan."
+            });
+        }
+        catch (SqlException ex)
+        {
+            return StatusCode(503, new
+            {
+                status = "error",
+                database = "error",
+                sqlError = ex.Number,
+                mensaje = SanitizarMensajeSql(ex.Message)
             });
         }
         catch (Exception ex)
@@ -127,6 +147,18 @@ public class HealthController : ControllerBase
         if (mensaje.Contains("Cannot open database", StringComparison.OrdinalIgnoreCase))
         {
             return "No se puede abrir la base w400048_santicazarmeria. Verifique que el usuario tenga permisos en el panel Ferozo.";
+        }
+
+        if (mensaje.Contains("network-related", StringComparison.OrdinalIgnoreCase)
+            || mensaje.Contains("server was not found", StringComparison.OrdinalIgnoreCase))
+        {
+            return "No se encuentra el servidor sql2016 desde el hosting. Verifique que el plan sea Windows Hosting y que el sitio esté en la misma cuenta Ferozo que la base.";
+        }
+
+        if (mensaje.Contains("Integrated", StringComparison.OrdinalIgnoreCase)
+            && mensaje.Contains("not supported", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Integrated Security no funciona en este servidor. Use User Id + Password con Integrated Security=False.";
         }
 
         return mensaje;
