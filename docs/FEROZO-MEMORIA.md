@@ -1,35 +1,37 @@
-# Memoria en Ferozo (plan compartido Windows)
+# Ferozo: límite de memoria (154 MB)
 
-Límite del App Pool en hosting compartido:
+## Qué dice soporte
 
-| Recurso | Límite |
-|---------|--------|
-| Memoria privada | 154 MB |
-| Memoria virtual | 1.8 GB |
+Si el App Pool supera **154 MB de memoria privada**, IIS **recicla el proceso** → el sitio queda cargando, error 503, o no entra al login.
 
-Si la app supera el límite, IIS recicla el proceso → errores 503 y fallos de conexión SQL.
+**Local funciona** porque tu PC no tiene ese límite. **Ferozo** sí.
 
 ## Optimizaciones aplicadas en el código
 
-- **GC Workstation** (`ServerGarbageCollection=false`) — menos RAM en procesos pequeños
-- **Límite de heap** ~90 MB vía `DOTNET_GCHeapHardLimit` en `web.config`
-- **DbContext pooled** + consultas con `AsSplitQuery`
-- **Reportes/dashboard**: agregados en SQL, sin cargar todas las ventas en memoria
-- **Clientes/proveedores**: listados con proyección SQL (sin `Include` masivos)
-- **Proveedores**: movimientos se cargan solo al abrir la cuenta
-- **Ventas**: máximo 200 registros por consulta
-- **Excel**: export máximo 90 días
-- **Import stock**: guardado en lotes de 50 filas
-- **Sesión**: timeout 2 h (antes 8 h)
-- **Sin** `DOTNET_GCHeapHardLimit` (provocaba timeouts al conectar SQL en Ferozo)
-- **Sin** reintentos EF en producción (evita esperas largas si SQL falla)
+- Autenticación por **cookie cifrada** (sin sesión en RAM)
+- DbContext pool reducido a **8** en producción
+- Sin compresión HTTP en producción
+- Consultas SQL livianas, sin cargar datos masivos
+- GC workstation (`DOTNET_gcServer=0`)
+- TCP forzado: `tcp:sql2016,1433`
+- Contraseña SQL en `Database.SqlPassword` (soporta `@`)
 
-## Recomendaciones de uso
+## Realidad del plan compartido
 
-1. Evitar exportar Excel de rangos muy largos
-2. No importar archivos Excel enormes de una sola vez
-3. Si el negocio crece, considerar **CloudServer** en DonWeb (más RAM)
+ASP.NET Core 6 + SQL Server en **154 MB** va muy justo. Si después de republicar sigue reciclando:
 
-## Publicar
+**Opción recomendada por Ferozo:** migrar a **CloudServer** (más RAM).
 
-Republicar con FolderProfile y subir todo `publish/` a `public_html`, incluyendo el `web.config` actualizado.
+## Publicar correctamente
+
+1. `appsettings.Production.json` con `SqlPassword` (no en Git)
+2. FolderProfile → subir todo `publish/` a `public_html`
+3. `web.config` **sin** `ConnectionStrings__DefaultConnection`
+4. Carpeta `keys/` en el servidor (no borrar entre publicaciones)
+5. Probar `/api/health` luego `/api/health/db`
+
+## Login en Ferozo
+
+- Usuario app: `Santi.F` / `Santicaza`
+- Si la página carga pero login falla → problema de SQL (cadena o red)
+- Si la página **no carga nada** → App Pool reciclado por memoria (esperar 1 min o CloudServer)
