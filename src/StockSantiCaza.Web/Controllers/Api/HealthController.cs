@@ -19,9 +19,7 @@ public class HealthController : ControllerBase
     [HttpGet]
     public IActionResult Get()
     {
-        var connectionString = ConnectionStringResolver.Resolve(configuration);
-        var sqlServer = ExtraerValor(connectionString, "Server");
-        var authMode = DetectarModoAuth(connectionString);
+        var builder = new SqlConnectionStringBuilder(ConnectionStringResolver.Resolve(configuration));
 
         return Ok(new
         {
@@ -29,10 +27,12 @@ public class HealthController : ControllerBase
             environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production",
             os = RuntimeInformation.OSDescription,
             isWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows),
-            sqlServer,
-            authMode,
-            sqlUser = authMode == "sql" ? ExtraerValor(connectionString, "User Id", "UID", "User ID") : null,
+            sqlServer = builder.DataSource,
+            database = builder.InitialCatalog,
+            authMode = builder.IntegratedSecurity ? "integrated" : "sql",
+            sqlUser = builder.IntegratedSecurity ? null : builder.UserID,
             tieneSqlPassword = ConnectionStringResolver.TieneSqlPassword(configuration),
+            dataSourceConfigurado = configuration["Database:DataSource"],
             tieneProductionJson = System.IO.File.Exists(
                 Path.Combine(AppContext.BaseDirectory, "appsettings.Production.json")),
             usaVariableEntorno = !string.IsNullOrWhiteSpace(
@@ -43,36 +43,16 @@ public class HealthController : ControllerBase
     [HttpGet("db")]
     public async Task<IActionResult> Database(CancellationToken ct)
     {
-        var connectionString = ConnectionStringResolver.Resolve(configuration);
-        if (string.IsNullOrWhiteSpace(connectionString))
+        var builder = new SqlConnectionStringBuilder(ConnectionStringResolver.Resolve(configuration))
         {
-            return StatusCode(503, new
-            {
-                status = "error",
-                database = "error",
-                mensaje = "No hay cadena DefaultConnection configurada."
-            });
-        }
-
-        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        timeout.CancelAfter(TimeSpan.FromSeconds(30));
+            ConnectTimeout = 10
+        };
 
         try
         {
-            await using var conexion = new SqlConnection(connectionString);
-            await conexion.OpenAsync(timeout.Token);
-            await conexion.CloseAsync();
-
-            return Ok(new { status = "ok", database = "connected" });
-        }
-        catch (OperationCanceledException)
-        {
-            return StatusCode(503, new
-            {
-                status = "error",
-                database = "timeout",
-                mensaje = "La base SQL no respondió a tiempo. En Ferozo el servidor sql2016 solo funciona desde el hosting Windows del mismo plan."
-            });
+            await using var conexion = new SqlConnection(builder.ConnectionString);
+            await conexion.OpenAsync(ct);
+            return Ok(new { status = "ok", database = "connected", sqlServer = builder.DataSource });
         }
         catch (SqlException ex)
         {
@@ -80,95 +60,47 @@ public class HealthController : ControllerBase
             {
                 status = "error",
                 database = "error",
+                sqlServer = builder.DataSource,
                 sqlError = ex.Number,
-                mensaje = SanitizarMensajeSql(ex.Message)
+                mensaje = ex.Message,
+                ayuda = "Probá /api/health/sql-probe para ver qué método de conexión funciona en tu plan Ferozo."
             });
         }
         catch (Exception ex)
         {
-            var mensaje = ex.InnerException?.Message ?? ex.Message;
             return StatusCode(503, new
             {
                 status = "error",
                 database = "error",
-                mensaje = SanitizarMensajeSql(mensaje)
+                sqlServer = builder.DataSource,
+                mensaje = ex.Message,
+                ayuda = "Probá /api/health/sql-probe"
             });
         }
     }
 
-    private static string DetectarModoAuth(string connectionString)
+    [HttpGet("sql-probe")]
+    public async Task<IActionResult> SqlProbe(CancellationToken ct)
     {
-        var partes = connectionString.Split(';', StringSplitOptions.RemoveEmptyEntries)
-            .Select(part => part.Trim());
+        var intentos = await FerozoSqlProbe.ProbarTodasAsync(configuration, ct);
+        var exitoso = intentos.FirstOrDefault(i => i.ok);
 
-        foreach (var parte in partes)
+        return Ok(new
         {
-            if (parte.StartsWith("Integrated Security=", StringComparison.OrdinalIgnoreCase)
-                && parte.EndsWith("True", StringComparison.OrdinalIgnoreCase))
+            status = exitoso is null ? "sin_conexion" : "ok",
+            recomendacion = exitoso is null
+                ? "Ningún método conectó. Abrí ticket en DonWeb (ver docs/FEROZO-CONEXION-TODOS-METODOS.md)."
+                : $"Agregá en appsettings.Production.json: \"Database\": {{ \"DataSource\": \"{exitoso.dataSource}\" }}",
+            metodoGanador = exitoso?.metodo,
+            dataSourceGanador = exitoso?.dataSource,
+            intentos = intentos.Select(i => new
             {
-                return "integrated";
-            }
-
-            if (parte.StartsWith("Trusted_Connection=", StringComparison.OrdinalIgnoreCase)
-                && parte.EndsWith("True", StringComparison.OrdinalIgnoreCase))
-            {
-                return "integrated";
-            }
-        }
-
-        return string.IsNullOrWhiteSpace(ExtraerValor(connectionString, "User Id", "UID"))
-            ? "integrated"
-            : "sql";
-    }
-
-    private static string ExtraerValor(string connectionString, params string[] claves)
-    {
-        foreach (var parte in connectionString.Split(';', StringSplitOptions.RemoveEmptyEntries))
-        {
-            var texto = parte.Trim();
-            foreach (var clave in claves)
-            {
-                var prefijo = clave + "=";
-                if (texto.StartsWith(prefijo, StringComparison.OrdinalIgnoreCase))
-                {
-                    return texto[prefijo.Length..];
-                }
-            }
-        }
-
-        return string.Empty;
-    }
-
-    private static string SanitizarMensajeSql(string mensaje)
-    {
-        if (mensaje.Contains("Login failed", StringComparison.OrdinalIgnoreCase))
-        {
-            return "Login failed: usuario o contraseña SQL incorrectos en appsettings.Production.json.";
-        }
-
-        if (mensaje.Contains("Cannot open database", StringComparison.OrdinalIgnoreCase))
-        {
-            return "No se puede abrir la base w400048_santicazarmeria. Verifique que el usuario tenga permisos en el panel Ferozo.";
-        }
-
-        if (mensaje.Contains("network path was not found", StringComparison.OrdinalIgnoreCase)
-            || mensaje.Contains("network-related", StringComparison.OrdinalIgnoreCase)
-            || mensaje.Contains("server was not found", StringComparison.OrdinalIgnoreCase))
-        {
-            return "No se encuentra sql2016 desde el servidor web. En Ferozo use tcp:sql2016,1433. sql2016 no funciona desde su PC en local, solo en el hosting publicado.";
-        }
-
-        if (mensaje.Contains("Integrated", StringComparison.OrdinalIgnoreCase)
-            && mensaje.Contains("not supported", StringComparison.OrdinalIgnoreCase))
-        {
-            return "Integrated Security no funciona en este servidor. Use User Id + Password con Integrated Security=False.";
-        }
-
-        if (mensaje.Contains("Keyword not supported", StringComparison.OrdinalIgnoreCase))
-        {
-            return "Contraseña SQL mal configurada (carácter @). Use Database.SqlPassword en appsettings.Production.json y quite Password= de la cadena y de web.config en el servidor.";
-        }
-
-        return mensaje;
+                i.metodo,
+                i.dataSource,
+                i.ok,
+                i.sqlError,
+                i.mensaje
+            })
+        });
     }
 }

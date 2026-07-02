@@ -46,37 +46,11 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 
 var connectionString = ConnectionStringResolver.Resolve(builder.Configuration);
 
-var sqlServer = connectionString.Split(';', StringSplitOptions.RemoveEmptyEntries)
-    .Select(part => part.Trim())
-    .FirstOrDefault(part => part.StartsWith("Server=", StringComparison.OrdinalIgnoreCase)
-        || part.StartsWith("Data Source=", StringComparison.OrdinalIgnoreCase))
-    ?? "Server=?";
-
 Console.WriteLine($"[StockSantiCAZA] Entorno: {builder.Environment.EnvironmentName}");
-Console.WriteLine($"[StockSantiCAZA] SQL: {sqlServer}");
+Console.WriteLine($"[StockSantiCAZA] SQL: {new Microsoft.Data.SqlClient.SqlConnectionStringBuilder(connectionString).DataSource}");
 
-if (!builder.Environment.IsDevelopment()
-    && (sqlServer.Contains("LARA-NB", StringComparison.OrdinalIgnoreCase)
-        || sqlServer.Contains("localhost", StringComparison.OrdinalIgnoreCase)
-        || sqlServer.Contains("127.0.0.1", StringComparison.OrdinalIgnoreCase)))
-{
-    Console.WriteLine("[StockSantiCAZA] ADVERTENCIA: en producción está usando un servidor SQL local.");
-    Console.WriteLine("[StockSantiCAZA] Suba appsettings.Production.json con Server=sql2016 a public_html.");
-}
-
-builder.Services.AddPooledDbContextFactory<ApplicationDbContext>(
-    options => options.UseSqlServer(
-        connectionString,
-        providerOptions =>
-        {
-            providerOptions.UseRowNumberForPaging();
-            providerOptions.CommandTimeout(30);
-            if (builder.Environment.IsDevelopment())
-            {
-                providerOptions.EnableRetryOnFailure();
-            }
-        }),
-    poolSize: builder.Environment.IsDevelopment() ? 32 : 8);
+builder.Services.AddSingleton<FerozoConnectionStringProvider>();
+builder.Services.AddSingleton<IDbContextFactory<ApplicationDbContext>, DynamicDbContextFactory>();
 
 builder.Services.AddSingleton<PasswordHasher<Usuario>>();
 builder.Services.AddScoped<IAuthService, AuthService>();

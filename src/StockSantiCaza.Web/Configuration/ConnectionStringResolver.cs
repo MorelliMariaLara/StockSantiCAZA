@@ -4,7 +4,13 @@ namespace StockSantiCaza.Web.Configuration;
 
 public static class ConnectionStringResolver
 {
-    public static string Resolve(IConfiguration configuration)
+    public static string Resolve(IConfiguration configuration, string? dataSource = null) =>
+        CrearBuilder(configuration, dataSource, integrated: null).ConnectionString;
+
+    public static SqlConnectionStringBuilder CrearBuilder(
+        IConfiguration configuration,
+        string? dataSource = null,
+        bool? integrated = null)
     {
         var plantilla = configuration.GetConnectionString("DefaultConnection")
             ?? throw new InvalidOperationException("Connection string 'DefaultConnection' was not configured.");
@@ -22,30 +28,38 @@ public static class ConnectionStringResolver
                 builder.Password = sqlPassword;
             }
 
+            if (integrated.HasValue)
+            {
+                builder.IntegratedSecurity = integrated.Value;
+                if (integrated.Value)
+                {
+                    builder.UserID = string.Empty;
+                    builder.Password = string.Empty;
+                }
+            }
+
+            var servidor = dataSource
+                ?? configuration["Database:DataSource"]?.Trim();
+            if (!string.IsNullOrWhiteSpace(servidor))
+            {
+                builder.DataSource = servidor;
+            }
+
             builder.MultipleActiveResultSets = false;
-            AplicarFormatoFerozo(builder);
-            return builder.ConnectionString;
+            builder.Encrypt = false;
+            builder.TrustServerCertificate = true;
+            return builder;
         }
         catch (ArgumentException ex)
         {
             throw new InvalidOperationException(
-                "Cadena SQL inválida. Si la contraseña tiene '@', configurá Database.SqlPassword en appsettings.Production.json " +
-                "y quitá Password= de la cadena y de variables en web.config.",
+                "Cadena SQL inválida. Si la contraseña tiene '@', configurá Database.SqlPassword en appsettings.Production.json.",
                 ex);
         }
     }
 
     public static bool TieneSqlPassword(IConfiguration configuration) =>
         !string.IsNullOrWhiteSpace(configuration["Database:SqlPassword"]);
-
-    private static void AplicarFormatoFerozo(SqlConnectionStringBuilder builder)
-    {
-        var servidor = builder.DataSource.Trim();
-        if (servidor.Equals("sql2016", StringComparison.OrdinalIgnoreCase))
-        {
-            builder.DataSource = "tcp:sql2016,1433";
-        }
-    }
 
     private static string QuitarClave(string connectionString, string clave)
     {

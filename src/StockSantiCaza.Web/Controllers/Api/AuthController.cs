@@ -29,19 +29,40 @@ public class AuthController : ControllerBase
     [HttpPost("login")]
     public async Task<ActionResult<UsuarioSesionDto>> Login([FromBody] LoginRequest request, CancellationToken ct)
     {
-        var ok = await authService.IniciarSesionAsync(request.Login, request.Password, ct);
-        if (!ok)
+        try
         {
-            return Unauthorized(new { error = "Usuario o contraseña incorrectos." });
-        }
+            var ok = await authService.IniciarSesionAsync(request.Login, request.Password, ct);
+            if (!ok)
+            {
+                return Unauthorized(new { error = "Usuario o contraseña incorrectos." });
+            }
 
-        var usuario = authService.UsuarioActual;
-        if (usuario is null)
+            var usuario = authService.UsuarioActual;
+            if (usuario is null)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError, new { error = "No se pudo iniciar la sesión." });
+            }
+
+            return Ok(UsuarioSesionDto.From(usuario));
+        }
+        catch (Microsoft.Data.SqlClient.SqlException ex)
         {
-            return StatusCode(StatusCodes.Status500InternalServerError, new { error = "No se pudo iniciar la sesión." });
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, new
+            {
+                error = "No se pudo conectar a la base de datos.",
+                sqlError = ex.Number,
+                detalle = ex.Message,
+                ayuda = "Abrí /api/health/sql-probe en el navegador para diagnosticar la conexión en Ferozo."
+            });
         }
-
-        return Ok(UsuarioSesionDto.From(usuario));
+        catch (OperationCanceledException)
+        {
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, new
+            {
+                error = "La base de datos no respondió a tiempo.",
+                ayuda = "Abrí /api/health/sql-probe para ver qué servidor SQL funciona en tu hosting."
+            });
+        }
     }
 
     [HttpPost("logout")]

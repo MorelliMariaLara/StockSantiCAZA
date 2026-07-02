@@ -41,9 +41,13 @@ document.addEventListener('DOMContentLoaded', () => {
       }, { timeoutMs: 30000 });
       window.location.href = app.homePath(user);
     } catch (err) {
-      const message = err.name === 'AbortError' || err.message.includes('tiempo')
-        ? 'La base de datos no respondió. En Ferozo debe existir appsettings.Production.json con Server=sql2016 y la contraseña correcta.'
-        : (err.message || 'Usuario o contraseña incorrectos.');
+      let message = err.message || 'Usuario o contraseña incorrectos.';
+      if (err.name === 'AbortError' || message.includes('tiempo')) {
+        message = 'La base de datos no respondió. Abrí /api/health/sql-probe para diagnosticar.';
+      }
+      if (err.body?.ayuda) {
+        message += ' ' + err.body.ayuda;
+      }
       app.renderAlerts(alerts, { error: message });
     } finally {
       btn.disabled = false;

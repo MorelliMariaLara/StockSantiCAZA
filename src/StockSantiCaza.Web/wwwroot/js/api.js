@@ -51,7 +51,7 @@ const api = {
     }
 
     if (!response.ok) {
-      const message = body?.error || body?.errors?.join?.('\n') || `Error ${response.status}`;
+      const message = body?.error || body?.detalle || body?.errors?.join?.('\n') || `Error ${response.status}`;
       const error = new Error(message);
       error.status = response.status;
       error.body = body;
