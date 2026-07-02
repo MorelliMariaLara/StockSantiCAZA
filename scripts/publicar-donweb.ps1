@@ -39,5 +39,6 @@ Write-Host "Servidor:  w400048.ferozo.com"
 Write-Host "Usuario:   w400048@w400048.ferozo.com"
 Write-Host "Ruta:      stock.santicazaarmeria.com.ar/public_html"
 Write-Host "IMPORTANTE: subi appsettings.Production.json junto al .dll (misma carpeta en public_html)." -ForegroundColor Yellow
+Write-Host "Subi TODO el contenido de publish\ (no la carpeta publish en si)."
 Write-Host ""
 Write-Host "Probar: https://stock.santicazaarmeria.com.ar/api/health" -ForegroundColor Cyan
