@@ -20,8 +20,8 @@ public class HealthController : ControllerBase
     public IActionResult Get()
     {
         var connectionString = ConnectionStringResolver.Resolve(configuration);
-        var sqlServer = ExtraerValor(connectionString, "Server");
-        var authMode = DetectarModoAuth(connectionString);
+        var builder = new SqlConnectionStringBuilder(connectionString);
+        var authMode = builder.IntegratedSecurity ? "integrated" : "sql";
 
         return Ok(new
         {
@@ -29,9 +29,10 @@ public class HealthController : ControllerBase
             environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production",
             os = RuntimeInformation.OSDescription,
             isWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows),
-            sqlServer,
+            sqlServer = builder.DataSource,
+            database = builder.InitialCatalog,
             authMode,
-            sqlUser = authMode == "sql" ? ExtraerValor(connectionString, "User Id", "UID", "User ID") : null,
+            sqlUser = authMode == "sql" ? builder.UserID : null,
             tieneSqlPassword = ConnectionStringResolver.TieneSqlPassword(configuration),
             tieneProductionJson = System.IO.File.Exists(
                 Path.Combine(AppContext.BaseDirectory, "appsettings.Production.json")),
@@ -55,7 +56,7 @@ public class HealthController : ControllerBase
         }
 
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        timeout.CancelAfter(TimeSpan.FromSeconds(30));
+        timeout.CancelAfter(TimeSpan.FromSeconds(15));
 
         try
         {
@@ -94,49 +95,6 @@ public class HealthController : ControllerBase
                 mensaje = SanitizarMensajeSql(mensaje)
             });
         }
-    }
-
-    private static string DetectarModoAuth(string connectionString)
-    {
-        var partes = connectionString.Split(';', StringSplitOptions.RemoveEmptyEntries)
-            .Select(part => part.Trim());
-
-        foreach (var parte in partes)
-        {
-            if (parte.StartsWith("Integrated Security=", StringComparison.OrdinalIgnoreCase)
-                && parte.EndsWith("True", StringComparison.OrdinalIgnoreCase))
-            {
-                return "integrated";
-            }
-
-            if (parte.StartsWith("Trusted_Connection=", StringComparison.OrdinalIgnoreCase)
-                && parte.EndsWith("True", StringComparison.OrdinalIgnoreCase))
-            {
-                return "integrated";
-            }
-        }
-
-        return string.IsNullOrWhiteSpace(ExtraerValor(connectionString, "User Id", "UID"))
-            ? "integrated"
-            : "sql";
-    }
-
-    private static string ExtraerValor(string connectionString, params string[] claves)
-    {
-        foreach (var parte in connectionString.Split(';', StringSplitOptions.RemoveEmptyEntries))
-        {
-            var texto = parte.Trim();
-            foreach (var clave in claves)
-            {
-                var prefijo = clave + "=";
-                if (texto.StartsWith(prefijo, StringComparison.OrdinalIgnoreCase))
-                {
-                    return texto[prefijo.Length..];
-                }
-            }
-        }
-
-        return string.Empty;
     }
 
     private static string SanitizarMensajeSql(string mensaje)

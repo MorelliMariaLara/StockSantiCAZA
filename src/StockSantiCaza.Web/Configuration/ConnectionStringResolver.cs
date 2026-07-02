@@ -40,6 +40,12 @@ public static class ConnectionStringResolver
 
     private static void AplicarFormatoFerozo(SqlConnectionStringBuilder builder)
     {
+        // Integrated Security en Ferozo: usar sql2016 sin prefijo tcp (tcp cuelga o tumba el worker).
+        if (builder.IntegratedSecurity)
+        {
+            return;
+        }
+
         var servidor = builder.DataSource.Trim();
         if (servidor.Equals("sql2016", StringComparison.OrdinalIgnoreCase))
         {
