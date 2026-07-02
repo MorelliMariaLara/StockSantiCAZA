@@ -105,9 +105,9 @@ public class HealthController : ControllerBase
             });
         }
 
-        if (metodo < 1 || metodo > 2)
+        if (metodo < 1 || metodo > 3)
         {
-            return BadRequest(new { error = "metodo debe ser 1 o 2." });
+            return BadRequest(new { error = "metodo debe ser 1, 2 o 3." });
         }
 
         var resultado = await FerozoSqlProbe.ProbarMetodoAsync(configuration, metodo.Value, ct);

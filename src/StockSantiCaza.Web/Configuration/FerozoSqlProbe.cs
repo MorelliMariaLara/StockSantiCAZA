@@ -9,12 +9,14 @@ public static class FerozoSqlProbe
     public sealed record Resultado(int id, string nombre, string dataSource, bool ok, int? sqlError, string? mensaje);
 
     /// <summary>
-    /// Métodos según respuesta oficial DonWeb: Server=sql2016 (sin IP ni puerto).
+    /// DonWeb: Server=sql2016. ASP.NET Core necesita puerto 1433 para TCP (evita Named Pipes error 53).
+    /// sql2016,1433 sigue siendo el servidor sql2016 — no es IP:2082.
     /// </summary>
     public static readonly Metodo[] Metodos =
     {
-        new(1, "sql2016 + usuario SQL (recomendado DonWeb)", "sql2016", false),
-        new(2, "sql2016 + Integrated Security (panel SSPI)", "sql2016", true),
+        new(1, "sql2016,1433 + usuario SQL (TCP, recomendado .NET Core)", "sql2016,1433", false),
+        new(2, "sql2016 + usuario SQL (Named Pipes)", "sql2016", false),
+        new(3, "sql2016 + Integrated Security (panel SSPI)", "sql2016", true),
     };
 
     public static async Task<Resultado> ProbarMetodoAsync(

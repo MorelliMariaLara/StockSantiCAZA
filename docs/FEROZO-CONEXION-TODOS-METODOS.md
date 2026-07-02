@@ -4,19 +4,19 @@
 
 **No uses IP ni puerto** (ej. `200.58.120.140:2082` no es SQL Server).
 
-Usá exactamente:
+**DonWeb dice `Server=sql2016`.** En ASP.NET Core 6 además hay que forzar **TCP puerto 1433** (no Named Pipes):
 
 ```text
-Server=sql2016;Database=w400048_santicazarmeria;User Id=w400048_MariAdmin;Password=TU_CONTRASEÑA;TrustServerCertificate=True;
+Server=sql2016,1433;Database=w400048_santicazarmeria;User Id=w400048_MariAdmin;...
 ```
 
-En la app (`appsettings.Production.json`):
+Esto **no** es una IP (`200.58.120.140:2082` estaba mal). Sigue siendo el servidor `sql2016` con el puerto estándar de SQL Server.
+
+En `appsettings.Production.json`:
 
 ```json
-{
-  "ConnectionStrings": {
-    "DefaultConnection": "Server=sql2016;Database=w400048_santicazarmeria;User Id=w400048_MariAdmin;Integrated Security=False;TrustServerCertificate=True;Encrypt=False;Connection Timeout=30"
-  },
+"DefaultConnection": "Server=sql2016,1433;Database=w400048_santicazarmeria;User Id=w400048_MariAdmin;Integrated Security=False;TrustServerCertificate=True;Encrypt=False;Connection Timeout=30"
+```
   "Database": {
     "SkipInitialization": true,
     "SqlPassword": "TU_NUEVA_CONTRASEÑA_DEL_PANEL"
