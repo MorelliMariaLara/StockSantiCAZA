@@ -39,16 +39,25 @@ El panel muestra cadenas con **Integrated Security / SSPI** (sin usuario ni cont
 Data Source=sql2016;Initial Catalog=w400048_santicazarmeria;Integrated Security=SSPI;
 ```
 
-Eso es para la **app en el mismo hosting**. En `appsettings.Production.json`:
+Eso sirve para apps clásicas en el mismo hosting. **ASP.NET Core en Ferozo** (proceso `dotnet` aparte) suele dar **502 o timeout** con SSPI. Usá autenticación SQL en `appsettings.Production.json`:
 
 ```json
-"DefaultConnection": "Data Source=sql2016;Initial Catalog=w400048_santicazarmeria;Integrated Security=True;TrustServerCertificate=True;Encrypt=False;Connection Timeout=60"
+{
+  "ConnectionStrings": {
+    "DefaultConnection": "Server=sql2016;Database=w400048_santicazarmeria;User Id=w400048_MariAdmin;Integrated Security=False;TrustServerCertificate=True;Encrypt=False;Connection Timeout=15"
+  },
+  "Database": {
+    "SkipInitialization": true,
+    "SqlPassword": "SantiagoFerreyra@22"
+  }
+}
 ```
 
 | Uso | Autenticación | Contraseña |
 |-----|---------------|------------|
-| App en Ferozo | Integrated Security (SSPI) | No hace falta |
-| SSMS / tu PC con túnel | `w400048_MariAdmin` | `SantiagoFerreyra@22` en `appsettings.Local.json` |
+| App en Ferozo (ASP.NET Core) | `w400048_MariAdmin` + `SqlPassword` | `SantiagoFerreyra@22` |
+| SSMS / tu PC con túnel | `w400048_MariAdmin` | en `appsettings.Local.json` |
+| Cadena SSPI del panel | Solo referencia — no usar en la app .NET |
 
 ---
 

@@ -55,14 +55,21 @@ public class HealthController : ControllerBase
             });
         }
 
+        var builder = new SqlConnectionStringBuilder(connectionString)
+        {
+            ConnectTimeout = 15
+        };
+
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        timeout.CancelAfter(TimeSpan.FromSeconds(25));
+        timeout.CancelAfter(TimeSpan.FromSeconds(18));
 
         try
         {
-            await using var conexion = new SqlConnection(connectionString);
-            await conexion.OpenAsync(timeout.Token);
-            await conexion.CloseAsync();
+            await Task.Run(async () =>
+            {
+                await using var conexion = new SqlConnection(builder.ConnectionString);
+                await conexion.OpenAsync(timeout.Token);
+            }, timeout.Token);
 
             return Ok(new { status = "ok", database = "connected" });
         }
@@ -72,7 +79,7 @@ public class HealthController : ControllerBase
             {
                 status = "error",
                 database = "timeout",
-                mensaje = "La base SQL no respondió a tiempo. Verifique appsettings.Production.json (Data Source=sql2016; Integrated Security=True, como en el panel Ferozo) y borre ConnectionStrings__DefaultConnection vieja en el panel."
+                mensaje = "La base SQL no respondió a tiempo. Use User Id w400048_MariAdmin + Database.SqlPassword en appsettings.Production.json (Integrated Security da 502 en Ferozo)."
             });
         }
         catch (SqlException ex)
