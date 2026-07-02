@@ -46,8 +46,11 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 
 var connectionString = ConnectionStringResolver.Resolve(builder.Configuration);
 
-var sqlBuilder = new Microsoft.Data.SqlClient.SqlConnectionStringBuilder(connectionString);
-var sqlServer = sqlBuilder.DataSource;
+var sqlServer = connectionString.Split(';', StringSplitOptions.RemoveEmptyEntries)
+    .Select(part => part.Trim())
+    .FirstOrDefault(part => part.StartsWith("Server=", StringComparison.OrdinalIgnoreCase)
+        || part.StartsWith("Data Source=", StringComparison.OrdinalIgnoreCase))
+    ?? "Server=?";
 
 Console.WriteLine($"[StockSantiCAZA] Entorno: {builder.Environment.EnvironmentName}");
 Console.WriteLine($"[StockSantiCAZA] SQL: {sqlServer}");
@@ -73,7 +76,7 @@ builder.Services.AddPooledDbContextFactory<ApplicationDbContext>(
                 providerOptions.EnableRetryOnFailure();
             }
         }),
-    poolSize: builder.Environment.IsDevelopment() ? 32 : 4);
+    poolSize: builder.Environment.IsDevelopment() ? 32 : 8);
 
 builder.Services.AddSingleton<PasswordHasher<Usuario>>();
 builder.Services.AddScoped<IAuthService, AuthService>();
