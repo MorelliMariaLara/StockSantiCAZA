@@ -15,8 +15,10 @@ Esto **no** es una IP (`200.58.120.140:2082` estaba mal). Sigue siendo el servid
 En `appsettings.Production.json`:
 
 ```json
-"DefaultConnection": "Server=sql2016,1433;Database=w400048_santicazarmeria;User Id=w400048_MariAdmin;Integrated Security=False;TrustServerCertificate=True;Encrypt=False;Connection Timeout=30"
-```
+{
+  "ConnectionStrings": {
+    "DefaultConnection": "Server=sql2016,1433;Database=w400048_santicazarmeria;User Id=w400048_MariAdmin;Integrated Security=False;TrustServerCertificate=True;Encrypt=False;Connection Timeout=30"
+  },
   "Database": {
     "SkipInitialization": true,
     "SqlPassword": "TU_NUEVA_CONTRASEÑA_DEL_PANEL"
