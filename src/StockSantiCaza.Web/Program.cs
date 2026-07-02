@@ -44,9 +44,7 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
     options.KnownProxies.Clear();
 });
 
-var connectionString = builder.Environment.IsDevelopment()
-    ? ConnectionStringResolver.Resolve(builder.Configuration)
-    : await ConnectionStringResolver.ResolveProduccionAsync(builder.Configuration);
+var connectionString = ConnectionStringResolver.Resolve(builder.Configuration);
 
 var sqlBuilder = new Microsoft.Data.SqlClient.SqlConnectionStringBuilder(connectionString);
 var sqlServer = sqlBuilder.DataSource;
@@ -75,7 +73,7 @@ builder.Services.AddPooledDbContextFactory<ApplicationDbContext>(
                 providerOptions.EnableRetryOnFailure();
             }
         }),
-    poolSize: builder.Environment.IsDevelopment() ? 32 : 8);
+    poolSize: builder.Environment.IsDevelopment() ? 32 : 4);
 
 builder.Services.AddSingleton<PasswordHasher<Usuario>>();
 builder.Services.AddScoped<IAuthService, AuthService>();

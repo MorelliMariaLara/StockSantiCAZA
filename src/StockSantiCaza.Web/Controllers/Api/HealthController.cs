@@ -9,7 +9,7 @@ namespace StockSantiCaza.Web.Controllers.Api;
 [Route("api/health")]
 public class HealthController : ControllerBase
 {
-    private const string AppBuild = "ferozo-sql-003";
+    private const string AppBuild = "ferozo-sql-004";
 
     private readonly IConfiguration configuration;
 
@@ -28,6 +28,7 @@ public class HealthController : ControllerBase
         return Ok(new
         {
             status = "ok",
+            appBuild = AppBuild,
             environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production",
             os = RuntimeInformation.OSDescription,
             isWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows),
@@ -46,18 +47,39 @@ public class HealthController : ControllerBase
     [HttpGet("db")]
     public async Task<IActionResult> Database(CancellationToken ct)
     {
-        var (ok, servidor, error) = await ConnectionStringResolver.ProbarConexionAsync(configuration, ct);
-        if (ok)
-        {
-            return Ok(new { status = "ok", database = "connected", sqlServer = servidor });
-        }
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeout.CancelAfter(TimeSpan.FromSeconds(12));
 
-        return StatusCode(503, new
+        try
         {
-            status = "error",
-            database = "error",
-            mensaje = "No se pudo conectar a sql2016. Probá agregar Database:DataSource en appsettings.Production.json (valores: sql2016, sql2016,1433 o tcp:sql2016,1433).",
-            intentos = error
-        });
+            var (ok, servidor, mensaje, sqlError) = await ConnectionStringResolver.ProbarConexionAsync(
+                configuration,
+                timeout.Token);
+
+            if (ok)
+            {
+                return Ok(new { status = "ok", database = "connected", sqlServer = servidor, appBuild = AppBuild });
+            }
+
+            return StatusCode(503, new
+            {
+                status = "error",
+                database = "error",
+                appBuild = AppBuild,
+                sqlServer = servidor,
+                sqlError,
+                mensaje
+            });
+        }
+        catch (OperationCanceledException)
+        {
+            return StatusCode(503, new
+            {
+                status = "error",
+                database = "timeout",
+                appBuild = AppBuild,
+                mensaje = "La base no respondió en 12 segundos."
+            });
+        }
     }
 }
