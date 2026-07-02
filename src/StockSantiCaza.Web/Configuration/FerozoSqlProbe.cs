@@ -4,83 +4,49 @@ namespace StockSantiCaza.Web.Configuration;
 
 public static class FerozoSqlProbe
 {
-    public sealed record Intento(string metodo, string dataSource, bool ok, int? sqlError, string? mensaje);
+    public sealed record Metodo(int id, string nombre, string dataSource, bool integrated);
 
-    private static readonly (string metodo, string dataSource, bool integrated)[] Estrategias =
+    public sealed record Resultado(int id, string nombre, string dataSource, bool ok, int? sqlError, string? mensaje);
+
+    public static readonly Metodo[] Metodos =
     {
-        ("sql2016,1433 + usuario SQL", "sql2016,1433", false),
-        ("sql2016 + usuario SQL", "sql2016", false),
-        ("tcp:sql2016,1433 + usuario SQL", "tcp:sql2016,1433", false),
-        ("sql2016,1433 + Integrated Security", "sql2016,1433", true),
-        ("sql2016 + Integrated Security", "sql2016", true),
+        new(1, "sql2016,1433 + usuario SQL", "sql2016,1433", false),
+        new(2, "sql2016 + usuario SQL", "sql2016", false),
+        new(3, "tcp:sql2016,1433 + usuario SQL", "tcp:sql2016,1433", false),
+        new(4, "sql2016,1433 + Integrated Security", "sql2016,1433", true),
+        new(5, "sql2016 + Integrated Security", "sql2016", true),
     };
 
-    public static async Task<IReadOnlyList<Intento>> ProbarTodasAsync(
+    public static async Task<Resultado> ProbarMetodoAsync(
         IConfiguration configuration,
+        int id,
         CancellationToken cancellationToken = default)
     {
-        var personalizado = configuration["Database:DataSource"]?.Trim();
-        if (!string.IsNullOrWhiteSpace(personalizado))
-        {
-            var builder = ConnectionStringResolver.CrearBuilder(configuration, personalizado);
-            var unico = await ProbarUnoAsync("Database:DataSource configurado", builder, cancellationToken);
-            return new[] { unico };
-        }
+        var metodo = Metodos.FirstOrDefault(m => m.id == id)
+            ?? throw new ArgumentOutOfRangeException(nameof(id), "Usá metodo=1 a metodo=5");
 
-        var resultados = new List<Intento>();
-        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeout.CancelAfter(TimeSpan.FromSeconds(25));
-
-        foreach (var (metodo, dataSource, integrated) in Estrategias)
-        {
-            var builder = ConnectionStringResolver.CrearBuilder(configuration, dataSource, integrated);
-            var intento = await ProbarUnoAsync(metodo, builder, timeout.Token);
-            resultados.Add(intento);
-            if (intento.ok)
-            {
-                break;
-            }
-        }
-
-        return resultados;
-    }
-
-    public static async Task<(bool ok, string? dataSource, string? metodo)> EncontrarPrimeraAsync(
-        IConfiguration configuration,
-        CancellationToken cancellationToken = default)
-    {
-        var intentos = await ProbarTodasAsync(configuration, cancellationToken);
-        var exitoso = intentos.FirstOrDefault(i => i.ok);
-        return exitoso is null
-            ? (false, null, null)
-            : (true, exitoso.dataSource, exitoso.metodo);
-    }
-
-    private static async Task<Intento> ProbarUnoAsync(
-        string metodo,
-        SqlConnectionStringBuilder builder,
-        CancellationToken cancellationToken)
-    {
+        var builder = ConnectionStringResolver.CrearBuilder(configuration, metodo.dataSource, metodo.integrated);
         builder.ConnectTimeout = 6;
-        var dataSource = builder.DataSource;
 
         try
         {
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeout.CancelAfter(TimeSpan.FromSeconds(8));
             await using var conexion = new SqlConnection(builder.ConnectionString);
-            await conexion.OpenAsync(cancellationToken);
-            return new Intento(metodo, dataSource, true, null, null);
+            await conexion.OpenAsync(timeout.Token);
+            return new Resultado(metodo.id, metodo.nombre, metodo.dataSource, true, null, null);
         }
         catch (OperationCanceledException)
         {
-            return new Intento(metodo, dataSource, false, null, "Tiempo agotado");
+            return new Resultado(metodo.id, metodo.nombre, metodo.dataSource, false, null, "Tiempo agotado");
         }
         catch (SqlException ex)
         {
-            return new Intento(metodo, dataSource, false, ex.Number, ex.Message);
+            return new Resultado(metodo.id, metodo.nombre, metodo.dataSource, false, ex.Number, ex.Message);
         }
         catch (Exception ex)
         {
-            return new Intento(metodo, dataSource, false, null, ex.Message);
+            return new Resultado(metodo.id, metodo.nombre, metodo.dataSource, false, null, ex.Message);
         }
     }
 }

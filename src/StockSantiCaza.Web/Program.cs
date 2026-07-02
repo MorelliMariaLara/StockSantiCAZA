@@ -49,8 +49,19 @@ var connectionString = ConnectionStringResolver.Resolve(builder.Configuration);
 Console.WriteLine($"[StockSantiCAZA] Entorno: {builder.Environment.EnvironmentName}");
 Console.WriteLine($"[StockSantiCAZA] SQL: {new Microsoft.Data.SqlClient.SqlConnectionStringBuilder(connectionString).DataSource}");
 
-builder.Services.AddSingleton<FerozoConnectionStringProvider>();
-builder.Services.AddSingleton<IDbContextFactory<ApplicationDbContext>, DynamicDbContextFactory>();
+builder.Services.AddPooledDbContextFactory<ApplicationDbContext>(
+    options => options.UseSqlServer(
+        connectionString,
+        providerOptions =>
+        {
+            providerOptions.UseRowNumberForPaging();
+            providerOptions.CommandTimeout(30);
+            if (builder.Environment.IsDevelopment())
+            {
+                providerOptions.EnableRetryOnFailure();
+            }
+        }),
+    poolSize: builder.Environment.IsDevelopment() ? 32 : 8);
 
 builder.Services.AddSingleton<PasswordHasher<Usuario>>();
 builder.Services.AddScoped<IAuthService, AuthService>();

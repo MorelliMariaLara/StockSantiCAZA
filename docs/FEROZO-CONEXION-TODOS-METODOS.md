@@ -6,13 +6,21 @@ Guía profesional para la cuenta **w400048**, base **w400048_santicazarmeria**.
 
 ## Paso 1 — Diagnosticar (sin romper el login)
 
-Republicá la app y abrí en el navegador:
+Republicá la app y abrí en el navegador **sin parámetros** (solo lista, no conecta):
 
 ```
 https://santicazastock.com.ar/api/health/sql-probe
 ```
 
-La app **prueba automáticamente** estos métodos:
+Luego probá **de a uno** (cada link = una sola conexión, no tumba el servidor):
+
+```
+https://santicazastock.com.ar/api/health/sql-probe?metodo=1
+https://santicazastock.com.ar/api/health/sql-probe?metodo=2
+https://santicazastock.com.ar/api/health/sql-probe?metodo=3
+https://santicazastock.com.ar/api/health/sql-probe?metodo=4
+https://santicazastock.com.ar/api/health/sql-probe?metodo=5
+```
 
 | # | Método | Cuándo sirve |
 |---|--------|--------------|

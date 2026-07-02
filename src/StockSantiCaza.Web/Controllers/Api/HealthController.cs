@@ -45,13 +45,16 @@ public class HealthController : ControllerBase
     {
         var builder = new SqlConnectionStringBuilder(ConnectionStringResolver.Resolve(configuration))
         {
-            ConnectTimeout = 10
+            ConnectTimeout = 8
         };
+
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeout.CancelAfter(TimeSpan.FromSeconds(10));
 
         try
         {
             await using var conexion = new SqlConnection(builder.ConnectionString);
-            await conexion.OpenAsync(ct);
+            await conexion.OpenAsync(timeout.Token);
             return Ok(new { status = "ok", database = "connected", sqlServer = builder.DataSource });
         }
         catch (SqlException ex)
@@ -63,44 +66,64 @@ public class HealthController : ControllerBase
                 sqlServer = builder.DataSource,
                 sqlError = ex.Number,
                 mensaje = ex.Message,
-                ayuda = "Probá /api/health/sql-probe para ver qué método de conexión funciona en tu plan Ferozo."
+                ayuda = "Probá de a uno: /api/health/sql-probe?metodo=1 hasta ?metodo=5"
             });
         }
-        catch (Exception ex)
+        catch (OperationCanceledException)
         {
             return StatusCode(503, new
             {
                 status = "error",
-                database = "error",
+                database = "timeout",
                 sqlServer = builder.DataSource,
-                mensaje = ex.Message,
-                ayuda = "Probá /api/health/sql-probe"
+                mensaje = "La base no respondió en 10 segundos.",
+                ayuda = "Probá /api/health/sql-probe?metodo=1"
             });
         }
     }
 
+    /// <summary>
+    /// Sin ?metodo= devuelve la lista (no conecta a SQL, no tumba el worker).
+    /// Con ?metodo=1..5 prueba UN solo método por request.
+    /// </summary>
     [HttpGet("sql-probe")]
-    public async Task<IActionResult> SqlProbe(CancellationToken ct)
+    public async Task<IActionResult> SqlProbe([FromQuery] int? metodo, CancellationToken ct)
     {
-        var intentos = await FerozoSqlProbe.ProbarTodasAsync(configuration, ct);
-        var exitoso = intentos.FirstOrDefault(i => i.ok);
+        if (metodo is null)
+        {
+            return Ok(new
+            {
+                status = "info",
+                mensaje = "Probá de a uno en el navegador (cada link hace una sola conexión):",
+                metodos = FerozoSqlProbe.Metodos.Select(m => new
+                {
+                    m.id,
+                    m.nombre,
+                    url = $"/api/health/sql-probe?metodo={m.id}",
+                    dataSourceSiFunciona = m.dataSource
+                }),
+                siConecta = "Agregá en appsettings.Production.json → Database.DataSource con el dataSource del método que funcione."
+            });
+        }
 
+        if (metodo < 1 || metodo > 5)
+        {
+            return BadRequest(new { error = "metodo debe ser 1, 2, 3, 4 o 5." });
+        }
+
+        var resultado = await FerozoSqlProbe.ProbarMetodoAsync(configuration, metodo.Value, ct);
         return Ok(new
         {
-            status = exitoso is null ? "sin_conexion" : "ok",
-            recomendacion = exitoso is null
-                ? "Ningún método conectó. Abrí ticket en DonWeb (ver docs/FEROZO-CONEXION-TODOS-METODOS.md)."
-                : $"Agregá en appsettings.Production.json: \"Database\": {{ \"DataSource\": \"{exitoso.dataSource}\" }}",
-            metodoGanador = exitoso?.metodo,
-            dataSourceGanador = exitoso?.dataSource,
-            intentos = intentos.Select(i => new
-            {
-                i.metodo,
-                i.dataSource,
-                i.ok,
-                i.sqlError,
-                i.mensaje
-            })
+            status = resultado.ok ? "ok" : "error",
+            resultado.id,
+            resultado.nombre,
+            resultado.dataSource,
+            resultado.ok,
+            resultado.sqlError,
+            resultado.mensaje,
+            siguiente = resultado.ok
+                ? $"Poné Database.DataSource = \"{resultado.dataSource}\" en appsettings.Production.json y republicá."
+                : (resultado.id < 5 ? $"/api/health/sql-probe?metodo={resultado.id + 1}" : "Ninguno conectó: ticket a DonWeb (docs/FEROZO-CONEXION-TODOS-METODOS.md)")
         });
     }
 }
