@@ -9,6 +9,8 @@ namespace StockSantiCaza.Web.Controllers.Api;
 [Route("api/health")]
 public class HealthController : ControllerBase
 {
+    private const string AppBuild = "ferozo-sql-003";
+
     private readonly IConfiguration configuration;
 
     public HealthController(IConfiguration configuration)

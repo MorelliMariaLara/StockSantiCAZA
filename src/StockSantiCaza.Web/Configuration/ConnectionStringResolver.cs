@@ -9,9 +9,9 @@ public static class ConnectionStringResolver
 
     private static readonly string[] CandidatosServidorFerozo =
     {
-        "sql2016",
         "sql2016,1433",
-        "tcp:sql2016,1433"
+        "tcp:sql2016,1433",
+        "sql2016"
     };
 
     public static string Resolve(IConfiguration configuration)
