@@ -44,12 +44,12 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
     options.KnownProxies.Clear();
 });
 
-var connectionString = ConnectionStringResolver.Resolve(builder.Configuration);
+var connectionString = builder.Environment.IsDevelopment()
+    ? ConnectionStringResolver.Resolve(builder.Configuration)
+    : await ConnectionStringResolver.ResolveProduccionAsync(builder.Configuration);
 
-var sqlServer = connectionString.Split(';', StringSplitOptions.RemoveEmptyEntries)
-    .Select(part => part.Trim())
-    .FirstOrDefault(part => part.StartsWith("Server=", StringComparison.OrdinalIgnoreCase))
-    ?? "Server=?";
+var sqlBuilder = new Microsoft.Data.SqlClient.SqlConnectionStringBuilder(connectionString);
+var sqlServer = sqlBuilder.DataSource;
 
 Console.WriteLine($"[StockSantiCAZA] Entorno: {builder.Environment.EnvironmentName}");
 Console.WriteLine($"[StockSantiCAZA] SQL: {sqlServer}");

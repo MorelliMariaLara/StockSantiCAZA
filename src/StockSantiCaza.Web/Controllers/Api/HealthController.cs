@@ -44,96 +44,18 @@ public class HealthController : ControllerBase
     [HttpGet("db")]
     public async Task<IActionResult> Database(CancellationToken ct)
     {
-        var connectionString = ConnectionStringResolver.Resolve(configuration);
-        if (string.IsNullOrWhiteSpace(connectionString))
+        var (ok, servidor, error) = await ConnectionStringResolver.ProbarConexionAsync(configuration, ct);
+        if (ok)
         {
-            return StatusCode(503, new
-            {
-                status = "error",
-                database = "error",
-                mensaje = "No hay cadena DefaultConnection configurada."
-            });
+            return Ok(new { status = "ok", database = "connected", sqlServer = servidor });
         }
 
-        var builder = new SqlConnectionStringBuilder(connectionString)
+        return StatusCode(503, new
         {
-            ConnectTimeout = 15
-        };
-
-        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        timeout.CancelAfter(TimeSpan.FromSeconds(18));
-
-        try
-        {
-            await Task.Run(async () =>
-            {
-                await using var conexion = new SqlConnection(builder.ConnectionString);
-                await conexion.OpenAsync(timeout.Token);
-            }, timeout.Token);
-
-            return Ok(new { status = "ok", database = "connected" });
-        }
-        catch (OperationCanceledException)
-        {
-            return StatusCode(503, new
-            {
-                status = "error",
-                database = "timeout",
-                mensaje = "La base SQL no respondió a tiempo. Use User Id w400048_MariAdmin + Database.SqlPassword en appsettings.Production.json (Integrated Security da 502 en Ferozo)."
-            });
-        }
-        catch (SqlException ex)
-        {
-            return StatusCode(503, new
-            {
-                status = "error",
-                database = "error",
-                sqlError = ex.Number,
-                mensaje = SanitizarMensajeSql(ex.Message)
-            });
-        }
-        catch (Exception ex)
-        {
-            var mensaje = ex.InnerException?.Message ?? ex.Message;
-            return StatusCode(503, new
-            {
-                status = "error",
-                database = "error",
-                mensaje = SanitizarMensajeSql(mensaje)
-            });
-        }
-    }
-
-    private static string SanitizarMensajeSql(string mensaje)
-    {
-        if (mensaje.Contains("Login failed", StringComparison.OrdinalIgnoreCase))
-        {
-            return "Login failed: usuario o contraseña SQL incorrectos en appsettings.Production.json.";
-        }
-
-        if (mensaje.Contains("Cannot open database", StringComparison.OrdinalIgnoreCase))
-        {
-            return "No se puede abrir la base w400048_santicazarmeria. Verifique que el usuario tenga permisos en el panel Ferozo.";
-        }
-
-        if (mensaje.Contains("network path was not found", StringComparison.OrdinalIgnoreCase)
-            || mensaje.Contains("network-related", StringComparison.OrdinalIgnoreCase)
-            || mensaje.Contains("server was not found", StringComparison.OrdinalIgnoreCase))
-        {
-            return "No se encuentra sql2016 desde el servidor web. En Ferozo use tcp:sql2016,1433. sql2016 no funciona desde su PC en local, solo en el hosting publicado.";
-        }
-
-        if (mensaje.Contains("Integrated", StringComparison.OrdinalIgnoreCase)
-            && mensaje.Contains("not supported", StringComparison.OrdinalIgnoreCase))
-        {
-            return "Integrated Security no funciona en este servidor. Use User Id + Password con Integrated Security=False.";
-        }
-
-        if (mensaje.Contains("Keyword not supported", StringComparison.OrdinalIgnoreCase))
-        {
-            return "Contraseña SQL mal configurada (carácter @). Use Database.SqlPassword en appsettings.Production.json y quite Password= de la cadena y de web.config en el servidor.";
-        }
-
-        return mensaje;
+            status = "error",
+            database = "error",
+            mensaje = "No se pudo conectar a sql2016. Probá agregar Database:DataSource en appsettings.Production.json (valores: sql2016, sql2016,1433 o tcp:sql2016,1433).",
+            intentos = error
+        });
     }
 }

@@ -1,9 +1,19 @@
 using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.Logging;
 
 namespace StockSantiCaza.Web.Configuration;
 
 public static class ConnectionStringResolver
 {
+    private static string? dataSourceFerozoCache;
+
+    private static readonly string[] CandidatosServidorFerozo =
+    {
+        "sql2016",
+        "sql2016,1433",
+        "tcp:sql2016,1433"
+    };
+
     public static string Resolve(IConfiguration configuration)
     {
         var plantilla = configuration.GetConnectionString("DefaultConnection")
@@ -23,7 +33,7 @@ public static class ConnectionStringResolver
             }
 
             builder.MultipleActiveResultSets = false;
-            AplicarFormatoFerozo(builder);
+            AplicarServidorFerozo(builder, configuration);
             return builder.ConnectionString;
         }
         catch (ArgumentException ex)
@@ -35,22 +45,122 @@ public static class ConnectionStringResolver
         }
     }
 
+    public static async Task<string> ResolveProduccionAsync(
+        IConfiguration configuration,
+        ILogger? logger = null,
+        CancellationToken cancellationToken = default)
+    {
+        var dataSourceConfigurado = configuration["Database:DataSource"];
+        if (!string.IsNullOrWhiteSpace(dataSourceConfigurado))
+        {
+            dataSourceFerozoCache = dataSourceConfigurado.Trim();
+            logger?.LogInformation("[SQL] Usando Database:DataSource = {DataSource}", dataSourceFerozoCache);
+            return Resolve(configuration);
+        }
+
+        if (!string.IsNullOrWhiteSpace(dataSourceFerozoCache))
+        {
+            return Resolve(configuration);
+        }
+
+        var baseBuilder = new SqlConnectionStringBuilder(Resolve(configuration));
+        if (!EsServidorFerozo(baseBuilder.DataSource))
+        {
+            return baseBuilder.ConnectionString;
+        }
+
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(20));
+
+        var errores = new List<string>();
+        foreach (var candidato in CandidatosServidorFerozo)
+        {
+            baseBuilder.DataSource = candidato;
+            baseBuilder.ConnectTimeout = 8;
+
+            try
+            {
+                await using var conexion = new SqlConnection(baseBuilder.ConnectionString);
+                await conexion.OpenAsync(timeout.Token);
+                dataSourceFerozoCache = candidato;
+                logger?.LogInformation("[SQL] Servidor Ferozo detectado: {DataSource}", candidato);
+                return baseBuilder.ConnectionString;
+            }
+            catch (Exception ex)
+            {
+                errores.Add($"{candidato}: {ex.Message}");
+            }
+        }
+
+        logger?.LogWarning("[SQL] No se pudo abrir SQL en Ferozo. Intentos: {Errores}", string.Join(" | ", errores));
+        return Resolve(configuration);
+    }
+
+    public static async Task<(bool ok, string? servidor, string? error)> ProbarConexionAsync(
+        IConfiguration configuration,
+        CancellationToken cancellationToken = default)
+    {
+        var dataSourceConfigurado = configuration["Database:DataSource"];
+        var candidatos = string.IsNullOrWhiteSpace(dataSourceConfigurado)
+            ? CandidatosServidorFerozo
+            : new[] { dataSourceConfigurado.Trim() };
+
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(20));
+
+        var errores = new List<object>();
+        foreach (var candidato in candidatos)
+        {
+            var builder = new SqlConnectionStringBuilder(Resolve(configuration))
+            {
+                DataSource = candidato,
+                ConnectTimeout = 8
+            };
+
+            try
+            {
+                await Task.Run(async () =>
+                {
+                    await using var conexion = new SqlConnection(builder.ConnectionString);
+                    await conexion.OpenAsync(timeout.Token);
+                }, timeout.Token);
+
+                dataSourceFerozoCache = candidato;
+                return (true, candidato, null);
+            }
+            catch (Exception ex)
+            {
+                errores.Add(new { servidor = candidato, mensaje = ex.Message });
+            }
+        }
+
+        return (false, null, System.Text.Json.JsonSerializer.Serialize(errores));
+    }
+
     public static bool TieneSqlPassword(IConfiguration configuration) =>
         !string.IsNullOrWhiteSpace(configuration["Database:SqlPassword"]);
 
-    private static void AplicarFormatoFerozo(SqlConnectionStringBuilder builder)
+    private static void AplicarServidorFerozo(SqlConnectionStringBuilder builder, IConfiguration configuration)
     {
-        // Integrated Security en Ferozo: usar sql2016 sin prefijo tcp (tcp cuelga o tumba el worker).
-        if (builder.IntegratedSecurity)
+        var dataSourceConfigurado = configuration["Database:DataSource"];
+        if (!string.IsNullOrWhiteSpace(dataSourceConfigurado))
         {
+            builder.DataSource = dataSourceConfigurado.Trim();
             return;
         }
 
-        var servidor = builder.DataSource.Trim();
-        if (servidor.Equals("sql2016", StringComparison.OrdinalIgnoreCase))
+        if (!string.IsNullOrWhiteSpace(dataSourceFerozoCache) && EsServidorFerozo(builder.DataSource))
         {
-            builder.DataSource = "tcp:sql2016,1433";
+            builder.DataSource = dataSourceFerozoCache;
         }
+    }
+
+    private static bool EsServidorFerozo(string dataSource)
+    {
+        var servidor = dataSource.Trim();
+        return servidor.Equals("sql2016", StringComparison.OrdinalIgnoreCase)
+            || servidor.Equals("sql2016,1433", StringComparison.OrdinalIgnoreCase)
+            || servidor.Equals("tcp:sql2016,1433", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string QuitarClave(string connectionString, string clave)
