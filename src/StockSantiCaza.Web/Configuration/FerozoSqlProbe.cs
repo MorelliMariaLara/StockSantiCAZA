@@ -8,13 +8,13 @@ public static class FerozoSqlProbe
 
     public sealed record Resultado(int id, string nombre, string dataSource, bool ok, int? sqlError, string? mensaje);
 
+    /// <summary>
+    /// Métodos según respuesta oficial DonWeb: Server=sql2016 (sin IP ni puerto).
+    /// </summary>
     public static readonly Metodo[] Metodos =
     {
-        new(1, "sql2016,1433 + usuario SQL", "sql2016,1433", false),
-        new(2, "sql2016 + usuario SQL", "sql2016", false),
-        new(3, "tcp:sql2016,1433 + usuario SQL", "tcp:sql2016,1433", false),
-        new(4, "sql2016,1433 + Integrated Security", "sql2016,1433", true),
-        new(5, "sql2016 + Integrated Security", "sql2016", true),
+        new(1, "sql2016 + usuario SQL (recomendado DonWeb)", "sql2016", false),
+        new(2, "sql2016 + Integrated Security (panel SSPI)", "sql2016", true),
     };
 
     public static async Task<Resultado> ProbarMetodoAsync(
@@ -23,15 +23,15 @@ public static class FerozoSqlProbe
         CancellationToken cancellationToken = default)
     {
         var metodo = Metodos.FirstOrDefault(m => m.id == id)
-            ?? throw new ArgumentOutOfRangeException(nameof(id), "Usá metodo=1 a metodo=5");
+            ?? throw new ArgumentOutOfRangeException(nameof(id), "Usá metodo=1 o metodo=2");
 
         var builder = ConnectionStringResolver.CrearBuilder(configuration, metodo.dataSource, metodo.integrated);
-        builder.ConnectTimeout = 6;
+        builder.ConnectTimeout = 8;
 
         try
         {
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            timeout.CancelAfter(TimeSpan.FromSeconds(8));
+            timeout.CancelAfter(TimeSpan.FromSeconds(10));
             await using var conexion = new SqlConnection(builder.ConnectionString);
             await conexion.OpenAsync(timeout.Token);
             return new Resultado(metodo.id, metodo.nombre, metodo.dataSource, true, null, null);

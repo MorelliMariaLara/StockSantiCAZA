@@ -32,7 +32,6 @@ public class HealthController : ControllerBase
             authMode = builder.IntegratedSecurity ? "integrated" : "sql",
             sqlUser = builder.IntegratedSecurity ? null : builder.UserID,
             tieneSqlPassword = ConnectionStringResolver.TieneSqlPassword(configuration),
-            dataSourceConfigurado = configuration["Database:DataSource"],
             tieneProductionJson = System.IO.File.Exists(
                 Path.Combine(AppContext.BaseDirectory, "appsettings.Production.json")),
             usaVariableEntorno = !string.IsNullOrWhiteSpace(
@@ -66,7 +65,7 @@ public class HealthController : ControllerBase
                 sqlServer = builder.DataSource,
                 sqlError = ex.Number,
                 mensaje = ex.Message,
-                ayuda = "Probá de a uno: /api/health/sql-probe?metodo=1 hasta ?metodo=5"
+                ayuda = "Probá /api/health/sql-probe?metodo=1 (cadena oficial DonWeb: Server=sql2016)"
             });
         }
         catch (OperationCanceledException)
@@ -106,9 +105,9 @@ public class HealthController : ControllerBase
             });
         }
 
-        if (metodo < 1 || metodo > 5)
+        if (metodo < 1 || metodo > 2)
         {
-            return BadRequest(new { error = "metodo debe ser 1, 2, 3, 4 o 5." });
+            return BadRequest(new { error = "metodo debe ser 1 o 2." });
         }
 
         var resultado = await FerozoSqlProbe.ProbarMetodoAsync(configuration, metodo.Value, ct);
@@ -122,8 +121,8 @@ public class HealthController : ControllerBase
             resultado.sqlError,
             resultado.mensaje,
             siguiente = resultado.ok
-                ? $"Poné Database.DataSource = \"{resultado.dataSource}\" en appsettings.Production.json y republicá."
-                : (resultado.id < 5 ? $"/api/health/sql-probe?metodo={resultado.id + 1}" : "Ninguno conectó: ticket a DonWeb (docs/FEROZO-CONEXION-TODOS-METODOS.md)")
+                ? "La cadena Server=sql2016 es correcta. Actualizá SqlPassword si cambiaste la contraseña en el panel."
+                : (resultado.id < 2 ? "/api/health/sql-probe?metodo=2" : "Ninguno conectó: verificá usuario/contraseña SQL en el panel DonWeb.")
         });
     }
 }

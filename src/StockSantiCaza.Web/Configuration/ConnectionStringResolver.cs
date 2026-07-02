@@ -4,13 +4,7 @@ namespace StockSantiCaza.Web.Configuration;
 
 public static class ConnectionStringResolver
 {
-    public static string Resolve(IConfiguration configuration, string? dataSource = null) =>
-        CrearBuilder(configuration, dataSource, integrated: null).ConnectionString;
-
-    public static SqlConnectionStringBuilder CrearBuilder(
-        IConfiguration configuration,
-        string? dataSource = null,
-        bool? integrated = null)
+    public static string Resolve(IConfiguration configuration)
     {
         var plantilla = configuration.GetConnectionString("DefaultConnection")
             ?? throw new InvalidOperationException("Connection string 'DefaultConnection' was not configured.");
@@ -28,34 +22,37 @@ public static class ConnectionStringResolver
                 builder.Password = sqlPassword;
             }
 
-            if (integrated.HasValue)
-            {
-                builder.IntegratedSecurity = integrated.Value;
-                if (integrated.Value)
-                {
-                    builder.UserID = string.Empty;
-                    builder.Password = string.Empty;
-                }
-            }
-
-            var servidor = dataSource
-                ?? configuration["Database:DataSource"]?.Trim();
-            if (!string.IsNullOrWhiteSpace(servidor))
-            {
-                builder.DataSource = servidor;
-            }
-
             builder.MultipleActiveResultSets = false;
             builder.Encrypt = false;
             builder.TrustServerCertificate = true;
-            return builder;
+            return builder.ConnectionString;
         }
         catch (ArgumentException ex)
         {
             throw new InvalidOperationException(
-                "Cadena SQL inválida. Si la contraseña tiene '@', configurá Database.SqlPassword en appsettings.Production.json.",
+                "Cadena SQL inválida. Si la contraseña tiene '@', usá Database.SqlPassword en appsettings.Production.json.",
                 ex);
         }
+    }
+
+    public static SqlConnectionStringBuilder CrearBuilder(
+        IConfiguration configuration,
+        string dataSource,
+        bool integrated)
+    {
+        var builder = new SqlConnectionStringBuilder(Resolve(configuration))
+        {
+            DataSource = dataSource,
+            IntegratedSecurity = integrated
+        };
+
+        if (integrated)
+        {
+            builder.UserID = string.Empty;
+            builder.Password = string.Empty;
+        }
+
+        return builder;
     }
 
     public static bool TieneSqlPassword(IConfiguration configuration) =>
