@@ -31,6 +31,25 @@ También puede aparecer como **Administrador SQL** o **Usuario de base de datos*
 
 > El usuario FTP `w400048@w400048.ferozo.com` **no** es el usuario de la base.
 
+### Cadena del panel vs la app
+
+El panel muestra cadenas con **Integrated Security / SSPI** (sin usuario ni contraseña):
+
+```text
+Data Source=sql2016;Initial Catalog=w400048_santicazarmeria;Integrated Security=SSPI;
+```
+
+Eso es para la **app en el mismo hosting**. En `appsettings.Production.json`:
+
+```json
+"DefaultConnection": "Data Source=sql2016;Initial Catalog=w400048_santicazarmeria;Integrated Security=True;TrustServerCertificate=True;Encrypt=False;Connection Timeout=60"
+```
+
+| Uso | Autenticación | Contraseña |
+|-----|---------------|------------|
+| App en Ferozo | Integrated Security (SSPI) | No hace falta |
+| SSMS / tu PC con túnel | `w400048_MariAdmin` | `SantiagoFerreyra@22` en `appsettings.Local.json` |
+
 ---
 
 ## 3. Variables de entorno (importante para la app)
