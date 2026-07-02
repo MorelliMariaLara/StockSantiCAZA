@@ -72,7 +72,7 @@ public class HealthController : ControllerBase
             {
                 status = "error",
                 database = "timeout",
-                mensaje = "La base SQL no respondió a tiempo. En Ferozo el servidor sql2016 solo funciona desde el hosting Windows del mismo plan."
+                mensaje = "La base SQL no respondió a tiempo. Verifique appsettings.Production.json (Data Source=sql2016; Integrated Security=True, como en el panel Ferozo) y borre ConnectionStrings__DefaultConnection vieja en el panel."
             });
         }
         catch (SqlException ex)
