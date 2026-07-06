@@ -13,6 +13,7 @@ using StockSantiCaza.Web.Services.Reportes;
 using StockSantiCaza.Web.Services.Stock;
 using StockSantiCaza.Web.Services.Usuarios;
 using StockSantiCaza.Web.Services.Ventas;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -22,6 +23,7 @@ builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     });
 
 if (builder.Environment.IsDevelopment())
