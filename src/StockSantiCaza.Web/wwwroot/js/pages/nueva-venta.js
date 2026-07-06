@@ -126,6 +126,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function clienteListo() {
+    syncClienteNuevoFromDom();
     return state.clienteIdSeleccionado > 0
       || (state.mostrarFormularioCliente && state.clienteNuevo.nombre.trim().length > 0);
   }
@@ -563,6 +564,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     state.productos = datos.productos || [];
   }
 
+  function resolverClienteId(respuesta) {
+    const id = Number(respuesta?.id ?? respuesta?.Id);
+    return Number.isFinite(id) && id > 0 ? id : 0;
+  }
+
+  function seleccionarClienteGuardado(clienteId, datosCliente = null) {
+    state.clienteIdSeleccionado = clienteId;
+    if (datosCliente && !state.clientes.some((c) => c.id === clienteId)) {
+      state.clientes.push(datosCliente);
+      state.clientes.sort((a, b) =>
+        (a.nombreRazonSocial || '').localeCompare(b.nombreRazonSocial || '', 'es')
+      );
+    }
+  }
+
   async function recargarClientes(clienteId) {
     const datos = await api.get('/api/ventas/datos-nueva');
     state.clientes = datos.clientes || [];
@@ -599,20 +615,38 @@ document.addEventListener('DOMContentLoaded', async () => {
       return false;
     }
 
+    const payload = {
+      nombre,
+      dniCuit: state.clienteNuevo.dniCuit.trim() || null,
+      telefono: state.clienteNuevo.telefono.trim() || null,
+      email: null,
+      domicilio: state.clienteNuevo.domicilio.trim() || null
+    };
+
     state.procesandoCliente = true;
     render();
 
     try {
-      const payload = {
-        nombre,
-        dniCuit: state.clienteNuevo.dniCuit.trim(),
-        telefono: state.clienteNuevo.telefono.trim() || null,
-        email: null,
-        domicilio: state.clienteNuevo.domicilio.trim() || null
-      };
+      const guardado = await api.post('/api/ventas/cliente-rapido', payload);
+      const clienteId = resolverClienteId(guardado);
+      if (!clienteId) {
+        throw new Error('El cliente se guardó pero no se pudo seleccionar. Recargue la página e intente de nuevo.');
+      }
 
-      const guardado = await api.post('/api/clientes/rapido', payload);
-      await recargarClientes(guardado.id);
+      seleccionarClienteGuardado(clienteId, {
+        id: clienteId,
+        nombreRazonSocial: guardado.nombreRazonSocial || nombre,
+        dniCuit: guardado.dniCuit || payload.dniCuit || '',
+        telefono: guardado.telefono ?? payload.telefono,
+        email: guardado.email ?? null
+      });
+
+      try {
+        await recargarClientes(clienteId);
+      } catch (recargaErr) {
+        console.warn('No se pudo refrescar el listado de clientes:', recargaErr);
+      }
+
       state.mostrarFormularioCliente = false;
       state.clienteNuevo = emptyClienteNuevo();
       state.procesandoCliente = false;
@@ -628,6 +662,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   async function confirmarVenta() {
+    syncClienteNuevoFromDom();
     if (state.procesando || !puedeConfirmarVenta()) return;
 
     state.mensajeExito = null;
@@ -737,10 +772,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     ['cliente-nuevo-nombre', 'cliente-nuevo-dni', 'cliente-nuevo-telefono', 'cliente-nuevo-domicilio'].forEach((id) => {
-      document.getElementById(id)?.addEventListener('input', () => {
+      const input = document.getElementById(id);
+      if (!input) return;
+      const onClienteFormInput = () => {
         syncClienteNuevoFromDom();
         updateChecklist();
-      });
+      };
+      input.addEventListener('input', onClienteFormInput);
+      input.addEventListener('change', onClienteFormInput);
     });
 
     document.getElementById('observaciones')?.addEventListener('input', (e) => {

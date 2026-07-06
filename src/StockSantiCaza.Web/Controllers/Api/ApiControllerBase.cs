@@ -46,6 +46,17 @@ public abstract class ApiControllerBase : ControllerBase
         return usuario;
     }
 
+    protected UsuarioSesion RequireAlgunoDeModulos(params ModuloSistema[] modulos)
+    {
+        var usuario = RequireAuth();
+        if (modulos.Length == 0 || !modulos.Any(usuario.PuedeAcceder))
+        {
+            throw new UnauthorizedAccessException("No tiene permisos para este módulo.");
+        }
+
+        return usuario;
+    }
+
     protected ActionResult HandleError(Exception ex) =>
         ex switch
         {
