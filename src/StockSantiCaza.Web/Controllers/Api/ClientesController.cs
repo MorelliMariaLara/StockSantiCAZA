@@ -134,54 +134,30 @@ public class ClientesController : ApiControllerBase
     {
         try
         {
-            RequireModulo(ModuloSistema.Clientes);
-            var nombre = request.Nombre.Trim();
-            if (string.IsNullOrWhiteSpace(nombre))
+            RequireAlgunoDeModulos(ModuloSistema.Clientes, ModuloSistema.Ventas);
+            if (request is null)
             {
-                return BadRequest(new { errors = new[] { "Debe indicar el nombre del cliente." } });
+                return BadRequest(new { errors = new[] { "Datos de cliente inválidos." } });
             }
-
-            var telefono = DisplayHelper.NormalizarOpcional(request.Telefono);
-            var email = DisplayHelper.NormalizarOpcional(request.Email);
-            var domicilio = DisplayHelper.NormalizarOpcional(request.Domicilio);
-            var dniCuit = request.DniCuit.Trim();
 
             await using var db = await dbContextFactory.CreateDbContextAsync(ct);
-            Cliente cliente;
-
-            if (!string.IsNullOrWhiteSpace(dniCuit))
-            {
-                var clienteExistente = await db.Clientes
-                    .Include(x => x.CredencialCLU)
-                    .SingleOrDefaultAsync(x => x.DniCuit == dniCuit, ct);
-
-                if (clienteExistente is not null)
-                {
-                    clienteExistente.NombreRazonSocial = nombre;
-                    clienteExistente.Telefono = telefono ?? clienteExistente.Telefono;
-                    clienteExistente.Email = email ?? clienteExistente.Email;
-                    clienteExistente.Domicilio = domicilio ?? clienteExistente.Domicilio;
-                    clienteExistente.Activo = true;
-                    await db.SaveChangesAsync(ct);
-                    cliente = clienteExistente;
-                }
-                else
-                {
-                    cliente = CrearCliente(nombre, telefono, email, domicilio, dniCuit);
-                    db.Clientes.Add(cliente);
-                    await db.SaveChangesAsync(ct);
-                }
-            }
-            else
-            {
-                cliente = CrearCliente(nombre, telefono, email, domicilio, GenerarDniInterno());
-                db.Clientes.Add(cliente);
-                await db.SaveChangesAsync(ct);
-            }
+            var cliente = await ClienteRapidoHelper.CrearOActualizarAsync(
+                db,
+                new ClienteRapidoHelper.ClienteRapidoInput(
+                    request.Nombre ?? string.Empty,
+                    request.DniCuit,
+                    request.Telefono,
+                    request.Email,
+                    request.Domicilio),
+                ct);
 
             var guardado = await ObtenerClienteDtoAsync(db, cliente.Id, ct);
 
             return Ok(guardado);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { errors = new[] { ex.Message } });
         }
         catch (Exception ex)
         {
@@ -273,19 +249,6 @@ public class ClientesController : ApiControllerBase
             return HandleError(ex);
         }
     }
-
-    private static Cliente CrearCliente(string nombre, string? telefono, string? email, string? domicilio, string dniCuit) => new()
-    {
-        NombreRazonSocial = nombre,
-        DniCuit = dniCuit,
-        Telefono = telefono,
-        Email = email,
-        Domicilio = domicilio,
-        Activo = true
-    };
-
-    private static string GenerarDniInterno() =>
-        $"S{DateTime.UtcNow:yyMMddHHmmss}{Random.Shared.Next(1000, 9999)}";
 
     public sealed class ClienteFormRequest
     {

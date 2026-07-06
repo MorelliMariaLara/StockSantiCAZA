@@ -133,6 +133,47 @@ public class VentasController : ApiControllerBase
         }
     }
 
+    [HttpPost("cliente-rapido")]
+    public async Task<ActionResult<ClienteVentaDto>> CrearClienteRapido(
+        [FromBody] ClienteRapidoVentaRequest request,
+        CancellationToken ct)
+    {
+        try
+        {
+            RequireModulo(ModuloSistema.Ventas);
+            if (request is null)
+            {
+                return BadRequest(new { errors = new[] { "Datos de cliente inválidos." } });
+            }
+
+            await using var db = await dbContextFactory.CreateDbContextAsync(ct);
+            var cliente = await ClienteRapidoHelper.CrearOActualizarAsync(
+                db,
+                new ClienteRapidoHelper.ClienteRapidoInput(
+                    request.Nombre ?? string.Empty,
+                    request.DniCuit,
+                    request.Telefono,
+                    request.Email,
+                    request.Domicilio),
+                ct);
+
+            return Ok(new ClienteVentaDto(
+                cliente.Id,
+                cliente.NombreRazonSocial ?? string.Empty,
+                cliente.DniCuit ?? string.Empty,
+                cliente.Telefono,
+                cliente.Email));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { errors = new[] { ex.Message } });
+        }
+        catch (Exception ex)
+        {
+            return HandleError(ex);
+        }
+    }
+
     [HttpPost]
     public async Task<ActionResult<VentaConfirmadaResponse>> Confirmar([FromBody] NuevaVentaRequest request, CancellationToken ct)
     {
@@ -180,6 +221,15 @@ public class VentasController : ApiControllerBase
         List<ClienteVentaDto> Clientes,
         List<ProductoVentaDto> Productos,
         List<VendedorDto> Vendedores);
+
+    public sealed class ClienteRapidoVentaRequest
+    {
+        public string Nombre { get; set; } = string.Empty;
+        public string? DniCuit { get; set; }
+        public string? Telefono { get; set; }
+        public string? Email { get; set; }
+        public string? Domicilio { get; set; }
+    }
 
     public sealed record ClienteVentaDto(int Id, string NombreRazonSocial, string DniCuit, string? Telefono, string? Email);
     public sealed record ProductoVentaDto(int Id, string Sku, string Nombre, string? Marca, string? Calibre, int StockActual, int StockMinimo, decimal PrecioUnitario);
