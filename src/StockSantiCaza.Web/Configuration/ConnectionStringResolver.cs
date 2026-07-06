@@ -14,6 +14,9 @@ public static class ConnectionStringResolver
             ? plantilla
             : QuitarClave(plantilla, "Password");
 
+        plantillaLimpia = QuitarClave(plantillaLimpia, "proveedorName");
+        plantillaLimpia = QuitarClave(plantillaLimpia, "providerName");
+
         try
         {
             var builder = new SqlConnectionStringBuilder(plantillaLimpia);
