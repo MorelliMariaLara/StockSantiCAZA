@@ -30,5 +30,5 @@ public static class PermisosAcceso
         rol == RolUsuario.Administrador;
 
     public static bool PuedeEditarStock(RolUsuario rol) =>
-        rol == RolUsuario.Administrador;
+        rol is RolUsuario.Administrador or RolUsuario.Vendedor;
 }

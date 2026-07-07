@@ -76,7 +76,7 @@ public class StockController : ApiControllerBase
             var usuario = AuthService.UsuarioActual!;
             if (!usuario.PuedeEditarStock)
             {
-                return Unauthorized(new { error = "Solo administradores pueden editar stock." });
+                return Unauthorized(new { error = "No tiene permisos para editar stock." });
             }
 
             var errores = new List<string>();
@@ -181,7 +181,7 @@ public class StockController : ApiControllerBase
             var usuario = AuthService.UsuarioActual!;
             if (!usuario.PuedeEditarStock)
             {
-                return Unauthorized(new { error = "Solo administradores pueden editar stock." });
+                return Unauthorized(new { error = "No tiene permisos para editar stock." });
             }
 
             await using var db = await dbContextFactory.CreateDbContextAsync(ct);
@@ -238,7 +238,7 @@ public class StockController : ApiControllerBase
             var usuario = AuthService.UsuarioActual!;
             if (!usuario.PuedeEditarStock)
             {
-                return Unauthorized(new { error = "Solo administradores pueden editar stock." });
+                return Unauthorized(new { error = "No tiene permisos para editar stock." });
             }
 
             var nombre = DisplayHelper.NormalizarOpcional(request.Nombre);
@@ -281,7 +281,7 @@ public class StockController : ApiControllerBase
             var usuario = AuthService.UsuarioActual!;
             if (!usuario.PuedeEditarStock)
             {
-                return Unauthorized(new { error = "Solo administradores pueden editar stock." });
+                return Unauthorized(new { error = "No tiene permisos para editar stock." });
             }
 
             await using var db = await dbContextFactory.CreateDbContextAsync(ct);
@@ -316,7 +316,7 @@ public class StockController : ApiControllerBase
             var usuario = AuthService.UsuarioActual!;
             if (!usuario.PuedeEditarStock)
             {
-                return Unauthorized(new { error = "Solo administradores pueden editar stock." });
+                return Unauthorized(new { error = "No tiene permisos para editar stock." });
             }
 
             var bytes = StockImportService.GenerarPlantilla();
@@ -337,7 +337,7 @@ public class StockController : ApiControllerBase
             var usuario = AuthService.UsuarioActual!;
             if (!usuario.PuedeEditarStock)
             {
-                return Unauthorized(new { error = "Solo administradores pueden editar stock." });
+                return Unauthorized(new { error = "No tiene permisos para editar stock." });
             }
 
             if (archivo is null || archivo.Length == 0)

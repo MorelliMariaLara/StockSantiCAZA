@@ -118,7 +118,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   function renderReadOnlyAlert() {
     if (state.puedeEditar) return '';
     return `<div class="alert alert-success">
-      <strong>Consulta de stock</strong> — Puede ver existencias y precios. La carga y edición de productos es solo para administradores.
+      <strong>Consulta de stock</strong> — Puede ver existencias y precios. La carga y edición de productos requiere permisos de stock.
     </div>`;
   }
 
