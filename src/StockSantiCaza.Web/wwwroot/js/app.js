@@ -107,7 +107,7 @@ const app = {
     const ruta = path || window.location.pathname;
     if (!this.puedeAccederRuta(user, ruta)) {
       await dialogs.alert(
-        admin || modulo === 'dashboard' || modulo === 'reportes' || modulo === 'usuarios'
+        admin || modulo === 'dashboard' || modulo === 'reportes' || modulo === 'usuarios' || modulo === 'proveedores'
           ? 'No tiene permisos para acceder a esta sección. Solo administradores.'
           : 'No tiene permisos para acceder a este módulo.'
       );
@@ -134,26 +134,18 @@ const app = {
     const user = this.usuario;
     if (!user) return '';
 
-    const items = [];
-
-    if (user.esAdministrador) {
-      items.push({ href: '/', label: 'Dashboard', path: '/' });
-    }
-
-    items.push(
+    const allItems = [
+      { href: '/', label: 'Dashboard', path: '/' },
       { href: '/ventas/nueva', label: 'Nueva venta', path: '/ventas/nueva' },
       { href: '/ventas', label: 'Historial ventas', path: '/ventas' },
       { href: '/clientes', label: 'Clientes', path: '/clientes' },
-      { href: '/stock', label: 'Stock', path: '/stock' }
-    );
+      { href: '/stock', label: 'Stock', path: '/stock' },
+      { href: '/proveedores', label: 'Proveedores', path: '/proveedores' },
+      { href: '/reportes', label: 'Reportes', path: '/reportes' },
+      { href: '/usuarios', label: 'Usuarios', path: '/usuarios' }
+    ];
 
-    if (user.esAdministrador) {
-      items.push(
-        { href: '/proveedores', label: 'Proveedores', path: '/proveedores' },
-        { href: '/reportes', label: 'Reportes', path: '/reportes' },
-        { href: '/usuarios', label: 'Usuarios', path: '/usuarios' }
-      );
-    }
+    const items = allItems.filter((item) => this.puedeAccederRuta(user, item.path));
 
     const navLinks = items.map(item => {
       const active = activePath === item.path || (item.path !== '/' && activePath.startsWith(item.path));
