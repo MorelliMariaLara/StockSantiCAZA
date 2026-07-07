@@ -28,28 +28,11 @@ public class ProveedoresController : ApiControllerBase
             await using var db = await dbContextFactory.CreateDbContextAsync(ct);
             var proveedores = await db.Proveedores
                 .AsNoTracking()
-                .Select(p => new
-                {
-                    p.Id,
-                    p.NombreRazonSocial,
-                    p.Telefono,
-                    p.Email,
-                    p.Domicilio,
-                    p.Observaciones,
-                    Saldo = p.Movimientos.Sum(m => m.Tipo == TipoMovimientoProveedor.Deuda ? m.Monto : -m.Monto)
-                })
+                .Include(x => x.Movimientos)
                 .OrderBy(x => x.NombreRazonSocial)
                 .ToListAsync(ct);
 
-            return Ok(proveedores.Select(p => new ProveedorDto(
-                p.Id,
-                p.NombreRazonSocial,
-                p.Telefono,
-                p.Email,
-                p.Domicilio,
-                p.Observaciones,
-                p.Saldo,
-                new List<MovimientoDto>())).ToList());
+            return Ok(proveedores.Select(ProveedorDto.From).ToList());
         }
         catch (Exception ex)
         {
@@ -173,6 +156,16 @@ public class ProveedoresController : ApiControllerBase
         {
             RequireModulo(ModuloSistema.Proveedores);
 
+            if (request is null)
+            {
+                return BadRequest(new { errors = new[] { "Datos del movimiento inválidos." } });
+            }
+
+            if (!Enum.IsDefined(typeof(TipoMovimientoProveedor), request.Tipo))
+            {
+                return BadRequest(new { errors = new[] { "Debe indicar un tipo de movimiento válido (Deuda o Pago)." } });
+            }
+
             if (request.Monto <= 0)
             {
                 return BadRequest(new { errors = new[] { "El monto debe ser mayor a cero." } });
@@ -201,7 +194,7 @@ public class ProveedoresController : ApiControllerBase
             {
                 ProveedorId = proveedor.Id,
                 Tipo = request.Tipo,
-                Fecha = request.Fecha.Date,
+                Fecha = DateTime.SpecifyKind(request.Fecha.Date, DateTimeKind.Unspecified),
                 Monto = request.Monto,
                 Observaciones = DisplayHelper.NormalizarOpcional(request.Observaciones)
             });

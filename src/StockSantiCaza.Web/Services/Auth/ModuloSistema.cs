@@ -19,7 +19,7 @@ public static class PermisosAcceso
         rol switch
         {
             RolUsuario.Administrador => true,
-            RolUsuario.Vendedor => modulo is ModuloSistema.Clientes or ModuloSistema.Stock or ModuloSistema.Ventas or ModuloSistema.Proveedores,
+            RolUsuario.Vendedor => modulo is ModuloSistema.Clientes or ModuloSistema.Stock or ModuloSistema.Ventas,
             _ => false
         };
 
@@ -30,5 +30,5 @@ public static class PermisosAcceso
         rol == RolUsuario.Administrador;
 
     public static bool PuedeEditarStock(RolUsuario rol) =>
-        rol == RolUsuario.Administrador;
+        rol is RolUsuario.Administrador or RolUsuario.Vendedor;
 }

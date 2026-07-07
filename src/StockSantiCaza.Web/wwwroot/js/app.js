@@ -1,7 +1,7 @@
 const app = {
   usuario: null,
 
-  MODULOS_VENDEDOR: ['clientes', 'stock', 'ventas', 'proveedores'],
+  MODULOS_VENDEDOR: ['clientes', 'stock', 'ventas'],
 
   homePath(user) {
     return user?.esAdministrador ? '/' : '/ventas/nueva';
@@ -28,7 +28,7 @@ const app = {
     };
     const modulo = map[normalized];
     if (!modulo) return !!user;
-    if (modulo === 'dashboard' || modulo === 'reportes' || modulo === 'usuarios') {
+    if (modulo === 'dashboard' || modulo === 'reportes' || modulo === 'usuarios' || modulo === 'proveedores') {
       return user?.esAdministrador === true;
     }
     return this.puedeAccederModulo(user, modulo);
@@ -144,12 +144,12 @@ const app = {
       { href: '/ventas/nueva', label: 'Nueva venta', path: '/ventas/nueva' },
       { href: '/ventas', label: 'Historial ventas', path: '/ventas' },
       { href: '/clientes', label: 'Clientes', path: '/clientes' },
-      { href: '/stock', label: 'Stock', path: '/stock' },
-      { href: '/proveedores', label: 'Proveedores', path: '/proveedores' }
+      { href: '/stock', label: 'Stock', path: '/stock' }
     );
 
     if (user.esAdministrador) {
       items.push(
+        { href: '/proveedores', label: 'Proveedores', path: '/proveedores' },
         { href: '/reportes', label: 'Reportes', path: '/reportes' },
         { href: '/usuarios', label: 'Usuarios', path: '/usuarios' }
       );
