@@ -18,7 +18,6 @@ public class VentasService : IVentasService
         CancellationToken cancellationToken = default)
     {
         var errores = new List<string>();
-        var advertencias = new List<string>();
         if (request.ClienteId is null)
         {
             errores.Add("Debe seleccionar un cliente.");
@@ -39,10 +38,17 @@ public class VentasService : IVentasService
             throw new VentaValidationException(errores);
         }
 
-        await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken);
-        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        await using var seedDb = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        var strategy = seedDb.Database.CreateExecutionStrategy();
 
-        var cliente = await db.Clientes
+        return await strategy.ExecuteAsync(async () =>
+        {
+            var erroresTransaccion = new List<string>();
+            var advertencias = new List<string>();
+            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+            await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+
+            var cliente = await db.Clientes
             .Include(x => x.CredencialCLU)
             .Include(x => x.ArmasRegistradas)
             .SingleOrDefaultAsync(x => x.Id == request.ClienteId, cancellationToken);
@@ -109,11 +115,11 @@ public class VentasService : IVentasService
         {
             if (!productos.TryGetValue(item.ProductoId, out var producto))
             {
-                errores.Add($"El producto con ID {item.ProductoId} no existe.");
+                erroresTransaccion.Add($"El producto con ID {item.ProductoId} no existe.");
                 continue;
             }
 
-            ValidarItemBasico(item, producto, errores);
+            ValidarItemBasico(item, producto, erroresTransaccion);
 
             Arma? arma = null;
             MunicionLote? lote = null;
@@ -121,11 +127,11 @@ public class VentasService : IVentasService
 
             if (categoria?.RequiereSerie == true && item.ArmaId.HasValue)
             {
-                arma = ValidarArma(item, producto, armas, errores);
+                arma = ValidarArma(item, producto, armas, erroresTransaccion);
             }
             else if (categoria?.RequiereLote == true && item.MunicionLoteId.HasValue)
             {
-                lote = ValidarMunicion(item, producto, lotes, errores);
+                lote = ValidarMunicion(item, producto, lotes, erroresTransaccion);
             }
 
             var lineaBruta = item.PrecioUnitario * item.Cantidad;
@@ -146,15 +152,15 @@ public class VentasService : IVentasService
                 Total = subtotal
             });
 
-            if (errores.Count == 0)
+            if (erroresTransaccion.Count == 0)
             {
                 DescontarStock(db, venta, producto, item, arma, lote, cliente.Id);
             }
         }
 
-        if (errores.Count > 0)
+        if (erroresTransaccion.Count > 0)
         {
-            throw new VentaValidationException(errores);
+            throw new VentaValidationException(erroresTransaccion);
         }
 
         venta.Subtotal = venta.Detalles.Sum(x => x.Subtotal);
@@ -162,8 +168,8 @@ public class VentasService : IVentasService
         venta.Total = venta.Subtotal - request.DescuentoGeneral;
         if (venta.Total < 0)
         {
-            errores.Add("El total de la venta no puede ser negativo.");
-            throw new VentaValidationException(errores);
+            erroresTransaccion.Add("El total de la venta no puede ser negativo.");
+            throw new VentaValidationException(erroresTransaccion);
         }
 
         db.Ventas.Add(venta);
@@ -186,6 +192,7 @@ public class VentasService : IVentasService
             venta.Total,
             venta.Estado,
             advertencias);
+        });
     }
 
     public async Task EliminarAsync(
@@ -194,10 +201,15 @@ public class VentasService : IVentasService
         bool esAdministrador,
         CancellationToken cancellationToken = default)
     {
-        await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken);
-        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        await using var seedDb = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        var strategy = seedDb.Database.CreateExecutionStrategy();
 
-        var venta = await db.Ventas
+        await strategy.ExecuteAsync(async () =>
+        {
+            await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+            await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+
+            var venta = await db.Ventas
             .Include(x => x.Detalles)
             .SingleOrDefaultAsync(x => x.Id == ventaId, cancellationToken);
 
@@ -254,6 +266,7 @@ public class VentasService : IVentasService
 
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
+        });
     }
 
     private static CategoriaStock? ObtenerCategoria(string? nombre, IReadOnlyList<CategoriaStock> categorias)
