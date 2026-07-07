@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', async () => {
-  const user = await app.initShell({ activePath: '/proveedores', title: 'Proveedores', modulo: 'proveedores' });
+  const user = await app.initShell({ activePath: '/proveedores', title: 'Proveedores', requireAdmin: true, modulo: 'proveedores' });
   if (!user) return;
 
   const alertsEl = document.getElementById('page-alerts');
@@ -53,7 +53,39 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function saldoProveedor(proveedor) {
+    const movimientos = proveedor?.movimientos;
+    if (Array.isArray(movimientos) && movimientos.length > 0) {
+      return movimientos.reduce((sum, m) => {
+        const monto = Number(m.monto) || 0;
+        return sum + (m.tipo === 'Deuda' ? monto : -monto);
+      }, 0);
+    }
     return Number(proveedor?.saldo ?? 0);
+  }
+
+  function resolverProveedorId(respuesta) {
+    const id = Number(respuesta?.id ?? respuesta?.Id);
+    return Number.isFinite(id) && id > 0 ? id : 0;
+  }
+
+  function actualizarProveedorEnEstado(proveedorActualizado) {
+    const proveedorId = resolverProveedorId(proveedorActualizado);
+    if (!proveedorId) return null;
+
+    const normalizado = {
+      ...proveedorActualizado,
+      id: proveedorId,
+      saldo: saldoProveedor(proveedorActualizado)
+    };
+
+    const idx = state.proveedores.findIndex((p) => p.id === proveedorId);
+    if (idx >= 0) {
+      state.proveedores[idx] = normalizado;
+    } else {
+      state.proveedores.push(normalizado);
+    }
+
+    return normalizado;
   }
 
   function saldoTotalAdeudado() {
@@ -404,10 +436,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function buildMovimientoPayload(form, tipo) {
     return {
-      tipo,
+      tipo: tipo === 'Pago' ? 2 : 1,
       fecha: form.fecha,
       monto: Number(form.monto),
-      observaciones: form.observaciones
+      observaciones: form.observaciones || ''
     };
   }
 
@@ -443,10 +475,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     state.formPago = createEmptyMovimientoForm();
     try {
       const movimientos = await api.get(`/api/proveedores/${proveedor.id}/movimientos`);
-      const idx = state.proveedores.findIndex((p) => p.id === proveedor.id);
-      if (idx >= 0) {
-        state.proveedores[idx] = { ...state.proveedores[idx], movimientos };
-      }
+      actualizarProveedorEnEstado({ ...proveedor, movimientos });
     } catch (err) {
       app.renderAlerts(alertsEl, { error: err.message });
       return;
@@ -532,12 +561,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         `/api/proveedores/${proveedor.id}/movimientos`,
         buildMovimientoPayload(form, tipo)
       );
-      await loadProveedores(false);
-      const idx = state.proveedores.findIndex((p) => p.id === saved.id);
-      if (idx >= 0) {
-        state.proveedores[idx] = saved;
+      const actualizado = actualizarProveedorEnEstado(saved);
+      if (!actualizado) {
+        await loadProveedores(false);
       }
-      state.proveedorSeleccionadoId = saved.id;
+      state.proveedorSeleccionadoId = proveedor.id;
       state.formDeuda = createEmptyMovimientoForm();
       state.formPago = createEmptyMovimientoForm();
       state.guardandoMovimiento = false;
