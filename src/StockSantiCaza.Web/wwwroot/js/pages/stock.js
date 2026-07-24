@@ -240,12 +240,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     </section>`;
   }
 
-  function renderInventario() {
+  function renderInventarioRows() {
     const filtrados = productosFiltrados();
-    const filtroCategorias = `<option value="">Todas</option>${state.categorias.map(c =>
-      `<option value="${escapeHtml(c.nombre)}"${state.filtros.categoria === c.nombre ? ' selected' : ''}>${escapeHtml(c.nombre)}</option>`
-    ).join('')}`;
-
     const rows = filtrados.map(p => {
       const acciones = state.puedeEditar
         ? `<div class="row-actions">
@@ -265,7 +261,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       </tr>`;
     }).join('');
 
-    return `<section class="panel">
+    return rows || '<tr><td colspan="7">No hay productos que coincidan con los filtros.</td></tr>';
+  }
+
+  function renderInventario() {
+    const filtroCategorias = `<option value="">Todas</option>${state.categorias.map(c =>
+      `<option value="${escapeHtml(c.nombre)}"${state.filtros.categoria === c.nombre ? ' selected' : ''}>${escapeHtml(c.nombre)}</option>`
+    ).join('')}`;
+
+    return `<section class="panel" id="stock-inventario">
       <div class="section-header">
         <div>
           <h2>Existencias</h2>
@@ -295,7 +299,7 @@ document.addEventListener('DOMContentLoaded', async () => {
               <th>SKU</th><th>Producto</th><th>Clasificación</th><th>Características</th><th>Stock</th><th>Precio</th><th></th>
             </tr>
           </thead>
-          <tbody>${rows || '<tr><td colspan="7">No hay productos que coincidan con los filtros.</td></tr>'}</tbody>
+          <tbody id="stock-tbody">${renderInventarioRows()}</tbody>
         </table>
       </div>
     </section>`;
@@ -313,15 +317,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     bindEvents();
   }
 
-  function renderInventarioOnly() {
-    const panel = container.querySelector('.panel:last-of-type');
-    if (panel) {
-      const temp = document.createElement('div');
-      temp.innerHTML = renderInventario();
-      panel.replaceWith(temp.firstElementChild);
-      bindFilterEvents();
-      bindTableEvents();
+  function renderInventarioTableBody() {
+    const tbody = document.getElementById('stock-tbody');
+    if (!tbody) {
+      render();
+      return;
     }
+    tbody.innerHTML = renderInventarioRows();
+    bindTableEvents();
   }
 
   function renderMetricasOnly() {
@@ -336,15 +339,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   function bindFilterEvents() {
     document.getElementById('filtro-busqueda')?.addEventListener('input', (e) => {
       state.filtros.busqueda = e.target.value;
-      renderInventarioOnly();
+      renderInventarioTableBody();
     });
     document.getElementById('filtro-categoria')?.addEventListener('change', (e) => {
       state.filtros.categoria = e.target.value;
-      renderInventarioOnly();
+      renderInventarioTableBody();
     });
     document.getElementById('filtro-estado')?.addEventListener('change', (e) => {
       state.filtros.estadoStock = e.target.value;
-      renderInventarioOnly();
+      renderInventarioTableBody();
     });
   }
 

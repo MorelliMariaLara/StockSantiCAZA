@@ -305,36 +305,47 @@ document.addEventListener('DOMContentLoaded', async () => {
     </section>`;
   }
 
-  function render() {
-    const filtradas = ventasFiltradas();
-    let html = renderFilters();
-
+  function renderResultados(filtradas = ventasFiltradas()) {
     if (state.cargando && !state.ventas.length) {
-      html += '<p>Cargando ventas...</p>';
-    } else {
-      if (esAdmin) {
-        html += renderAdminCards(filtradas);
-        html += renderResumenVendedor(filtradas);
-      }
-      html += renderTabla(filtradas);
+      return '<p>Cargando ventas...</p>';
     }
 
-    container.innerHTML = html;
-    bindEvents();
+    let html = '';
+    if (esAdmin) {
+      html += renderAdminCards(filtradas);
+      html += renderResumenVendedor(filtradas);
+    }
+    html += renderTabla(filtradas);
+    return html;
   }
 
-  function bindEvents() {
+  function render() {
+    container.innerHTML = `${renderFilters()}<div id="ventas-resultados">${renderResultados()}</div>`;
+    bindFilterEvents();
+    bindResultEvents();
+  }
+
+  function renderResultadosOnly() {
+    const resultados = document.getElementById('ventas-resultados');
+    if (!resultados) {
+      render();
+      return;
+    }
+    resultados.innerHTML = renderResultados();
+    bindResultEvents();
+  }
+
+  function bindFilterEvents() {
     document.getElementById('btn-actualizar')?.addEventListener('click', cargarVentas);
 
-    const busquedaEl = document.getElementById('filtro-busqueda');
-    busquedaEl?.addEventListener('input', (e) => {
+    document.getElementById('filtro-busqueda')?.addEventListener('input', (e) => {
       state.busqueda = e.target.value;
-      render();
+      renderResultadosOnly();
     });
 
     document.getElementById('filtro-estado')?.addEventListener('change', (e) => {
       state.estado = e.target.value;
-      render();
+      renderResultadosOnly();
     });
 
     document.getElementById('filtro-desde')?.addEventListener('change', (e) => {
@@ -344,8 +355,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('filtro-hasta')?.addEventListener('change', (e) => {
       state.hasta = e.target.value;
     });
+  }
 
-    container.querySelectorAll('[data-toggle]').forEach(btn => {
+  function bindResultEvents() {
+    const resultados = document.getElementById('ventas-resultados') || container;
+
+    resultados.querySelectorAll('[data-toggle]').forEach(btn => {
       btn.addEventListener('click', () => {
         const id = Number(btn.dataset.toggle);
         if (state.expanded.has(id)) {
@@ -353,11 +368,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         } else {
           state.expanded.add(id);
         }
-        render();
+        renderResultadosOnly();
       });
     });
 
-    container.querySelectorAll('[data-delete]').forEach(btn => {
+    resultados.querySelectorAll('[data-delete]').forEach(btn => {
       btn.addEventListener('click', () => eliminarVenta(Number(btn.dataset.delete)));
     });
   }
