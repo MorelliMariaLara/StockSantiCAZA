@@ -65,6 +65,75 @@ public class ReportesService : IReportesService
             alertas);
     }
 
+    public async Task<VentasPorVendedorCategoriaDto> ObtenerVentasPorVendedorCategoriaAsync(
+        DateOnly desde,
+        DateOnly hasta,
+        CancellationToken cancellationToken = default)
+    {
+        await using var db = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        var desdeDate = desde.ToDateTime(TimeOnly.MinValue);
+        var hastaDate = hasta.ToDateTime(TimeOnly.MaxValue);
+
+        var filas = await db.DetallesVenta.AsNoTracking()
+            .Where(d => d.Venta.Fecha >= desdeDate
+                        && d.Venta.Fecha <= hastaDate
+                        && d.Venta.Estado != EstadoVenta.Anulada)
+            .GroupBy(d => new
+            {
+                d.Venta.VendedorId,
+                Vendedor = d.Venta.Vendedor ?? string.Empty,
+                Categoria = d.Producto.Categoria ?? string.Empty
+            })
+            .Select(g => new
+            {
+                g.Key.VendedorId,
+                g.Key.Vendedor,
+                g.Key.Categoria,
+                Cantidad = g.Sum(x => x.Cantidad),
+                Monto = g.Sum(x => x.Total)
+            })
+            .ToListAsync(cancellationToken);
+
+        var vendedores = filas
+            .GroupBy(x => new { x.VendedorId, x.Vendedor })
+            .Select(g =>
+            {
+                var categorias = g
+                    .Select(x => new CategoriaTotalDto(FormatearCategoria(x.Categoria), x.Cantidad, x.Monto))
+                    .OrderByDescending(x => x.Monto)
+                    .ThenBy(x => x.Categoria, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                return new VendedorCategoriaResumenDto(
+                    g.Key.VendedorId,
+                    FormatearNombreVendedor(g.Key.Vendedor),
+                    categorias,
+                    categorias.Sum(c => c.Cantidad),
+                    categorias.Sum(c => c.Monto));
+            })
+            .OrderByDescending(x => x.MontoTotal)
+            .ThenBy(x => x.Vendedor, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var totalesPorCategoria = filas
+            .GroupBy(x => x.Categoria)
+            .Select(g => new CategoriaTotalDto(
+                FormatearCategoria(g.Key),
+                g.Sum(x => x.Cantidad),
+                g.Sum(x => x.Monto)))
+            .OrderByDescending(x => x.Monto)
+            .ThenBy(x => x.Categoria, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        return new VentasPorVendedorCategoriaDto(
+            desde.ToString("yyyy-MM-dd"),
+            hasta.ToString("yyyy-MM-dd"),
+            vendedores,
+            totalesPorCategoria,
+            vendedores.Sum(x => x.CantidadUnidades),
+            vendedores.Sum(x => x.MontoTotal));
+    }
+
     public async Task<byte[]> ExportarVentasExcelAsync(
         DateOnly desde,
         DateOnly hasta,
@@ -221,7 +290,13 @@ public class ReportesService : IReportesService
     }
 
     private static string FormatearVendedor(Venta venta) =>
-        string.IsNullOrWhiteSpace(venta.Vendedor) ? "Sin vendedor asignado" : venta.Vendedor;
+        FormatearNombreVendedor(venta.Vendedor);
+
+    private static string FormatearNombreVendedor(string? vendedor) =>
+        string.IsNullOrWhiteSpace(vendedor) ? "Sin vendedor asignado" : vendedor.Trim();
+
+    private static string FormatearCategoria(string? categoria) =>
+        string.IsNullOrWhiteSpace(categoria) ? "Sin categoría" : categoria.Trim();
 
     private static void FormatearTabla(IXLWorksheet ws, int columnas)
     {

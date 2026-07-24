@@ -135,6 +135,7 @@ var htmlRoutes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase
     ["/ventas/nueva"] = "ventas/nueva.html",
     ["/proveedores"] = "proveedores.html",
     ["/reportes"] = "reportes.html",
+    ["/reportes/vendedores"] = "reportes/vendedores.html",
     ["/usuarios"] = "usuarios.html",
     ["/error"] = "error.html"
 };
@@ -151,7 +152,7 @@ static ModuloSistema? ModuloPorRuta(string route) => route switch
     "/stock" => ModuloSistema.Stock,
     "/ventas" or "/ventas/nueva" => ModuloSistema.Ventas,
     "/proveedores" => ModuloSistema.Proveedores,
-    "/reportes" => ModuloSistema.Reportes,
+    "/reportes" or "/reportes/vendedores" => ModuloSistema.Reportes,
     "/usuarios" => ModuloSistema.Usuarios,
     _ => null
 };

@@ -386,6 +386,32 @@ public class ReportesController : ApiControllerBase
             return HandleError(ex);
         }
     }
+
+    [HttpGet("ventas-por-vendedor-categoria")]
+    public async Task<ActionResult<VentasPorVendedorCategoriaDto>> VentasPorVendedorCategoria(
+        [FromQuery] string desde,
+        [FromQuery] string hasta,
+        CancellationToken ct)
+    {
+        try
+        {
+            RequireAdmin();
+            var desdeFecha = FechaQueryHelper.ParseRequerida(desde, "desde");
+            var hastaFecha = FechaQueryHelper.ParseRequerida(hasta, "hasta");
+
+            if (desdeFecha > hastaFecha)
+            {
+                return BadRequest(new { error = "La fecha desde no puede ser posterior a la fecha hasta." });
+            }
+
+            var resumen = await reportesService.ObtenerVentasPorVendedorCategoriaAsync(desdeFecha, hastaFecha, ct);
+            return Ok(resumen);
+        }
+        catch (Exception ex)
+        {
+            return HandleError(ex);
+        }
+    }
 }
 
 [ApiController]

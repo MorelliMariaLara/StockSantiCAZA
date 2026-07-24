@@ -9,5 +9,10 @@ public interface IReportesService
         DateOnly hasta,
         CancellationToken cancellationToken = default);
 
+    Task<VentasPorVendedorCategoriaDto> ObtenerVentasPorVendedorCategoriaAsync(
+        DateOnly desde,
+        DateOnly hasta,
+        CancellationToken cancellationToken = default);
+
     Task<byte[]> ExportarVentasExcelAsync(DateOnly desde, DateOnly hasta, CancellationToken cancellationToken = default);
 }

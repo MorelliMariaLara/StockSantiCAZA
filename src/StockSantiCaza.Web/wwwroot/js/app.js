@@ -24,6 +24,7 @@ const app = {
       '/ventas/nueva': 'ventas',
       '/proveedores': 'proveedores',
       '/reportes': 'reportes',
+      '/reportes/vendedores': 'reportes',
       '/usuarios': 'usuarios'
     };
     const modulo = map[normalized];
@@ -142,6 +143,7 @@ const app = {
       { href: '/stock', label: 'Stock', path: '/stock' },
       { href: '/proveedores', label: 'Proveedores', path: '/proveedores' },
       { href: '/reportes', label: 'Reportes', path: '/reportes' },
+      { href: '/reportes/vendedores', label: 'Por vendedor', path: '/reportes/vendedores' },
       { href: '/usuarios', label: 'Usuarios', path: '/usuarios' }
     ];
 
