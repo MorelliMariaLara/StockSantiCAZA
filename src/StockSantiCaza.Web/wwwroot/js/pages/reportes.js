@@ -96,14 +96,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     const rows = alertas.map((a) => `<tr class="danger-row">
-      <td>${escapeHtml(app.display(a.sku))}</td>
-      <td>${escapeHtml(app.display(a.nombre))}</td>
-      <td>${a.stockActual}</td>
-      <td>${a.stockMinimo}</td>
+      <td data-label="SKU">${escapeHtml(app.display(a.sku))}</td>
+      <td data-label="Producto">${escapeHtml(app.display(a.nombre))}</td>
+      <td data-label="Stock">${a.stockActual}</td>
+      <td data-label="Mínimo">${a.stockMinimo}</td>
     </tr>`).join('');
 
     return `<div class="table-wrap">
-      <table>
+      <table class="table-cards">
         <thead>
           <tr>
             <th>SKU</th>

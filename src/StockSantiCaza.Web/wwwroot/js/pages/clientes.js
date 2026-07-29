@@ -155,20 +155,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   function renderTableRows() {
     const clientes = filteredClientes();
     if (!clientes.length) {
-      return '<tr><td colspan="5">No hay clientes para mostrar.</td></tr>';
+      return '<tr><td colspan="5" data-label="">No hay clientes para mostrar.</td></tr>';
     }
     return clientes.map((c) => `<tr data-id="${c.id}">
-      <td>
+      <td data-label="Cliente">
         <strong>${app.display(c.nombreRazonSocial)}</strong>
         <small>${app.display(c.dniCuit)}</small>
       </td>
-      <td>${formatContacto(c)}</td>
-      <td>${formatClu(c.credencialClu)}</td>
-      <td>
+      <td data-label="Contacto">${formatContacto(c)}</td>
+      <td data-label="CLU">${formatClu(c.credencialClu)}</td>
+      <td data-label="Vinculaciones">
         <span>${c.cantidadVentas} venta(s)</span>
         <small>${c.cantidadArmas} arma(s) registradas</small>
       </td>
-      <td>
+      <td class="row-actions" data-label="">
         <div class="row-actions">
           <button type="button" class="button btn-edit" data-action="edit">Editar</button>
           <button type="button" class="button btn-delete" data-action="delete">Borrar</button>
@@ -192,7 +192,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         </label>
       </div>
       <div class="table-wrap">
-        <table>
+        <table class="table-cards">
           <thead>
             <tr>
               <th>Cliente</th>

@@ -185,19 +185,30 @@ const app = {
 
       const toggle = document.getElementById('menu-toggle');
       const backdrop = document.getElementById('nav-backdrop');
-      const closeMenu = () => {
-        shell.classList.remove('nav-open');
-        toggle?.setAttribute('aria-expanded', 'false');
-        toggle.textContent = '☰';
+      const setMenuOpen = (open) => {
+        shell.classList.toggle('nav-open', open);
+        document.body.classList.toggle('nav-open', open);
+        toggle?.setAttribute('aria-expanded', open ? 'true' : 'false');
+        if (toggle) toggle.textContent = open ? '✕' : '☰';
+        toggle?.setAttribute('aria-label', open ? 'Cerrar menú' : 'Abrir menú');
       };
+      const closeMenu = () => setMenuOpen(false);
       toggle?.addEventListener('click', () => {
-        const open = shell.classList.toggle('nav-open');
-        toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-        toggle.textContent = open ? '✕' : '☰';
+        setMenuOpen(!shell.classList.contains('nav-open'));
       });
       backdrop?.addEventListener('click', closeMenu);
       shell.querySelectorAll('.nav-menu a').forEach(link => {
         link.addEventListener('click', closeMenu);
+      });
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && shell.classList.contains('nav-open')) {
+          closeMenu();
+        }
+      });
+      window.addEventListener('resize', () => {
+        if (window.matchMedia('(min-width: 981px)').matches) {
+          closeMenu();
+        }
       });
 
       if (title) document.title = `${title} - StockSantiCAZA`;

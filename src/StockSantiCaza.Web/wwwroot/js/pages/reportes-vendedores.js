@@ -88,9 +88,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function renderCategoriaRows(categorias) {
     return (categorias || []).map((c) => `<tr>
-      <td>${escapeHtml(c.categoria)}</td>
-      <td>${c.cantidad}</td>
-      <td>${app.formatUsd(c.monto)}</td>
+      <td data-label="Categoría">${escapeHtml(c.categoria)}</td>
+      <td data-label="Cantidad">${c.cantidad}</td>
+      <td data-label="Monto USD">${app.formatUsd(c.monto)}</td>
     </tr>`).join('');
   }
 
@@ -113,7 +113,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           </div>
         </div>
         <div class="table-wrap">
-          <table>
+          <table class="table-cards">
             <thead>
               <tr>
                 <th>Categoría</th>
@@ -158,7 +158,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         </div>
       </div>
       <div class="table-wrap">
-        <table>
+        <table class="table-cards">
           <thead>
             <tr>
               <th>Categoría</th>

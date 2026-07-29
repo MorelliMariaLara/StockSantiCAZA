@@ -92,14 +92,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function renderTableRows() {
     if (!state.usuarios.length) {
-      return '<tr><td colspan="4">No hay usuarios registrados.</td></tr>';
+      return '<tr><td colspan="4" data-label="">No hay usuarios registrados.</td></tr>';
     }
 
     return state.usuarios.map((u) => `<tr data-id="${u.id}">
-      <td>${escapeHtml(app.display(u.nombre))}</td>
-      <td>${escapeHtml(app.display(u.login))}</td>
-      <td>${escapeHtml(app.display(u.rol))}</td>
-      <td>
+      <td data-label="Nombre">${escapeHtml(app.display(u.nombre))}</td>
+      <td data-label="Login">${escapeHtml(app.display(u.login))}</td>
+      <td data-label="Rol">${escapeHtml(app.display(u.rol))}</td>
+      <td class="row-actions" data-label="">
         <div class="row-actions">
           <button type="button" class="button btn-edit" data-action="edit">Editar</button>
           <button type="button" class="button btn-delete" data-action="delete">Borrar</button>
@@ -117,7 +117,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         </div>
       </div>
       <div class="table-wrap">
-        <table>
+        <table class="table-cards">
           <thead>
             <tr>
               <th>Nombre</th>

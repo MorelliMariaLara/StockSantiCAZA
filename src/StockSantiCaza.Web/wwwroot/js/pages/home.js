@@ -14,11 +14,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     </section>`;
 
     if (resumen.alertasStock?.length) {
-      html += `<section class="panel"><h2>Alertas de stock mínimo</h2><div class="table-wrap"><table>
+      html += `<section class="panel"><h2>Alertas de stock mínimo</h2><div class="table-wrap"><table class="table-cards">
         <thead><tr><th>SKU</th><th>Producto</th><th>Stock</th><th>Mínimo</th></tr></thead>
         <tbody>${resumen.alertasStock.map(a => `<tr class="danger-row">
-          <td>${app.display(a.sku)}</td><td>${app.display(a.nombre)}</td>
-          <td>${a.stockActual}</td><td>${a.stockMinimo}</td></tr>`).join('')}
+          <td data-label="SKU">${app.display(a.sku)}</td><td data-label="Producto">${app.display(a.nombre)}</td>
+          <td data-label="Stock">${a.stockActual}</td><td data-label="Mínimo">${a.stockMinimo}</td></tr>`).join('')}
         </tbody></table></div></section>`;
     }
 

@@ -169,9 +169,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     const rows = resumen.map(r => `<tr>
-      <td><strong>${r.vendedor}</strong></td>
-      <td>${r.cantidad}</td>
-      <td>${app.formatUsd(r.total)}</td>
+      <td data-label="Vendedor"><strong>${r.vendedor}</strong></td>
+      <td data-label="Cantidad">${r.cantidad}</td>
+      <td data-label="Total USD">${app.formatUsd(r.total)}</td>
     </tr>`).join('');
     const totalCant = resumen.reduce((s, r) => s + r.cantidad, 0);
     const totalUsd = resumen.reduce((s, r) => s + r.total, 0);
@@ -184,7 +184,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         </div>
       </div>
       <div class="table-wrap">
-        <table>
+        <table class="table-cards">
           <thead>
             <tr><th>Vendedor</th><th>Cantidad de ventas</th><th>Total vendido USD</th></tr>
           </thead>
@@ -216,7 +216,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const rows = filtradas.map(venta => {
       const expanded = state.expanded.has(venta.id);
-      const totalCell = puedeVerMontos ? `<td>${app.formatUsd(venta.total)}</td>` : '';
+      const totalCell = puedeVerMontos ? `<td data-label="Total">${app.formatUsd(venta.total)}</td>` : '';
       const deleteBtn = puedeEliminar(venta)
         ? `<button type="button" class="button btn-delete" data-delete="${venta.id}">Borrar</button>`
         : '';
@@ -225,13 +225,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       </button>`;
 
       return `<tr>
-        <td>${app.formatDateTime(venta.fecha)}</td>
-        <td><strong>${numeroVenta(venta)}</strong></td>
-        <td>${app.display(venta.cliente?.nombreRazonSocial)}<small>${app.display(venta.cliente?.dniCuit)}</small></td>
-        <td>${formatearVendedor(venta)}</td>
-        <td><span class="${estadoBadgeClass(venta.estado)}">${venta.estado}</span></td>
+        <td data-label="Fecha">${app.formatDateTime(venta.fecha)}</td>
+        <td data-label="Nº venta"><strong>${numeroVenta(venta)}</strong></td>
+        <td data-label="Cliente">${app.display(venta.cliente?.nombreRazonSocial)}<small>${app.display(venta.cliente?.dniCuit)}</small></td>
+        <td data-label="Vendedor">${formatearVendedor(venta)}</td>
+        <td data-label="Estado"><span class="${estadoBadgeClass(venta.estado)}">${venta.estado}</span></td>
         ${totalCell}
-        <td class="row-actions">${toggleBtn}${deleteBtn}</td>
+        <td class="row-actions" data-label="">${toggleBtn}${deleteBtn}</td>
       </tr>
       ${renderDetalleRow(venta, colSpan, expanded)}`;
     }).join('');
@@ -241,7 +241,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         <div><h2>Registro de ventas</h2><p>Cliente, vendedor y detalle por serie o lote.</p></div>
       </div>
       <div class="table-wrap">
-        <table>
+        <table class="table-cards">
           <thead>
             <tr>
               <th>Fecha</th>

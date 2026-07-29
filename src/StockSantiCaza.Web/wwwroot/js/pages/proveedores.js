@@ -220,17 +220,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     let saldoAcumulado = 0;
     const movimientos = movimientosOrdenados(proveedor);
     if (!movimientos.length) {
-      return '<tr><td colspan="5">Sin movimientos registrados.</td></tr>';
+      return '<tr><td colspan="5" data-label="">Sin movimientos registrados.</td></tr>';
     }
     return movimientos.map((m) => {
       const esPago = m.tipo === 'Pago';
       saldoAcumulado += esPago ? -Number(m.monto) : Number(m.monto);
       return `<tr>
-        <td>${app.formatDate(m.fecha)}</td>
-        <td><span class="badge ${esPago ? 'ok' : 'warning'}">${esPago ? 'Pago' : 'Deuda'}</span></td>
-        <td>${app.formatUsd(m.monto)}</td>
-        <td>${app.display(m.observaciones)}</td>
-        <td>${app.formatUsd(saldoAcumulado)}</td>
+        <td data-label="Fecha">${app.formatDate(m.fecha)}</td>
+        <td data-label="Tipo"><span class="badge ${esPago ? 'ok' : 'warning'}">${esPago ? 'Pago' : 'Deuda'}</span></td>
+        <td data-label="Monto">${app.formatUsd(m.monto)}</td>
+        <td data-label="Observaciones">${app.display(m.observaciones)}</td>
+        <td data-label="Saldo">${app.formatUsd(saldoAcumulado)}</td>
       </tr>`;
     }).join('');
   }
@@ -277,7 +277,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         </section>
       </div>
       <div class="table-wrap">
-        <table>
+        <table class="table-cards">
           <thead>
             <tr>
               <th>Fecha</th>
@@ -296,7 +296,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   function renderTableRows() {
     const proveedores = filteredProveedores();
     if (!proveedores.length) {
-      return '<tr><td colspan="4">No hay proveedores para mostrar.</td></tr>';
+      return '<tr><td colspan="4" data-label="">No hay proveedores para mostrar.</td></tr>';
     }
     return proveedores.map((p) => {
       const saldo = saldoProveedor(p);
@@ -309,14 +309,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         ? `<small>${app.display(p.observaciones)}</small>`
         : '';
       return `<tr data-id="${p.id}" class="${selected ? 'panel-editing' : ''}">
-        <td>
+        <td data-label="Proveedor">
           <strong>${app.display(p.nombreRazonSocial)}</strong>
           <small>${app.display(p.telefono)}</small>
           ${obs}
         </td>
-        <td>${contacto}</td>
-        <td><strong class="${saldoClass}">${app.formatUsd(saldo)}</strong></td>
-        <td>
+        <td data-label="Contacto">${contacto}</td>
+        <td data-label="Saldo pendiente"><strong class="${saldoClass}">${app.formatUsd(saldo)}</strong></td>
+        <td class="row-actions" data-label="">
           <div class="row-actions">
             <button type="button" class="button btn-edit" data-action="edit">Editar</button>
             <button type="button" class="button ghost" data-action="cuenta">Cuenta</button>
@@ -340,7 +340,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         </label>
       </div>
       <div class="table-wrap">
-        <table>
+        <table class="table-cards">
           <thead>
             <tr>
               <th>Proveedor</th>

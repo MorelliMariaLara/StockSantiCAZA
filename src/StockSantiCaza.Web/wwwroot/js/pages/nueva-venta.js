@@ -177,14 +177,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   function renderDetalleTable() {
     if (!state.items.length) return '';
     const rows = state.items.map((item, index) => `<tr>
-      <td>${escapeHtml(item.producto.nombre)}</td>
-      <td>${item.cantidad}</td>
-      <td>${app.formatUsd(itemSubtotal(item))}</td>
-      <td><button type="button" class="link-button" data-action="quitar-item" data-index="${index}">Quitar</button></td>
+      <td data-label="Producto">${escapeHtml(item.producto.nombre)}</td>
+      <td data-label="Cant.">${item.cantidad}</td>
+      <td data-label="Total USD">${app.formatUsd(itemSubtotal(item))}</td>
+      <td class="row-actions" data-label=""><button type="button" class="link-button" data-action="quitar-item" data-index="${index}">Quitar</button></td>
     </tr>`).join('');
 
     return `<div class="table-wrap venta-detalle-mini">
-      <table>
+      <table class="table-cards">
         <thead>
           <tr>
             <th>Producto</th>

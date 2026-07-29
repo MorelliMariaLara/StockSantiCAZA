@@ -166,13 +166,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     const nc = state.nuevaCategoria;
     const rows = state.categorias.length === 0
       ? '<p>No hay clasificaciones cargadas.</p>'
-      : `<div class="table-wrap"><table>
+      : `<div class="table-wrap"><table class="table-cards">
           <thead><tr><th>Nombre</th><th>Serie</th><th>Lote</th><th></th></tr></thead>
           <tbody>${state.categorias.map(c => `<tr>
-            <td>${escapeHtml(c.nombre)}</td>
-            <td>${c.requiereSerie ? 'Sí' : '-'}</td>
-            <td>${c.requiereLote ? 'Sí' : '-'}</td>
-            <td><button type="button" class="button btn-delete" data-action="borrar-categoria" data-id="${c.id}">Borrar</button></td>
+            <td data-label="Nombre">${escapeHtml(c.nombre)}</td>
+            <td data-label="Serie">${c.requiereSerie ? 'Sí' : '-'}</td>
+            <td data-label="Lote">${c.requiereLote ? 'Sí' : '-'}</td>
+            <td class="row-actions" data-label=""><button type="button" class="button btn-delete" data-action="borrar-categoria" data-id="${c.id}">Borrar</button></td>
           </tr>`).join('')}
           </tbody></table></div>`;
 
@@ -251,17 +251,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         : '';
 
       return `<tr class="${obtenerClaseFila(p)}">
-        <td>${escapeHtml(app.display(p.sku))}</td>
-        <td><strong>${escapeHtml(app.display(p.nombre))}</strong>${p.descripcion ? `<small>${escapeHtml(p.descripcion)}</small>` : ''}</td>
-        <td>${escapeHtml(app.display(p.categoria))}</td>
-        <td>${escapeHtml(formatearCaracteristicas(p))}</td>
-        <td><strong>${p.stockActual}</strong><small>Mínimo ${p.stockMinimo}</small></td>
-        <td>${app.formatUsd(p.precioUnitario)}</td>
-        <td>${acciones}</td>
+        <td data-label="SKU">${escapeHtml(app.display(p.sku))}</td>
+        <td data-label="Producto"><strong>${escapeHtml(app.display(p.nombre))}</strong>${p.descripcion ? `<small>${escapeHtml(p.descripcion)}</small>` : ''}</td>
+        <td data-label="Clasificación">${escapeHtml(app.display(p.categoria))}</td>
+        <td data-label="Características">${escapeHtml(formatearCaracteristicas(p))}</td>
+        <td data-label="Stock"><strong>${p.stockActual}</strong><small>Mínimo ${p.stockMinimo}</small></td>
+        <td data-label="Precio">${app.formatUsd(p.precioUnitario)}</td>
+        <td class="row-actions" data-label="">${acciones}</td>
       </tr>`;
     }).join('');
 
-    return rows || '<tr><td colspan="7">No hay productos que coincidan con los filtros.</td></tr>';
+    return rows || '<tr><td colspan="7" data-label="">No hay productos que coincidan con los filtros.</td></tr>';
   }
 
   function renderInventario() {
@@ -293,7 +293,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         </label>
       </div>
       <div class="table-wrap">
-        <table>
+        <table class="table-cards">
           <thead>
             <tr>
               <th>SKU</th><th>Producto</th><th>Clasificación</th><th>Características</th><th>Stock</th><th>Precio</th><th></th>
