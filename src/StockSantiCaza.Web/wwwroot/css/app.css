@@ -1585,6 +1585,19 @@ td small {
     .venta-guardar .button-xl {
         max-width: none;
     }
+
+    .pwa-install-card {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .pwa-install-actions {
+        flex-direction: column;
+    }
+
+    .pwa-install-actions .button {
+        width: 100%;
+    }
 }
 
 @media print {
