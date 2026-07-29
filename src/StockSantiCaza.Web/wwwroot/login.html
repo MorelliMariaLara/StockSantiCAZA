@@ -4,11 +4,25 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Iniciar sesión - StockSantiCAZA</title>
-  <link rel="stylesheet" href="/css/app.css?v=15" />
+  <link rel="icon" href="/img/favicon-32.png" type="image/png" />
+  <link rel="apple-touch-icon" href="/img/apple-touch-icon.png" />
+  <meta name="theme-color" content="#2a3f20" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="SantiCAZA" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="stylesheet" href="/css/app.css?v=17" />
 </head>
 <body>
   <section class="login-shell">
     <div class="login-card panel">
+      <div class="login-brand">
+        <picture>
+          <source srcset="/img/logo-santicaza.webp" type="image/webp" />
+          <img class="login-logo" src="/img/logo-santicaza.png" alt="SantiCAZA" width="320" height="277" decoding="async" />
+        </picture>
+      </div>
       <h1>StockSantiCAZA</h1>
       <p>Ingrese con su usuario para operar el sistema.</p>
       <div id="login-alerts"></div>
@@ -26,7 +40,8 @@
     </div>
   </section>
   <script src="/js/api.js?v=12"></script>
-  <script src="/js/app.js?v=15"></script>
+  <script src="/js/app.js?v=16"></script>
   <script src="/js/pages/login.js?v=15"></script>
+  <script src="/js/pwa.js?v=1"></script>
 </body>
 </html>

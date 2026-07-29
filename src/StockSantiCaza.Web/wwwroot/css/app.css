@@ -70,14 +70,24 @@ body.nav-open {
 .brand {
     display: flex;
     flex-direction: column;
-    gap: .25rem;
+    align-items: center;
+    gap: .45rem;
     margin-bottom: 2rem;
     padding-bottom: 1rem;
     border-bottom: 1px solid rgba(196, 163, 90, 0.35);
+    text-align: center;
+}
+
+.brand-logo {
+    width: min(100%, 118px);
+    height: auto;
+    display: block;
+    margin: 0 auto .15rem;
+    filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.35));
 }
 
 .brand strong {
-    font-size: 1.15rem;
+    font-size: 1.05rem;
     letter-spacing: 0.04em;
     color: var(--accent);
 }
@@ -903,10 +913,31 @@ td small {
     border: 2px solid var(--accent);
 }
 
+.login-brand {
+    display: flex;
+    justify-content: center;
+    margin: -.25rem 0 1rem;
+}
+
+.login-logo {
+    width: min(100%, 220px);
+    height: auto;
+    display: block;
+    filter: drop-shadow(0 4px 14px rgba(26, 35, 24, 0.28));
+}
+
 .login-card h1 {
-    margin-top: 0;
+    margin: 0 0 .65rem;
     color: var(--primary-strong);
     text-shadow: none;
+    text-align: center;
+    font-size: 1.35rem;
+}
+
+.login-card > p {
+    text-align: center;
+    color: var(--muted);
+    margin-top: 0;
 }
 
 .login-card .button.primary {
@@ -917,6 +948,66 @@ td small {
 .login-card label {
     display: block;
     margin-bottom: 1rem;
+}
+
+.pwa-install {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 2200;
+    padding: .75rem max(.75rem, env(safe-area-inset-right)) max(.75rem, env(safe-area-inset-bottom)) max(.75rem, env(safe-area-inset-left));
+    pointer-events: none;
+}
+
+.pwa-install-card {
+    pointer-events: auto;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: .85rem;
+    max-width: 560px;
+    margin: 0 auto;
+    padding: 1rem 1.1rem;
+    background: linear-gradient(180deg, #faf7ef 0%, var(--surface) 100%);
+    border: 2px solid var(--accent);
+    border-radius: .9rem;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.28);
+}
+
+.pwa-install-copy {
+    flex: 1 1 180px;
+    min-width: 0;
+}
+
+.pwa-install-copy strong {
+    display: block;
+    color: var(--primary-strong);
+    margin-bottom: .25rem;
+}
+
+.pwa-install-copy p {
+    margin: 0;
+    color: var(--muted);
+    font-size: .92rem;
+    line-height: 1.35;
+}
+
+.pwa-install-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+}
+
+.pwa-install-actions .button {
+    min-height: 42px;
+}
+
+@media (display-mode: standalone), (display-mode: fullscreen) {
+    .pwa-install {
+        display: none !important;
+    }
 }
 
 .user-chip {
@@ -1225,6 +1316,10 @@ td small {
         align-items: flex-start;
         padding-top: max(2rem, env(safe-area-inset-top));
         padding-bottom: max(1rem, env(safe-area-inset-bottom));
+    }
+
+    .login-logo {
+        width: min(100%, 180px);
     }
 
     /* Listados: filas como tarjetas en lugar de tabla horizontal */

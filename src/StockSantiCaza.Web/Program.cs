@@ -121,7 +121,14 @@ if (app.Environment.IsDevelopment())
     app.UseHttpsRedirection();
 }
 
-app.UseStaticFiles();
+var staticFileOptions = new StaticFileOptions
+{
+    ContentTypeProvider = new Microsoft.AspNetCore.StaticFiles.FileExtensionContentTypeProvider()
+};
+((Microsoft.AspNetCore.StaticFiles.FileExtensionContentTypeProvider)staticFileOptions.ContentTypeProvider)
+    .Mappings[".webmanifest"] = "application/manifest+json";
+
+app.UseStaticFiles(staticFileOptions);
 app.UseRouting();
 app.MapControllers();
 

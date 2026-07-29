@@ -156,6 +156,10 @@ const app = {
 
     return `
       <div class="brand">
+        <picture>
+          <source srcset="/img/logo-santicaza-mark.webp" type="image/webp" />
+          <img class="brand-logo" src="/img/logo-santicaza-mark.png" alt="SantiCAZA" width="128" height="110" decoding="async" />
+        </picture>
         <strong>StockSantiCAZA</strong>
         <small>Armería · Control trazable</small>
       </div>
