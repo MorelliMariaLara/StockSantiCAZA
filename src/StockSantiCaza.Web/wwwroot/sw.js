@@ -1,15 +1,17 @@
 /* StockSantiCAZA service worker — cache de assets estáticos para uso tipo app */
-const CACHE_VERSION = 'santicaza-v2';
+const CACHE_VERSION = 'santicaza-v3';
 const PRECACHE = [
   '/manifest.webmanifest',
-  '/css/app.css?v=17',
+  '/css/app.css?v=18',
   '/js/app.js?v=16',
   '/js/api.js?v=12',
   '/js/pwa.js?v=1',
   '/js/dialogs.js?v=10',
   '/js/download.js?v=10',
+  '/img/logo-login.png',
   '/img/logo-santicaza.png',
   '/img/logo-santicaza.webp',
+  '/img/logo-login.webp',
   '/img/logo-santicaza-mark.png',
   '/img/logo-santicaza-mark.webp',
   '/img/icon-192.png',
