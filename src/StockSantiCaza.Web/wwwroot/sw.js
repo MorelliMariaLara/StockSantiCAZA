@@ -1,8 +1,8 @@
 /* StockSantiCAZA service worker — cache de assets estáticos para uso tipo app */
-const CACHE_VERSION = 'santicaza-v3';
+const CACHE_VERSION = 'santicaza-v4';
 const PRECACHE = [
   '/manifest.webmanifest',
-  '/css/app.css?v=18',
+  '/css/app.css?v=19',
   '/js/app.js?v=16',
   '/js/api.js?v=12',
   '/js/pwa.js?v=1',

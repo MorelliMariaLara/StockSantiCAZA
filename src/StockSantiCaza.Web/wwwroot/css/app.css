@@ -241,6 +241,45 @@ h2 {
     align-items: end;
 }
 
+.stock-recuento {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: .35rem .7rem;
+    margin: .85rem 0 1rem;
+    padding: .85rem 1.1rem;
+    background: var(--ok-bg);
+    border: 2px solid #a8c49c;
+    border-radius: .75rem;
+    color: #2d5a24;
+    font-weight: 600;
+}
+
+.stock-recuento-label {
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-size: .9rem;
+}
+
+.stock-recuento-total {
+    font-size: 1.65rem;
+    color: var(--primary-strong);
+    line-height: 1;
+}
+
+.table-cards tfoot th,
+.table-cards tfoot td {
+    background: var(--surface-alt);
+    font-weight: 700;
+    text-transform: none;
+    letter-spacing: normal;
+}
+
+.table-cards tfoot th:empty,
+.table-cards tfoot td:empty {
+    display: none;
+}
+
 .client-form {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     align-items: end;

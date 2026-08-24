@@ -99,6 +99,52 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
   }
 
+  function unidadesDe(producto) {
+    return Number(producto?.stockActual) || 0;
+  }
+
+  function unidadesDeCategoria(nombre) {
+    const key = (nombre || '').toLowerCase();
+    return state.productos.reduce((sum, p) =>
+      (p.categoria || '').toLowerCase() === key ? sum + unidadesDe(p) : sum, 0);
+  }
+
+  function recuentoFiltrado() {
+    const productos = productosFiltrados();
+    return {
+      modelos: productos.length,
+      unidades: productos.reduce((sum, p) => sum + unidadesDe(p), 0)
+    };
+  }
+
+  function plural(n, uno, varios) {
+    return n === 1 ? uno : varios;
+  }
+
+  function renderRecuentoFiltrado() {
+    const categoria = state.filtros.categoria;
+    if (!categoria) return '';
+
+    const { modelos, unidades } = recuentoFiltrado();
+    return `<div class="stock-recuento" id="stock-recuento">
+      <span class="stock-recuento-label">Total ${escapeHtml(categoria)}</span>
+      <strong class="stock-recuento-total">${unidades}</strong>
+      <span>${plural(unidades, 'unidad', 'unidades')} en ${modelos} ${plural(modelos, 'modelo', 'modelos')}</span>
+    </div>`;
+  }
+
+  function renderInventarioTfoot() {
+    const { unidades } = recuentoFiltrado();
+    const etiqueta = state.filtros.categoria
+      ? `Total ${escapeHtml(state.filtros.categoria)}`
+      : 'Total';
+    return `<tr>
+      <th colspan="4">${etiqueta}</th>
+      <th>${unidades}</th>
+      <th colspan="2"></th>
+    </tr>`;
+  }
+
   function categoriaOptions(selected = '') {
     return `<option value="">-</option>${state.categorias.map(c =>
       `<option value="${escapeHtml(c.nombre)}"${c.nombre === selected ? ' selected' : ''}>${escapeHtml(c.nombre)}</option>`
@@ -266,7 +312,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function renderInventario() {
     const filtroCategorias = `<option value="">Todas</option>${state.categorias.map(c =>
-      `<option value="${escapeHtml(c.nombre)}"${state.filtros.categoria === c.nombre ? ' selected' : ''}>${escapeHtml(c.nombre)}</option>`
+      `<option value="${escapeHtml(c.nombre)}"${state.filtros.categoria === c.nombre ? ' selected' : ''}>${escapeHtml(c.nombre)} (${unidadesDeCategoria(c.nombre)})</option>`
     ).join('')}`;
 
     return `<section class="panel" id="stock-inventario">
@@ -292,6 +338,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           </select>
         </label>
       </div>
+      <div id="stock-recuento-wrap">${renderRecuentoFiltrado()}</div>
       <div class="table-wrap">
         <table class="table-cards">
           <thead>
@@ -300,6 +347,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             </tr>
           </thead>
           <tbody id="stock-tbody">${renderInventarioRows()}</tbody>
+          <tfoot id="stock-tfoot">${renderInventarioTfoot()}</tfoot>
         </table>
       </div>
     </section>`;
@@ -324,6 +372,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
     tbody.innerHTML = renderInventarioRows();
+    const tfoot = document.getElementById('stock-tfoot');
+    if (tfoot) tfoot.innerHTML = renderInventarioTfoot();
+    const recuento = document.getElementById('stock-recuento-wrap');
+    if (recuento) recuento.innerHTML = renderRecuentoFiltrado();
     bindTableEvents();
   }
 
