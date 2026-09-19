@@ -24,6 +24,33 @@ dotnet run
 
 Abrí: `https://localhost:53095/login`
 
+### Abrir como aplicación en Windows (icono / Inicio)
+
+Para que parezca un programa de escritorio (pero corre **solo en tu PC**):
+
+1. **Publicar en una carpeta fija** (PowerShell desde la raíz del repo):
+
+```powershell
+.\scripts\publicar-local.ps1
+```
+
+O manualmente:
+
+```powershell
+dotnet publish src\StockSantiCaza.Web -c Release -o C:\StockSantiCaza
+```
+
+2. **Lanzador:** doble clic en `C:\StockSantiCaza\Abrir StockSantiCaza.bat`  
+   (o copiá `scripts\iniciar-local.bat` y editá `APP_DIR` si usás otra carpeta).
+
+   El `.bat` arranca el servidor en segundo plano y abre el login en una ventana tipo app (Edge/Chrome sin barra del navegador).
+
+3. **Acceso directo en el Escritorio:** clic derecho en `Abrir StockSantiCAZA.bat` → *Crear acceso directo* → *Cambiar icono* si querés.
+
+4. **Que arranque con Windows:** `Win + R` → `shell:startup` → pegá ahí el acceso directo.
+
+> Todo queda en **localhost**. No usa Ferozo ni la base de DonWeb.
+
 ### Verificar
 
 - `GET /api/health` → `{ "status": "ok" }`
